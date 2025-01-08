@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Assistant Screensaver</title>
+    <style>
+        @font-face {
+            font-family: 'Protest Strike';
+            src: url('/fonts/ProtestStrike-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: linear-gradient(270deg, #0f2027, #203a43, #2c5364, #1b263b, #141e30, #243b55);
+            background-size: 1400% 1400%;
+            animation: gradientBG 60s ease infinite;
+            color: #ffffff;
+            font-family: 'Protest Strike', sans-serif;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 2vh 0;
+            overflow: hidden;
+        }
+
+        #time-date-section {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            width: 100%;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 2vh;
+        }
+
+        #time-display {
+            font-size: min(8vw, 5rem);
+            margin: 0;
+        }
+
+        #date-display {
+            font-size: min(4vw, 2.5rem);
+            margin: 0;
+        }
+
+        #info-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 2vh;
+        }
+
+        #weather-display {
+            flex: 1;
+            font-size: min(3vw, 2rem);
+            padding: 1vh 0;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #weather-display img {
+            width: min(100px, 15vw);
+            height: min(100px, 15vw);
+        }
+
+        #calendar-display {
+            flex: 1;
+            font-size: min(2.5vw, 1.8rem);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 1vh;
+        }
+
+        #calendar-header {
+            font-size: min(3vw, 2rem);
+            margin: 0;
+            padding: 1vh 0;
+        }
+
+        .event {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            position: absolute;
+            width: 100%;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .event.active {
+            opacity: 1;
+        }
+
+        /* Ticker styles */
+        #sensor-ticker {
+            height: min(3em, 10vh);
+            line-height: min(3em, 10vh);
+            background-color: rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+            white-space: nowrap;
+            font-size: min(2.5vw, 1.8rem);
+            color: white;
+        }
+
+        #sensor-ticker .ticker-content {
+            display: inline-block;
+            animation: none;
+            padding: 0 2rem;
+        }
+
+        @keyframes tickerScroll {
+            0% {
+                transform: translate3d(100%, 0, 0);
+            }
+            100% {
+                transform: translate3d(-100%, 0, 0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="time-date-section">
+            <div id="time-display"></div>
+            <div id="date-display"></div>
+        </div>
+        <div id="info-section">
+            <div id="weather-display">Loading weather...</div>
+            <div id="calendar-display">
+                <div id="calendar-header">Upcoming Events</div>
+                <div id="calendar-events">Loading calendar...</div>
+            </div>
+        </div>
+    </div>
+    <div id="sensor-ticker"><div class="ticker-content">Loading waste collection data...</div></div>
+
+    <script type="module">
+        import { config } from './js/config.js';
+        import { WeatherDisplay } from './js/weather.js';
+        import { CalendarDisplay } from './js/calendar.js';
+        import { Clock } from './js/clock.js';
+        import { Ticker } from './js/ticker.js';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize clock
+            const clock = new Clock(
+                document.getElementById('time-display'),
+                document.getElementById('date-display')
+            );
+            clock.start();
+
+            // Initialize weather
+            const weatherDisplay = new WeatherDisplay(
+                config.weatherApiKey, 
+                document.getElementById('weather-display')
+            );
+            weatherDisplay.start();
+
+            // Initialize calendar
+            const calendarDisplay = new CalendarDisplay(
+                config.haUrl,
+                config.longLivedAccessToken,
+                document.getElementById('calendar-events')
+            );
+            calendarDisplay.start();
+
+            // Initialize ticker
+            const ticker = new Ticker(
+                config.haUrl,
+                config.longLivedAccessToken,
+                document.getElementById('sensor-ticker')
+            );
+            ticker.start();
+        });
+    </script>
+</body>
+</html>
