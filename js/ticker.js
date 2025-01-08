@@ -43,7 +43,7 @@ export class Ticker {
             const wasteValue = wasteData.state.toLowerCase() === 'true';
 
             if (wasteValue) {
-                tickerMessages.push('<span style="color: orange;">Reminder: Trash collection day is soon.</span>');
+                tickerMessages.push('<span style="color: orange;">Reminder: Trash pickup is soon!</span>');
 
                 // Fetch Garbage Collection
                 const garbageResponse = await fetch(`${this.haUrl}/api/states/sensor.garbage_collection`, {
@@ -56,7 +56,7 @@ export class Ticker {
                 if (!garbageResponse.ok) throw new Error(`HTTP error! status: ${garbageResponse.status}`);
 
                 const garbageData = await garbageResponse.json();
-                tickerMessages.push(`<span style="margin-left: 2rem;">Garbage Collection - ${garbageData.state}</span>`);
+                tickerMessages.push(`<span style="margin-left: 2rem;">Trash: ${garbageData.state}</span>`);
 
                 // Fetch Recycling Collection
                 const recyclingResponse = await fetch(`${this.haUrl}/api/states/sensor.recycling_collection`, {
@@ -69,7 +69,7 @@ export class Ticker {
                 if (!recyclingResponse.ok) throw new Error(`HTTP error! status: ${recyclingResponse.status}`);
 
                 const recyclingData = await recyclingResponse.json();
-                tickerMessages.push(`<span style="margin-left: 2rem;">Recycling Collection - ${recyclingData.state}</span>`);
+                tickerMessages.push(`<span style="margin-left: 2rem;">Recycling: ${recyclingData.state}</span>`);
             }
 
             // Add a spacer between messages if both exist
