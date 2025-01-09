@@ -1,3 +1,5 @@
+// calendar.js
+
 export class CalendarDisplay {
     constructor(haUrl, token, container) {
         this.haUrl = haUrl;
@@ -47,22 +49,28 @@ export class CalendarDisplay {
 
     updateEvents(events) {
         // Clear and re-render events
-        this.container.innerHTML = events
+        const htmlContent = events
             .map(
                 (event, index) => `
-                <div class="event ${index === 0 ? "active" : "hidden"}">
-                    ${event.summary || "Unnamed Event"}:
-                    ${new Date(event.start.dateTime || event.start.date).toLocaleString([], {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                    })}
-                </div>
-            `
+                    <div class="event ${index === 0 ? "active" : "hidden"}">
+                        <div class="event-name">${event.summary || "Unnamed Event"}:</div>
+                        <div class="event-datetime">
+                            ${new Date(event.start.dateTime || event.start.date).toLocaleString([], {
+                                weekday: "short",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                            })}
+                        </div>
+                    </div>
+                `
             )
             .join("");
+
+        console.log("Rendered Events HTML:", htmlContent); // Debugging line
+
+        this.container.innerHTML = htmlContent;
 
         this.startCarousel(); // Restart carousel with new events
     }
@@ -99,7 +107,6 @@ export class CalendarDisplay {
             }, 5000); // Rotate every 5 seconds
         }
     }
-    
 
     clearCarousel() {
         if (this.eventInterval) {

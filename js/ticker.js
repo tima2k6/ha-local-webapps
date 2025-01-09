@@ -10,7 +10,8 @@ export class Ticker {
             garbageCollection: null,
             recyclingCollection: null,
             garageDoor: null,
-            backyardDoor: null
+            backyardDoor: null,
+            trashOut: null // Added trashOut state
         };
         this.setupWebSocket();
     }
@@ -43,7 +44,7 @@ export class Ticker {
                     this.processEntityState(entity.entity_id, entity.state);
                 });
                 
-                // Subscribe to all relevant entities
+                // Subscribe to all relevant entities (including input_boolean.trash_out)
                 this.ws.send(JSON.stringify({
                     id: 2,
                     type: "subscribe_events",
@@ -87,6 +88,9 @@ export class Ticker {
             case "binary_sensor.dog_door_backyard_contact":
                 this.states.backyardDoor = state;
                 break;
+            case "input_boolean.trash_out": // Handle trash_out sensor
+                this.states.trashOut = state.toLowerCase() === 'on';
+                break;
         }
     }
 
@@ -103,9 +107,9 @@ export class Ticker {
             // Handle dog feeding status
             if (this.states.feedingState) {
                 if (this.states.feedingState === 'fed') {
-                    tickerMessages.push('<span style="color: #4CAF50;">Zoey has been Fed</span>');
+                    tickerMessages.push('<span style="color: limegreen;">Zoey has been fed</span>');
                 } else if (this.states.feedingState === 'not-fed') {
-                    tickerMessages.push('<span style="color: red;">Zoey has NOT been Fed</span>');
+                    tickerMessages.push('<span style="color: orangered;">Zoey has NOT been fed</span>');
                 } else if (this.states.feedingState === 'overdue') {
                     tickerMessages.push('<span style="color: orange;">Zoey is overdue for feeding!</span>');
                 } else if (this.states.feedingState === 'outside-feeding-time') {
@@ -119,8 +123,8 @@ export class Ticker {
                 }
             }
 
-            // Handle Waste Collection
-            if (this.states.wasteReminder) {
+            // Handle Waste Collection only if trashOut is NOT active
+            if (this.states.wasteReminder && !this.states.trashOut) {
                 tickerMessages.push('<span style="color: orange;">Reminder: Trash pickup is soon!</span>');
                 
                 if (this.states.garbageCollection) {
@@ -130,16 +134,14 @@ export class Ticker {
                 if (this.states.recyclingCollection) {
                     tickerMessages.push(`<span style="margin-left: 2rem;">Recycling: ${this.states.recyclingCollection}</span>`);
                 }
-            }
 
-            // Add a spacer between messages if both exist
-            if (tickerMessages.length > 0 && this.states.wasteReminder) {
+                // Add a spacer between waste messages and other messages
                 tickerMessages.push('<span style="margin: 0 2rem;"></span>');
             }
 
             // Handle Dog Doors
             if (this.states.garageDoor === 'on' && this.states.backyardDoor === 'on') {
-                tickerMessages.push('<span style="color: green;">Dog Doors are Open</span>');
+                tickerMessages.push('<span style="color: limegreen;">Dog Doors are open</span>');
             }
 
             // Add final spacer
@@ -166,4 +168,4 @@ export class Ticker {
     start() {
         this.updateTicker();
     }
-} 
+}

@@ -105,38 +105,52 @@
         }
 
         #calendar-events {
-    margin-top: 0; /* Ensure no top margin is added by default */
-    padding-top: 0; /* Ensure no extra padding is applied */
-    display: flex; /* Align events horizontally */
-    height: 3rem; /* Set a consistent height for the container */
-    overflow: hidden; /* Prevent non-active events from showing */
-    justify-content: center; /* Center the event horizontally */
-    align-items: center; /* Center the event vertically */
-    width: 100%; /* Ensure it spans the full width of the page */
-}
+            margin-top: 0; /* Ensure no top margin is added by default */
+            padding-top: 0; /* Ensure no extra padding is applied */
+            display: flex; /* Align events horizontally */
+            height: auto; /* Allow height to adjust based on content */
+            overflow: hidden; /* Prevent non-active events from showing */
+            justify-content: center; /* Center the event horizontally */
+            align-items: center; /* Center the event vertically */
+            width: 100%; /* Ensure it spans the full width of the page */
+            position: relative; /* Ensure absolute positioning of child events works correctly */
+        }
 
-.event {
-    opacity: 0; /* Start invisible */
-    flex: 0 0 100%; /* Ensure each event takes up the full width */
-    transition: opacity 0.5s ease; /* Smooth fade in and out */
-    text-align: center; /* Center the text within the event */
-    position: absolute; /* Ensure events overlap perfectly in a single row */
-    margin: 0; /* Remove extra margins around events */
-    padding: 0.3rem 0; /* Slightly adjust padding */
-}
+        .event {
+            opacity: 0; /* Start invisible */
+            flex: 0 0 100%; /* Ensure each event takes up the full width */
+            transition: opacity 0.5s ease; /* Smooth fade in and out */
+            text-align: center; /* Center the text within the event */
+            position: absolute; /* Ensure events overlap perfectly in a single row */
+            top: 0;
+            left: 0;
+            width: 100%; /* Ensure event spans full width */
+            display: flex;
+            flex-direction: column; /* Stack name and datetime vertically */
+            align-items: center; /* Center items horizontally */
+            justify-content: center; /* Center items vertically */
+            padding: 0.3rem 0; /* Slightly adjust padding */
+            box-sizing: border-box; /* Include padding in width calculations */
+        }
 
-.event.active {
-    opacity: 1; /* Fully visible */
-    position: relative; /* Align the active event naturally in the row */
-    margin: 0; /* Remove extra margins around events */
-    padding: 0.3rem 0; /* Slightly adjust padding */
-}
+        .event.active {
+            opacity: 1; /* Fully visible */
+            position: relative; /* Align the active event naturally in the row */
+        }
 
-.event.hidden {
-    opacity: 0; /* Hidden */
-}
+        .event.hidden {
+            opacity: 0; /* Hidden */
+        }
 
+        .event-name {
+            font-weight: bold;
+            margin-bottom: 0.5rem; /* Space between name and datetime */
+        }
 
+        .event-datetime {
+            color: #ffffff; /* Ensure date/time is visible against background */
+            /* Adjust font size if necessary */
+        }
 
         /* Ticker styles */
         #sensor-ticker {
