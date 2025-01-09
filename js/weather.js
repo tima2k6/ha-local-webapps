@@ -27,12 +27,12 @@ export class WeatherDisplay {
         const description = this.capitalizeWords(data.weather[0].description);
         const icon = data.weather[0].icon;
         const location = data.name;
+        const feelsLike = Math.round(data.main.feels_like);
 
         this.container.innerHTML = `
-            Current ${location} Weather:<br>
-            <img src="https://openweathermap.org/img/wn/${icon}@2x.png" alt="${description}">
-            ${temp}°F<br>
-            ${description}
+            <img src="https://openweathermap.org/img/wn/${icon}@4x.png" alt="${description}">
+            <div>${temp}°F • ${description}</div>
+            <div>${location} • Feels Like ${feelsLike}°F</div>
         `;
     }
 

@@ -38,7 +38,7 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            padding: 2vh 0;
+            padding: 8vh 0;
             overflow: hidden;
         }
 
@@ -48,7 +48,7 @@
             flex-direction: column;
             justify-content: center;
             width: 100%;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            
             margin-bottom: 2vh;
         }
 
@@ -74,7 +74,7 @@
             flex: 1;
             font-size: min(3vw, 2rem);
             padding: 1vh 0;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -94,28 +94,49 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            gap: 1vh;
+            gap: 1.0rem; /* Increased spacing between elements */
         }
 
         #calendar-header {
             font-size: min(3vw, 2rem);
             margin: 0;
-            padding: 1vh 0;
+            padding-bottom: 0.5rem; /* Space between header and events */
+            text-align: center;
         }
 
-        .event {
-            opacity: 0;
-            transition: opacity 0.5s ease;
-            position: absolute;
-            width: 100%;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-        }
+        #calendar-events {
+    margin-top: 0; /* Ensure no top margin is added by default */
+    padding-top: 0; /* Ensure no extra padding is applied */
+    display: flex; /* Align events horizontally */
+    height: 3rem; /* Set a consistent height for the container */
+    overflow: hidden; /* Prevent non-active events from showing */
+    justify-content: center; /* Center the event horizontally */
+    align-items: center; /* Center the event vertically */
+    width: 100%; /* Ensure it spans the full width of the page */
+}
 
-        .event.active {
-            opacity: 1;
-        }
+.event {
+    opacity: 0; /* Start invisible */
+    flex: 0 0 100%; /* Ensure each event takes up the full width */
+    transition: opacity 0.5s ease; /* Smooth fade in and out */
+    text-align: center; /* Center the text within the event */
+    position: absolute; /* Ensure events overlap perfectly in a single row */
+    margin: 0; /* Remove extra margins around events */
+    padding: 0.3rem 0; /* Slightly adjust padding */
+}
+
+.event.active {
+    opacity: 1; /* Fully visible */
+    position: relative; /* Align the active event naturally in the row */
+    margin: 0; /* Remove extra margins around events */
+    padding: 0.3rem 0; /* Slightly adjust padding */
+}
+
+.event.hidden {
+    opacity: 0; /* Hidden */
+}
+
+
 
         /* Ticker styles */
         #sensor-ticker {
@@ -142,6 +163,37 @@
                 transform: translate3d(-100%, 0, 0);
             }
         }
+
+        #weather-display .weather-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 1rem;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+            padding: 0 2rem;
+        }
+
+        #weather-display .weather-info {
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5vh;
+        }
+
+        #weather-display .temp {
+            font-size: min(4vw, 2.5rem);
+        }
+
+        #weather-display .details {
+            font-size: min(2.5vw, 1.8rem);
+            opacity: 0.9;
+        }
+
+        #weather-display .feels-like {
+            font-size: min(2vw, 1.5rem);
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -154,7 +206,7 @@
             <div id="weather-display">Loading weather...</div>
             <div id="calendar-display">
                 <div id="calendar-header">Upcoming Events</div>
-                <div id="calendar-events">Loading calendar...</div>
+                <div id="calendar-events"></div>
             </div>
         </div>
     </div>

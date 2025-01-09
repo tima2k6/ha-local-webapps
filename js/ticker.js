@@ -3,112 +3,152 @@ export class Ticker {
         this.haUrl = haUrl;
         this.token = token;
         this.container = container;
+        this.ws = null;
+        this.states = {
+            feedingState: null,
+            wasteReminder: null,
+            garbageCollection: null,
+            recyclingCollection: null,
+            garageDoor: null,
+            backyardDoor: null
+        };
+        this.setupWebSocket();
+    }
+
+    setupWebSocket() {
+        const wsUrl = this.haUrl.replace(/^http/, 'ws');
+        this.ws = new WebSocket(`${wsUrl}/api/websocket`);
+
+        this.ws.onopen = () => {
+            console.log('WebSocket: Connected');
+            this.ws.send(JSON.stringify({
+                type: "auth",
+                access_token: this.token
+            }));
+        };
+
+        this.ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === "auth_ok") {
+                console.log('WebSocket: Authenticated');
+                this.ws.send(JSON.stringify({
+                    id: 1,
+                    type: "get_states"
+                }));
+            } 
+            else if (data.type === "result" && data.id === 1) {
+                // Process initial states
+                data.result.forEach(entity => {
+                    this.processEntityState(entity.entity_id, entity.state);
+                });
+                
+                // Subscribe to all relevant entities
+                this.ws.send(JSON.stringify({
+                    id: 2,
+                    type: "subscribe_events",
+                    event_type: "state_changed"
+                }));
+                
+                this.updateTicker();
+            }
+            else if (data.type === "event" && 
+                     data.event?.event_type === "state_changed") {
+                const entityId = data.event.data.entity_id;
+                const newState = data.event.data.new_state.state;
+                this.processEntityState(entityId, newState);
+                this.updateTicker();
+            }
+        };
+
+        this.ws.onclose = () => {
+            console.log('WebSocket: Disconnected, reconnecting...');
+            setTimeout(() => this.setupWebSocket(), 5000);
+        };
+    }
+
+    processEntityState(entityId, state) {
+        switch(entityId) {
+            case "sensor.zoey_feeding_status":
+                this.states.feedingState = state;
+                break;
+            case "sensor.waste_collection_reminder":
+                this.states.wasteReminder = state.toLowerCase() === 'true';
+                break;
+            case "sensor.garbage_collection":
+                this.states.garbageCollection = state;
+                break;
+            case "sensor.recycling_collection":
+                this.states.recyclingCollection = state;
+                break;
+            case "binary_sensor.dog_door_garage_contact":
+                this.states.garageDoor = state;
+                break;
+            case "binary_sensor.dog_door_backyard_contact":
+                this.states.backyardDoor = state;
+                break;
+        }
     }
 
     async updateTicker() {
         const tickerElement = this.container.querySelector('.ticker-content');
-        const currentMessages = tickerElement?.innerHTML || '';
+        if (!tickerElement) {
+            console.error('Ticker element not found!');
+            return;
+        }
+        const currentMessages = tickerElement.innerHTML || '';
         let tickerMessages = [];
 
         try {
-            // Fetch Dog Feeding Status
-            const feedingResponse = await fetch(`${this.haUrl}/api/states/sensor.zoey_feeding_status`, {
-                headers: {
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json',
+            // Handle dog feeding status
+            if (this.states.feedingState) {
+                if (this.states.feedingState === 'fed') {
+                    tickerMessages.push('<span style="color: #4CAF50;">Zoey has been Fed</span>');
+                } else if (this.states.feedingState === 'not-fed') {
+                    tickerMessages.push('<span style="color: red;">Zoey has NOT been Fed</span>');
+                } else if (this.states.feedingState === 'overdue') {
+                    tickerMessages.push('<span style="color: orange;">Zoey is overdue for feeding!</span>');
+                } else if (this.states.feedingState === 'outside-feeding-time') {
+                    console.log('Skipping dog feeding messages: Outside feeding time');
+                } else {
+                    tickerMessages.push('<span style="color: gray;">Feeding status is unknown.</span>');
                 }
-            });
 
-            if (!feedingResponse.ok) throw new Error(`HTTP error! status: ${feedingResponse.status}`);
-
-            const feedingData = await feedingResponse.json();
-            if (feedingData.state !== 'unknown' && feedingData.state !== 'unavailable') {
-                const status = feedingData.state === 'fed' ? 'has been Fed' : 'has NOT been fed';
-                const color = feedingData.state === 'fed' ? '#4CAF50' : 'red';
-                tickerMessages.push(`<span style="color: ${color};">Zoey ${status}</span>`);
-                tickerMessages.push('<span style="margin: 0 2rem;"></span>');
+                if (this.states.feedingState !== 'outside-feeding-time') {
+                    tickerMessages.push('<span style="margin: 0 2rem;"></span>');
+                }
             }
 
-            // Fetch Waste Collection Reminder
-            const wasteResponse = await fetch(`${this.haUrl}/api/states/sensor.waste_collection_reminder`, {
-                headers: {
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            if (!wasteResponse.ok) throw new Error(`HTTP error! status: ${wasteResponse.status}`);
-
-            const wasteData = await wasteResponse.json();
-            const wasteValue = wasteData.state.toLowerCase() === 'true';
-
-            if (wasteValue) {
+            // Handle Waste Collection
+            if (this.states.wasteReminder) {
                 tickerMessages.push('<span style="color: orange;">Reminder: Trash pickup is soon!</span>');
-
-                // Fetch Garbage Collection
-                const garbageResponse = await fetch(`${this.haUrl}/api/states/sensor.garbage_collection`, {
-                    headers: {
-                        'Authorization': `Bearer ${this.token}`,
-                        'Content-Type': 'application/json',
-                    }
-                });
-
-                if (!garbageResponse.ok) throw new Error(`HTTP error! status: ${garbageResponse.status}`);
-
-                const garbageData = await garbageResponse.json();
-                tickerMessages.push(`<span style="margin-left: 2rem;">Trash: ${garbageData.state}</span>`);
-
-                // Fetch Recycling Collection
-                const recyclingResponse = await fetch(`${this.haUrl}/api/states/sensor.recycling_collection`, {
-                    headers: {
-                        'Authorization': `Bearer ${this.token}`,
-                        'Content-Type': 'application/json',
-                    }
-                });
-
-                if (!recyclingResponse.ok) throw new Error(`HTTP error! status: ${recyclingResponse.status}`);
-
-                const recyclingData = await recyclingResponse.json();
-                tickerMessages.push(`<span style="margin-left: 2rem;">Recycling: ${recyclingData.state}</span>`);
+                
+                if (this.states.garbageCollection) {
+                    tickerMessages.push(`<span style="margin-left: 2rem;">Trash: ${this.states.garbageCollection}</span>`);
+                }
+                
+                if (this.states.recyclingCollection) {
+                    tickerMessages.push(`<span style="margin-left: 2rem;">Recycling: ${this.states.recyclingCollection}</span>`);
+                }
             }
 
             // Add a spacer between messages if both exist
-            if (tickerMessages.length > 0 && wasteValue) {
+            if (tickerMessages.length > 0 && this.states.wasteReminder) {
                 tickerMessages.push('<span style="margin: 0 2rem;"></span>');
             }
 
-            // Add Dog Doors Check
-            const garageDoorResponse = await fetch(`${this.haUrl}/api/states/binary_sensor.dog_door_garage_contact`, {
-                headers: {
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json',
-                }
-            });
-            const backyardDoorResponse = await fetch(`${this.haUrl}/api/states/binary_sensor.dog_door_backyard_contact`, {
-                headers: {
-                    'Authorization': `Bearer ${this.token}`,
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            if (!garageDoorResponse.ok || !backyardDoorResponse.ok) {
-                throw new Error('Failed to fetch dog door states');
-            }
-
-            const garageDoorData = await garageDoorResponse.json();
-            const backyardDoorData = await backyardDoorResponse.json();
-
-            if (garageDoorData.state === 'on' && backyardDoorData.state === 'on') {
+            // Handle Dog Doors
+            if (this.states.garageDoor === 'on' && this.states.backyardDoor === 'on') {
                 tickerMessages.push('<span style="color: green;">Dog Doors are Open</span>');
             }
 
-            // Add final spacer at the end of all messages if there are any messages
+            // Add final spacer
             if (tickerMessages.length > 0) {
                 tickerMessages.push('<span style="margin: 0 2rem;"></span>');
             }
         } catch (error) {
-            console.error('Ticker fetch error:', error);
-            tickerMessages.push('<span>Error fetching data.</span>');
+            console.error('Ticker update error:', error);
+            tickerMessages.push('<span>Error updating ticker.</span>');
         }
 
         // Only update ticker content if messages changed
@@ -123,8 +163,7 @@ export class Ticker {
         }
     }
 
-    start(interval = 300000) {
+    start() {
         this.updateTicker();
-        setInterval(() => this.updateTicker(), interval);
     }
 } 
