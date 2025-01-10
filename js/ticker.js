@@ -11,8 +11,9 @@ export class Ticker {
             recyclingCollection: null,
             garageDoor: null,
             backyardDoor: null,
-            trashOut: null // Added trashOut state
+            trashOut: null
         };
+        this.currentContent = '';
         this.setupWebSocket();
     }
 
@@ -69,28 +70,58 @@ export class Ticker {
     }
 
     processEntityState(entityId, state) {
+        let stateChanged = false;
+        
         switch(entityId) {
             case "sensor.zoey_feeding_status":
-                this.states.feedingState = state;
+                if (this.states.feedingState !== state) {
+                    this.states.feedingState = state;
+                    stateChanged = true;
+                }
                 break;
             case "sensor.waste_collection_reminder":
-                this.states.wasteReminder = state.toLowerCase() === 'true';
+                const newState = state.toLowerCase() === 'true';
+                if (this.states.wasteReminder !== newState) {
+                    this.states.wasteReminder = newState;
+                    stateChanged = true;
+                }
                 break;
             case "sensor.garbage_collection":
-                this.states.garbageCollection = state;
+                if (this.states.garbageCollection !== state) {
+                    this.states.garbageCollection = state;
+                    stateChanged = true;
+                }
                 break;
             case "sensor.recycling_collection":
-                this.states.recyclingCollection = state;
+                if (this.states.recyclingCollection !== state) {
+                    this.states.recyclingCollection = state;
+                    stateChanged = true;
+                }
                 break;
             case "binary_sensor.dog_door_garage_contact":
-                this.states.garageDoor = state;
+                if (this.states.garageDoor !== state) {
+                    this.states.garageDoor = state;
+                    stateChanged = true;
+                }
                 break;
             case "binary_sensor.dog_door_backyard_contact":
-                this.states.backyardDoor = state;
+                if (this.states.backyardDoor !== state) {
+                    this.states.backyardDoor = state;
+                    stateChanged = true;
+                }
                 break;
-            case "input_boolean.trash_out": // Handle trash_out sensor
-                this.states.trashOut = state.toLowerCase() === 'on';
+            case "input_boolean.trash_out":
+                const newTrashState = state.toLowerCase() === 'on';
+                if (this.states.trashOut !== newTrashState) {
+                    this.states.trashOut = newTrashState;
+                    stateChanged = true;
+                }
                 break;
+        }
+
+        // Only update ticker if state actually changed
+        if (stateChanged) {
+            this.updateTicker();
         }
     }
 
@@ -100,31 +131,25 @@ export class Ticker {
             console.error('Ticker element not found!');
             return;
         }
-        const currentMessages = tickerElement.innerHTML || '';
+
         let tickerMessages = [];
 
         try {
-            // Handle dog feeding status
-            if (this.states.feedingState) {
+            // Build messages
+            if (this.states.feedingState && this.states.feedingState !== 'outside-feeding-time') {
                 if (this.states.feedingState === 'fed') {
-                    tickerMessages.push('<span style="color: limegreen;">Zoey has been fed</span>');
+                    tickerMessages.push('<span style="color: limegreen;">Zoey\'s been fed</span>');
                 } else if (this.states.feedingState === 'not-fed') {
                     tickerMessages.push('<span style="color: orangered;">Zoey has NOT been fed</span>');
                 } else if (this.states.feedingState === 'overdue') {
-                    tickerMessages.push('<span style="color: orange;">Zoey is overdue for feeding!</span>');
-                } else if (this.states.feedingState === 'outside-feeding-time') {
-                    console.log('Skipping dog feeding messages: Outside feeding time');
-                } else {
-                    tickerMessages.push('<span style="color: gray;">Feeding status is unknown.</span>');
-                }
-
-                if (this.states.feedingState !== 'outside-feeding-time') {
-                    tickerMessages.push('<span style="margin: 0 2rem;"></span>');
+                    tickerMessages.push('<span style="color: orange;">Zoey\'s probably hungry!</span>');
                 }
             }
 
-            // Handle Waste Collection only if trashOut is NOT active
             if (this.states.wasteReminder && !this.states.trashOut) {
+                if (tickerMessages.length > 0) {
+                    tickerMessages.push('<span style="margin: 0 2rem;"></span>');
+                }
                 tickerMessages.push('<span style="color: orange;">Reminder: Trash pickup is soon!</span>');
                 
                 if (this.states.garbageCollection) {
@@ -134,34 +159,36 @@ export class Ticker {
                 if (this.states.recyclingCollection) {
                     tickerMessages.push(`<span style="margin-left: 2rem;">Recycling: ${this.states.recyclingCollection}</span>`);
                 }
-
-                // Add a spacer between waste messages and other messages
-                tickerMessages.push('<span style="margin: 0 2rem;"></span>');
             }
 
-            // Handle Dog Doors
             if (this.states.garageDoor === 'on' && this.states.backyardDoor === 'on') {
-                tickerMessages.push('<span style="color: limegreen;">Dog Doors are open</span>');
+                if (tickerMessages.length > 0) {
+                    tickerMessages.push('<span style="margin: 0 2rem;"></span>');
+                }
+                tickerMessages.push('<span style="color: #16F529";">Both Dog Doors are open</span>');
             }
 
-            // Add final spacer
-            if (tickerMessages.length > 0) {
-                tickerMessages.push('<span style="margin: 0 2rem;"></span>');
+            const newContent = tickerMessages.join('');
+
+            // Only update if content actually changed
+            if (newContent !== this.currentContent) {
+                console.log('Content changed, updating ticker');
+                this.currentContent = newContent;
+
+                if (newContent === '') {
+                    tickerElement.innerHTML = '';
+                    tickerElement.style.removeProperty('animation');
+                } else {
+                    tickerElement.innerHTML = newContent;
+                    // Force reflow
+                    tickerElement.style.animation = 'none';
+                    tickerElement.offsetHeight;
+                    // Set animation with fixed duration
+                    tickerElement.style.animation = 'tickerScroll 15s linear infinite';
+                }
             }
         } catch (error) {
             console.error('Ticker update error:', error);
-            tickerMessages.push('<span>Error updating ticker.</span>');
-        }
-
-        // Only update ticker content if messages changed
-        const newContent = tickerMessages.join('');
-        if (newContent !== currentMessages) {
-            tickerElement.innerHTML = newContent;
-            
-            // Reset and start animation
-            tickerElement.style.animation = 'none';
-            tickerElement.offsetHeight; // Trigger reflow
-            tickerElement.style.animation = 'tickerScroll 30s linear infinite';
         }
     }
 
