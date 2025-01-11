@@ -53,11 +53,11 @@ export class CalendarDisplay {
             .map(
                 (event, index) => `
                     <div class="event ${index === 0 ? "active" : "hidden"}">
-                        <div class="event-name">${event.summary || "Unnamed Event"}:</div>
+                        <div class="event-name">${event.summary || "Unnamed Event"}</div>
                         <div class="event-datetime">
                             ${new Date(event.start.dateTime || event.start.date).toLocaleString([], {
-                                weekday: "short",
-                                month: "short",
+                                weekday: "long",
+                                month: "long",
                                 day: "numeric",
                                 hour: "2-digit",
                                 minute: "2-digit",

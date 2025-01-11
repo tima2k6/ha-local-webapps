@@ -102,6 +102,7 @@
             margin: 0;
             padding-bottom: 0.5rem; /* Space between header and events */
             text-align: center;
+				text-decoration: underline;
         }
 
         #calendar-events {
@@ -114,6 +115,7 @@
             align-items: center; /* Center the event vertically */
             width: 100%; /* Ensure it spans the full width of the page */
             position: relative; /* Ensure absolute positioning of child events works correctly */
+				
         }
 
         .event {
@@ -143,13 +145,14 @@
         }
 
         .event-name {
-            font-weight: bold;
+           
             margin-bottom: 0.5rem; /* Space between name and datetime */
         }
 
         .event-datetime {
             color: #ffffff; /* Ensure date/time is visible against background */
             /* Adjust font size if necessary */
+				font-style: italic;
         }
 
         /* Ticker styles */
@@ -166,20 +169,26 @@
         }
 
         #sensor-ticker .ticker-content {
-            display: inline-block;
-            padding: 0 2rem;
+            display: inline-flex;
             position: absolute;
             white-space: nowrap;
             will-change: transform;
-            transform: translateX(100vw);
+            left: 0;
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+        }
+
+        #sensor-ticker .ticker-text {
+            display: inline-block;
+            padding: 0 2rem;
         }
 
         @keyframes tickerScroll {
-            from {
-                transform: translateX(100vw);
+            0% {
+                transform: translate3d(100vw, 0, 0);
             }
-            to {
-                transform: translateX(-500%);
+            100% {
+                transform: translate3d(-100%, 0, 0);
             }
         }
 

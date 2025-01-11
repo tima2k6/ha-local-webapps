@@ -11,7 +11,9 @@ export class Ticker {
             recyclingCollection: null,
             garageDoor: null,
             backyardDoor: null,
-            trashOut: null
+            trashOut: null,
+            openWindowsCount: 0,          // New Sensor
+            exteriorDoorCount: 0          // New Sensor
         };
         this.currentContent = '';
         this.setupWebSocket();
@@ -117,6 +119,20 @@ export class Ticker {
                     stateChanged = true;
                 }
                 break;
+            case "sensor.open_windows_count": // New Sensor
+                const openWindows = parseInt(state, 10) || 0;
+                if (this.states.openWindowsCount !== openWindows) {
+                    this.states.openWindowsCount = openWindows;
+                    stateChanged = true;
+                }
+                break;
+            case "sensor.exterior_door_count": // New Sensor
+                const exteriorDoors = parseInt(state, 10) || 0;
+                if (this.states.exteriorDoorCount !== exteriorDoors) {
+                    this.states.exteriorDoorCount = exteriorDoors;
+                    stateChanged = true;
+                }
+                break;
         }
 
         // Only update ticker if state actually changed
@@ -135,10 +151,10 @@ export class Ticker {
         let tickerMessages = [];
 
         try {
-            // Build messages
+            // Zoey Feeding Status
             if (this.states.feedingState && this.states.feedingState !== 'outside-feeding-time') {
                 if (this.states.feedingState === 'fed') {
-                    tickerMessages.push('<span style="color: limegreen;">Zoey\'s been fed</span>');
+                    tickerMessages.push('<span style="color: #16F529;">Zoey\'s been fed</span>');
                 } else if (this.states.feedingState === 'not-fed') {
                     tickerMessages.push('<span style="color: orangered;">Zoey has NOT been fed</span>');
                 } else if (this.states.feedingState === 'overdue') {
@@ -146,6 +162,7 @@ export class Ticker {
                 }
             }
 
+            // Waste Collection Reminder
             if (this.states.wasteReminder && !this.states.trashOut) {
                 if (tickerMessages.length > 0) {
                     tickerMessages.push('<span style="margin: 0 2rem;"></span>');
@@ -161,11 +178,28 @@ export class Ticker {
                 }
             }
 
+            // Garage and Backyard Doors
             if (this.states.garageDoor === 'on' && this.states.backyardDoor === 'on') {
                 if (tickerMessages.length > 0) {
                     tickerMessages.push('<span style="margin: 0 2rem;"></span>');
                 }
-                tickerMessages.push('<span style="color: #16F529";">Both Dog Doors are open</span>');
+                tickerMessages.push('<span style="color: #16F529;">Both Dog Doors are open</span>');
+            }
+
+            // **New Section: Open Windows Count**
+            if (this.states.openWindowsCount > 0) {
+                if (tickerMessages.length > 0) {
+                    tickerMessages.push('<span style="margin: 0 2rem;"></span>');
+                }
+                tickerMessages.push(`<span style="color: yellow;">Open Windows: ${this.states.openWindowsCount}</span>`);
+            }
+
+            // **New Section: Exterior Door Count**
+            if (this.states.exteriorDoorCount > 0) {
+                if (tickerMessages.length > 0) {
+                    tickerMessages.push('<span style="margin: 0 2rem;"></span>');
+                }
+                tickerMessages.push(`<span style="color: yellow;">Open Exterior Doors: ${this.states.exteriorDoorCount}</span>`);
             }
 
             const newContent = tickerMessages.join('');
@@ -175,16 +209,21 @@ export class Ticker {
                 console.log('Content changed, updating ticker');
                 this.currentContent = newContent;
 
-                if (newContent === '') {
-                    tickerElement.innerHTML = '';
-                    tickerElement.style.removeProperty('animation');
-                } else {
-                    tickerElement.innerHTML = newContent;
-                    // Force reflow
+                if (newContent !== '') {
+                    // Create duplicated content with proper spacing
+                    const spacer = '<span style="display: inline-block; width: 100vw;"></span>';
+                    tickerElement.innerHTML = `<span class="ticker-text">${newContent}</span>${spacer}<span class="ticker-text">${newContent}</span>`;
+                    
+                    // Force reflow to measure content
                     tickerElement.style.animation = 'none';
                     tickerElement.offsetHeight;
-                    // Set animation with fixed duration
-                    tickerElement.style.animation = 'tickerScroll 15s linear infinite';
+                    
+                    // Calculate animation duration - faster scroll speed
+                    const duration = Math.max(window.innerWidth / 50, 20); // pixels per second, minimum 20s
+                    tickerElement.style.animation = `tickerScroll ${duration}s linear infinite`;
+                } else {
+                    tickerElement.innerHTML = '';
+                    tickerElement.style.removeProperty('animation');
                 }
             }
         } catch (error) {
