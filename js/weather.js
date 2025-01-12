@@ -9,30 +9,121 @@ export class WeatherDisplay {
 
     async fetchWeather() {
         try {
-            const response = await fetch(this.buildUrl());
-            const data = await response.json();
-            this.updateDisplay(data);
+            const [currentData, forecastData] = await Promise.all([
+                this.fetchCurrent(),
+                this.fetchForecast()
+            ]);
+            
+            if (currentData && forecastData) {
+                this.updateDisplay(currentData, forecastData);
+            } else {
+                this.showError();
+            }
         } catch (error) {
             console.error('Weather fetch error:', error);
             this.showError();
         }
     }
 
-    buildUrl() {
-        return `https://api.openweathermap.org/data/2.5/weather?lat=${this.lat}&lon=${this.lon}&units=${this.units}&appid=${this.apiKey}`;
+    async fetchCurrent() {
+        try {
+            const response = await fetch(this.buildUrl('weather'));
+            return await response.json();
+        } catch (error) {
+            console.error('Current weather fetch error:', error);
+            return null;
+        }
     }
 
-    updateDisplay(data) {
-        const temp = Math.round(data.main.temp);
-        const description = this.capitalizeWords(data.weather[0].description);
-        const icon = data.weather[0].icon;
-        const location = data.name;
-        const feelsLike = Math.round(data.main.feels_like);
+    async fetchForecast() {
+        try {
+            const response = await fetch(this.buildUrl('forecast'));
+            const data = await response.json();
+            
+            // Get all forecasts for today
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            // Filter forecasts for today only
+            const todaysForecasts = data.list.filter(item => {
+                const forecastDate = new Date(item.dt * 1000);
+                return forecastDate >= today && forecastDate < tomorrow;
+            });
+
+            return todaysForecasts;
+        } catch (error) {
+            console.error('Forecast fetch error:', error);
+            return null;
+        }
+    }
+
+    buildUrl(type = 'weather') {
+        return `https://api.openweathermap.org/data/2.5/${type}?lat=${this.lat}&lon=${this.lon}&units=${this.units}&appid=${this.apiKey}`;
+    }
+
+    updateDisplay(currentData, forecastData) {
+        const temp = Math.round(currentData.main.temp);
+        const description = this.capitalizeWords(currentData.weather[0].description);
+        const icon = currentData.weather[0].icon;
+        const feelsLike = Math.round(currentData.main.feels_like);
+
+        // Process forecast data
+        let highTemp = -Infinity;
+        let lowTemp = Infinity;
+        let conditions = new Set();
+
+        forecastData.forEach(forecast => {
+            const forecastTemp = forecast.main.temp;
+            highTemp = Math.max(highTemp, forecastTemp);
+            lowTemp = Math.min(lowTemp, forecastTemp);
+            conditions.add(this.capitalizeWords(forecast.weather[0].description));
+        });
+
+        // Convert conditions Set to Array and get unique values
+        const uniqueConditions = Array.from(conditions);
+        const forecastSummary = uniqueConditions.length > 2 
+            ? uniqueConditions.slice(0, 2).join(', ') + ', Variable'
+            : uniqueConditions.join(', ');
+
+        // Add styles for the layout
+        const style = document.createElement('style');
+        style.textContent = `
+            .weather-container {
+                text-align: center;
+            }
+            .weather-columns {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 10px;
+            }
+            .weather-column {
+                flex: 1;
+                padding: 0 10px;
+            }
+            .weather-row {
+                margin: 5px 0;
+            }
+        `;
+        document.head.appendChild(style);
 
         this.container.innerHTML = `
-            <img src="https://openweathermap.org/img/wn/${icon}@4x.png" alt="${description}">
-            <div>${temp}°F • ${description}</div>
-            <div>${location} • Feels Like ${feelsLike}°F</div>
+            <div class="weather-container">
+                <img src="https://openweathermap.org/img/wn/${icon}@4x.png" alt="${description}">
+                <div class="weather-columns">
+                    <div class="weather-column">
+                        <div>Currently:</div>
+                        <div class="weather-row">${temp}°F (feels like ${feelsLike}°F)</div>
+                        <div class="weather-row">${description}</div>
+                    </div>
+                    <div class="weather-column">
+                        <div>Today:</div>
+                        <div class="weather-row">High ${Math.round(highTemp)}°F • Low ${Math.round(lowTemp)}°F</div>
+                        <div class="weather-row">${forecastSummary}</div>
+                    </div>
+                </div>
+            </div>
         `;
     }
 
@@ -50,4 +141,4 @@ export class WeatherDisplay {
         this.fetchWeather();
         setInterval(() => this.fetchWeather(), interval);
     }
-} 
+}

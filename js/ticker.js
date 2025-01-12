@@ -156,7 +156,7 @@ export class Ticker {
                 if (this.states.feedingState === 'fed') {
                     tickerMessages.push('<span style="color: #16F529;">Zoey\'s been fed</span>');
                 } else if (this.states.feedingState === 'not-fed') {
-                    tickerMessages.push('<span style="color: orangered;">Zoey has NOT been fed</span>');
+                    tickerMessages.push('<span style="color: #FF2400;">Zoey has NOT been fed</span>');
                 } else if (this.states.feedingState === 'overdue') {
                     tickerMessages.push('<span style="color: orange;">Zoey\'s probably hungry!</span>');
                 }

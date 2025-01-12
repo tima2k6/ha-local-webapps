@@ -13,6 +13,22 @@
             font-display: swap;
         }
 
+        @font-face {
+            font-family: 'Zain';
+            src: url('/fonts/Zain-Light.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: 'Zain';
+            src: url('/fonts/Zain-Bold.ttf') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+            font-display: swap;
+        }
+
         body {
             margin: 0;
             padding: 0;
@@ -74,11 +90,14 @@
             flex: 1;
             font-size: min(3vw, 2rem);
             padding: 1vh 0;
-            
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            font-family: 'Zain', sans-serif;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         #weather-display img {
@@ -103,6 +122,8 @@
             padding-bottom: 0.5rem; /* Space between header and events */
             text-align: center;
 				text-decoration: underline;
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
         }
 
         #calendar-events {
@@ -115,7 +136,7 @@
             align-items: center; /* Center the event vertically */
             width: 100%; /* Ensure it spans the full width of the page */
             position: relative; /* Ensure absolute positioning of child events works correctly */
-				
+            font-family: 'Zain', sans-serif;
         }
 
         .event {
@@ -145,14 +166,14 @@
         }
 
         .event-name {
-           
-            margin-bottom: 0.5rem; /* Space between name and datetime */
+            margin-bottom: 0.5rem;
+            font-family: 'Zain', sans-serif;
         }
 
         .event-datetime {
-            color: #ffffff; /* Ensure date/time is visible against background */
-            /* Adjust font size if necessary */
-				font-style: italic;
+            color: #ffffff;
+            font-style: italic;
+            font-family: 'Zain', sans-serif;
         }
 
         /* Ticker styles */
@@ -166,6 +187,8 @@
             color: white;
             position: relative;
             width: 100%;
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
         }
 
         #sensor-ticker .ticker-content {
@@ -211,6 +234,8 @@
 
         #weather-display .temp {
             font-size: min(4vw, 2.5rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
         }
 
         #weather-display .details {
@@ -222,13 +247,45 @@
             font-size: min(2vw, 1.5rem);
             opacity: 0.8;
         }
+
+        .zain-bold {
+            font-family: 'Zain', sans-serif !important;
+            font-weight: bold !important;
+        }
+
+        #weather-display .weather-column > div:first-child {
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        /* Update the columns layout */
+        .weather-columns {
+            display: flex;
+            justify-content: center;
+            gap: 4vw;
+            width: 100%;
+            padding: 0 2vw;
+            box-sizing: border-box;
+        }
+
+        .weather-column {
+            flex: 0 1 auto;
+            min-width: 300px;
+            text-align: center;
+        }
+
+        /* Adjust the spacing between elements */
+        .weather-row {
+            margin: 1vh 0;
+        }
     </style>
 </head>
 <body>
     <div id="container">
         <div id="time-date-section">
-            <div id="time-display"></div>
             <div id="date-display"></div>
+            <div id="time-display"></div>
         </div>
         <div id="info-section">
             <div id="weather-display">Loading weather...</div>
