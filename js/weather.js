@@ -109,20 +109,17 @@ export class WeatherDisplay {
         document.head.appendChild(style);
 
         this.container.innerHTML = `
-            <div class="weather-container">
-                <img src="https://openweathermap.org/img/wn/${icon}@4x.png" alt="${description}">
-                <div class="weather-columns">
-                    <div class="weather-column">
-                        <div>Currently:</div>
-                        <div class="weather-row">${temp}°F (feels like ${feelsLike}°F)</div>
-                        <div class="weather-row">${description}</div>
-                    </div>
-                    <div class="weather-column">
-                        <div>Today:</div>
-                        <div class="weather-row">High ${Math.round(highTemp)}°F • Low ${Math.round(lowTemp)}°F</div>
-                        <div class="weather-row">${forecastSummary}</div>
-                    </div>
-                </div>
+            <div class="currently-header">Current Weather</div>
+            <div class="current-weather-info">
+                <div class="temp">${temp}°F</div>
+                <div class="details">${description}</div>
+                <div class="feels-like">Feels like ${feelsLike}°F</div>
+            </div>
+            <img class="current-weather-icon" src="https://openweathermap.org/img/wn/${icon}@4x.png" alt="${description}">
+            <div class="forecast-header">Today's Weather</div>
+            <div class="forecast-weather-info">
+                <div class="temp">High ${Math.round(highTemp)}°F • Low ${Math.round(lowTemp)}°F</div>
+                <div class="details">${forecastSummary}</div>
             </div>
         `;
     }

@@ -29,25 +29,25 @@
             font-display: swap;
         }
 
+        @font-face {
+            font-family: 'Zain';
+            src: url('/fonts/Zain-Extrabold.ttf') format('truetype');
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+        }
+
         body {
             margin: 0;
             padding: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
-            background: linear-gradient(270deg, #0f2027, #203a43, #2c5364, #1b263b, #141e30, #243b55);
-            background-size: 1400% 1400%;
-            animation: gradientBG 60s ease infinite;
+            background: #000000;
             color: #ffffff;
             font-family: 'Protest Strike', sans-serif;
             text-align: center;
             overflow: hidden;
-        }
-
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
         }
 
         #container {
@@ -71,72 +71,65 @@
         #time-display {
             font-size: min(8vw, 5rem);
             margin: 0;
+            text-shadow: 2px 2px 0 #333;
         }
 
         #date-display {
             font-size: min(4vw, 2.5rem);
             margin: 0;
+            text-shadow: 2px 2px 0 #333;
         }
 
         #info-section {
             flex: 1;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             width: 100%;
             gap: 2vh;
         }
 
         #weather-display {
             flex: 1;
-            font-size: min(3vw, 2rem);
-            padding: 1vh 0;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            font-family: 'Zain', sans-serif;
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
+            gap: 1vh;
+            padding: 0 2vw;
+            max-width: 50%;
+				
+				
         }
 
         #weather-display img {
             width: min(100px, 15vw);
             height: min(100px, 15vw);
+            margin-top: 1vh;
+            filter: drop-shadow(2px 2px 0 #333);
         }
 
         #calendar-display {
             flex: 1;
-            font-size: min(2.5vw, 1.8rem);
-            position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
-            gap: 1.0rem; /* Increased spacing between elements */
+            gap: 1vh;
+            padding: 0 2vw;
+            max-width: 50%;
         }
 
         #calendar-header {
+            font-family: 'Zain', sans-serif;
+            font-weight: 800;
+            text-decoration: underline;
             font-size: min(3vw, 2rem);
             margin: 0;
-            padding-bottom: 0.5rem; /* Space between header and events */
-            text-align: center;
-				text-decoration: underline;
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
+            padding: 0;
         }
 
         #calendar-events {
-            margin-top: 0; /* Ensure no top margin is added by default */
-            padding-top: 0; /* Ensure no extra padding is applied */
-            display: flex; /* Align events horizontally */
-            height: auto; /* Allow height to adjust based on content */
-            overflow: hidden; /* Prevent non-active events from showing */
-            justify-content: center; /* Center the event horizontally */
-            align-items: center; /* Center the event vertically */
-            width: 100%; /* Ensure it spans the full width of the page */
-            position: relative; /* Ensure absolute positioning of child events works correctly */
+            
             font-family: 'Zain', sans-serif;
+            font-weight: bold;
         }
 
         .event {
@@ -180,15 +173,15 @@
         #sensor-ticker {
             height: min(3em, 10vh);
             line-height: min(3em, 10vh);
-            background-color: rgba(0, 0, 0, 0.7);
+            
             overflow: hidden;
             white-space: nowrap;
-            font-size: min(2.5vw, 1.8rem);
+            font-size: min(4vw, 3rem);
             color: white;
             position: relative;
             width: 100%;
             font-family: 'Zain', sans-serif;
-            font-weight: bold;
+            font-weight: 800;
         }
 
         #sensor-ticker .ticker-content {
@@ -240,12 +233,12 @@
 
         #weather-display .details {
             font-size: min(2.5vw, 1.8rem);
-            opacity: 0.9;
+            
         }
 
         #weather-display .feels-like {
             font-size: min(2vw, 1.5rem);
-            opacity: 0.8;
+            
         }
 
         .zain-bold {
@@ -255,29 +248,303 @@
 
         #weather-display .weather-column > div:first-child {
             font-family: 'Zain', sans-serif;
-            font-weight: bold;
+            font-weight: 800;
             text-decoration: underline;
+            order: 1;
+        }
+
+        #weather-display .weather-column img {
+            order: 2;
+        }
+
+        #weather-display .weather-info {
+            order: 3;
         }
 
         /* Update the columns layout */
         .weather-columns {
             display: flex;
-            justify-content: center;
-            gap: 4vw;
+            flex-direction: column;
             width: 100%;
             padding: 0 2vw;
             box-sizing: border-box;
         }
 
         .weather-column {
-            flex: 0 1 auto;
-            min-width: 300px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3vh;
+        }
+
+        /* Current Weather Section */
+        .current-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1vh;
+        }
+
+        .currently-header {
+            font-family: 'Zain', sans-serif;
+            font-weight: 800;
+            text-decoration: underline;
+            margin-top: 0;
+            padding-top: 0;
+        }
+
+        .current-weather-info {
             text-align: center;
         }
 
-        /* Adjust the spacing between elements */
-        .weather-row {
+        .current-weather-icon {
+            width: min(100px, 15vw);
+            height: min(100px, 15vw);
             margin: 1vh 0;
+            filter: drop-shadow(2px 2px 0 #333);
+        }
+
+        /* Forecast Section */
+        .forecast-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1vh;
+        }
+
+        .forecast-header {
+            font-family: 'Zain', sans-serif;
+            font-weight: 800;
+            text-decoration: underline;
+            font-size: min(3vw, 2rem);
+            margin: 0;
+            padding: 0;
+        }
+
+        .forecast-weather-info {
+            text-align: center;
+        }
+
+        /* Everything else stays Bold */
+        #weather-display, 
+        #calendar-events,
+        #sensor-ticker,
+        .event-name,
+        .event-datetime,
+        .event,
+        #calendar-events .event {
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+        }
+
+        .weather-column > * {
+            width: 100%;
+            text-align: center;
+        }
+
+        .currently-header {
+            order: 1;
+        }
+
+        .current-weather-info {
+            order: 2;
+        }
+
+        .current-weather-icon {
+            order: 3;
+            width: min(100px, 15vw);
+            height: min(100px, 15vw);
+        }
+
+        .forecast-header {
+            order: 4;
+        }
+
+        .forecast-weather-info {
+            order: 5;
+        }
+
+        /* Common header styling for both columns */
+        .currently-header, #calendar-header {
+            font-family: 'Zain', sans-serif;
+            font-weight: 800;
+            text-decoration: underline;
+            font-size: min(3vw, 2rem);
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Weather display styling */
+        #weather-display {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1vh;
+            padding: 0 2vw;
+            max-width: 50%;
+        }
+
+        .current-weather-info, .forecast-weather-info {
+            text-align: center;
+            width: 100%;
+        }
+
+        .current-weather-info .temp {
+            font-size: min(4vw, 2.5rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+        }
+
+        .current-weather-info .details,
+        .forecast-weather-info .details {
+            font-size: min(2.5vw, 1.8rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+        }
+
+        .current-weather-info .feels-like {
+            font-size: min(2vw, 1.5rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 1vh;
+        }
+
+        .forecast-header {
+            font-family: 'Zain', sans-serif;
+            font-weight: 800;
+            text-decoration: underline;
+            font-size: min(3vw, 2rem);
+            margin: 0;
+            padding: 0;
+        }
+
+        .forecast-weather-info .temp {
+            font-size: min(2.5vw, 1.8rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+        }
+
+        .current-weather-icon {
+            width: min(100px, 15vw);
+            height: min(100px, 15vw);
+            margin: 1vh 0;
+        }
+
+        /* Calendar display styling */
+        #calendar-display {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1vh;
+            padding: 0 2vw;
+            max-width: 50%;
+				
+        }
+
+        #calendar-events {
+            font-size: min(2.5vw, 1.8rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+        }
+
+        /* Common styles for both columns */
+        #weather-display, #calendar-display {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1vh;
+            padding: 0 2vw;
+            max-width: 50%;
+        }
+
+        /* Headers */
+        .currently-header, #calendar-header, .forecast-header {
+            font-family: 'Zain', sans-serif;
+            font-weight: 800;
+            text-decoration: underline;
+            font-size: min(3vw, 2rem);
+            margin: 0;
+            padding: 0;
+            margin-bottom: 1vh;
+            color: #ffffff;
+            text-shadow: 2px 2px 0 #333;
+        }
+
+        /* Content text - all same size except current temp */
+        .current-weather-info .details,
+        .current-weather-info .feels-like,
+        .forecast-weather-info .details,
+        .forecast-weather-info .temp,
+        #calendar-events,
+        .event-name,
+        .event-datetime {
+            font-size: min(2.5vw, 1.8rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+            color: #ffffff;
+            text-shadow: 2px 2px 0 #333;
+        }
+
+        /* Current temperature only - larger size */
+        .current-weather-info .temp {
+            font-size: min(4vw, 2.5rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+            color: #ffffff;
+            text-shadow: 2px 2px 0 #333;
+        }
+
+        /* Weather icon */
+        .current-weather-icon {
+            width: min(100px, 15vw);
+            height: min(100px, 15vw);
+            margin: 1vh 0;
+        }
+
+        /* Event spacing */
+        .event {
+            margin-bottom: 1vh;
+        }
+
+        /* Ensure all text containers are fully opaque */
+        .current-weather-info,
+        .forecast-weather-info,
+        #calendar-events,
+        .event {
+            opacity: 1;
+        }
+
+        /* Current temperature and event name - larger size */
+        .current-weather-info .temp,
+        .event-name {
+            font-size: min(4vw, 2.5rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+            color: #ffffff;
+        }
+
+        /* All other content text - standard size */
+        .current-weather-info .details,
+        .current-weather-info .feels-like,
+        .forecast-weather-info .details,
+        .forecast-weather-info .temp,
+        #calendar-events,
+        .event-datetime {
+            font-size: min(2.5vw, 1.8rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+            color: #ffffff;
         }
     </style>
 </head>
@@ -295,7 +562,7 @@
             </div>
         </div>
     </div>
-    <div id="sensor-ticker"><div class="ticker-content">Loading waste collection data...</div></div>
+    <div id="sensor-ticker"><div class="ticker-content"></div></div>
 
     <script type="module">
         import { config } from './js/config.js';
