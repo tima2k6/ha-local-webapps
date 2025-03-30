@@ -247,18 +247,18 @@
         }
 
         #weather-display .temp {
-            font-size: min(5vw, 3.5rem);
+            font-size: min(3vw, 1.5rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
         }
 
         #weather-display .details {
-            font-size: min(5vw, 3.5rem);
+            font-size: min(3vw, 1.5rem);
             
         }
 
         #weather-display .feels-like {
-            font-size: min(5vw, 3.5rem);
+            font-size: min(3vw, 1.5rem);
         
         }
 
@@ -407,7 +407,7 @@
         }
 
         .current-weather-info .temp {
-            font-size: min(4vw, 2.5rem);
+            font-size: min(3vw, 1.5rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin-bottom: 0.5vh;
@@ -415,14 +415,14 @@
 
         .current-weather-info .details,
         .forecast-weather-info .details {
-            font-size: min(2.5vw, 1.8rem);
+            font-size: min(3vw, 1.5rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin-bottom: 0.5vh;
         }
 
         .current-weather-info .feels-like {
-            font-size: min(2vw, 1.5rem);
+            font-size: min(3vw, 1.5rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin-bottom: 1vh;
@@ -430,7 +430,7 @@
 
         
         .forecast-weather-info .temp {
-            font-size: min(2.5vw, 1.8rem);
+            font-size: min(3vw, 1.5rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin-bottom: 0.5vh;
@@ -488,10 +488,23 @@
             -webkit-text-stroke: 1px rgba(0,0,0,0.3);
         }
 
-        /* Large text with strong depth */
-        .current-weather-info .temp,
+        /* Large text with strong depth - event name */
         .event-name {
-            font-size: min(4vw, 2.5rem);
+            font-size: min(5vw, 3.5rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+            color: #ffffff;
+            text-shadow: 
+                2px 2px 0 #333,
+                3px 3px 0 #222,
+                4px 4px 0 #111;
+            -webkit-text-stroke: 1px rgba(0,0,0,0.4);
+        }
+        
+        /* Smaller text with strong depth - temperature */
+        .current-weather-info .temp {
+            font-size: min(3vw, 1.5rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin-bottom: 0.5vh;
@@ -503,14 +516,27 @@
             -webkit-text-stroke: 1px rgba(0,0,0,0.4);
         }
 
-        /* Standard text with subtle depth */
+        /* Calendar events with subtle depth */
+        #calendar-events {
+            font-size: min(5vw, 3.5rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+            color: #ffffff;
+            text-shadow: 
+                1px 1px 0 #333,
+                2px 2px 0 #222,
+                3px 3px 0 #111;
+            -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
+        }
+        
+        /* Smaller text with subtle depth for tablet display */
         .current-weather-info .details,
         .current-weather-info .feels-like,
         .forecast-weather-info .details,
         .forecast-weather-info .temp,
-        #calendar-events,
         .event-datetime {
-            font-size: min(2.5vw, 1.8rem);
+            font-size: min(3vw, 1.5rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin-bottom: 0.5vh;
@@ -535,24 +561,40 @@
             opacity: 1;
         }
 
-        /* Current temperature and event name - larger size */
-        .current-weather-info .temp,
+        /* Current temperature - smaller size for tablet */
+        .current-weather-info .temp {
+            font-size: min(3vw, 1.5rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+            color: #ffffff;
+        }
+        
+        /* Event name - same size as forecast-header */
         .event-name {
-            font-size: min(4vw, 2.5rem);
+            font-size: min(5vw, 3.5rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin-bottom: 0.5vh;
             color: #ffffff;
         }
 
-        /* All other content text - standard size */
+        /* Calendar events content */
+        #calendar-events {
+            font-size: min(5vw, 3.5rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+            color: #ffffff;
+        }
+        
+        /* Smaller text for better tablet display */
         .current-weather-info .details,
         .current-weather-info .feels-like,
         .forecast-weather-info .details,
         .forecast-weather-info .temp,
-        #calendar-events,
         .event-datetime {
-            font-size: min(5vw, 3.5rem);
+            font-size: min(3vw, 1.5rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin-bottom: 0.5vh;
@@ -566,23 +608,24 @@
             gap: 1rem;
         }
 
+        /* Temperature elements for better tablet display */
         .current-weather-info .temp {
-            font-size: min(5vw, 3.5rem);
+            font-size: min(3vw, 1.5rem);
             margin: 0;
         }
 
         .current-weather-info .feels-like {
-            font-size: min(5vw, 3.5rem);
+            font-size: min(3vw, 1.5rem);
             margin: 0;
         }
 
         /* Ensure temp-line elements maintain proper sizing */
         .temp-line .temp {
-            font-size: min(4vw, 2.5rem);
+            font-size: min(3vw, 1.5rem);
         }
 
         .temp-line .feels-like {
-            font-size: min(2.5vw, 1.8rem);
+            font-size: min(3vw, 1.5rem);
         }
 
         /* Weather transition styles */
