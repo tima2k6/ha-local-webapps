@@ -5,6 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home Assistant Screensaver</title>
     <style>
+        /* ===== CSS VARIABLES ===== */
+        :root {
+            /* Colors */
+            --color-background: #000000;
+            --color-text: #ffffff;
+            --color-current: #00ffd0;
+            --color-forecast: #16F529;
+            
+            /* Font Sizes */
+            --font-size-xl: min(10vw, 6rem);      /* Time display */
+            --font-size-lg: min(5vw, 3.5rem);     /* Headers, event names */
+            --font-size-md: min(4.5vw, 3rem);     /* Date display */
+            --font-size-sm: min(3vw, 1.5rem);     /* Details, temps, dates */
+            
+            /* Shadows */
+            --shadow-strong: 
+                2px 2px 0 #333,
+                3px 3px 0 #222,
+                4px 4px 0 #111;
+            --shadow-light: 
+                1px 1px 0 #333,
+                2px 2px 0 #222,
+                3px 3px 0 #111;
+                
+            /* Spacing */
+            --spacing-xs: 0.5vh;
+            --spacing-sm: 1vh;
+            --spacing-md: 2vh;
+            --spacing-lg: 3vh;
+        }
+
+        /* ===== FONT FACES ===== */
         @font-face {
             font-family: 'Protest Strike';
             src: url('/fonts/ProtestStrike-Regular.ttf') format('truetype');
@@ -37,14 +69,15 @@
             font-display: swap;
         }
 
+        /* ===== BASE STYLES ===== */
         body {
             margin: 0;
             padding: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
-            background: #000000;
-            color: #ffffff;
+            background: var(--color-background);
+            color: var(--color-text);
             font-family: 'Protest Strike', sans-serif;
             text-align: center;
             overflow: hidden;
@@ -58,39 +91,33 @@
             overflow: hidden;
         }
 
+        /* ===== TIME & DATE SECTION ===== */
         #time-date-section {
             flex: 0 0 auto;
             display: flex;
             flex-direction: column;
             justify-content: center;
             width: 100%;
-            
-            margin-bottom: 1vh;
+            margin-bottom: var(--spacing-sm);
         }
 
         #time-display {
-            font-size: min(10vw, 6rem);
+            font-size: var(--font-size-xl);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin: 0;
-            color: #ffffff;
-            text-shadow: 
-                2px 2px 0 #333,
-                3px 3px 0 #222,
-                4px 4px 0 #111;
+            color: var(--color-text);
+            text-shadow: var(--shadow-strong);
             -webkit-text-stroke: 1px rgba(0,0,0,0.4);
         }
 
         #date-display {
-            font-size: min(4.5vw, 3rem);
+            font-size: var(--font-size-md);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin: 0;
-            color: #ffffff;
-            text-shadow: 
-                2px 2px 0 #333,
-                3px 3px 0 #222,
-                4px 4px 0 #111;
+            color: var(--color-text);
+            text-shadow: var(--shadow-strong);
             -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
         }
 
@@ -131,18 +158,8 @@
             max-width: 50%;
         }
 
-        #calendar-header {
-            font-family: 'Zain', sans-serif;
-            font-weight: 800;
-            text-decoration: underline;
-            font-size: min(3vw, 2rem);
-            margin: 0;
-            padding: 0;
-        }
-
+        /* Calendar elements */
         #calendar-events {
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
             position: relative;
             min-height: 120px;
             width: 100%;
@@ -309,16 +326,12 @@
 
         .currently-header, .forecast-header {
             font-family: 'Zain', sans-serif;
-            
-            font-size: min(5vw, 3.5rem);
+            font-size: var(--font-size-lg);
             margin: 0;
             padding: 0;
-            margin-bottom: .5vh;
-            color: #ffffff;
-            text-shadow: 
-                2px 2px 0 #333,
-                3px 3px 0 #222,
-                4px 4px 0 #111;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text);
+            text-shadow: var(--shadow-strong);
             -webkit-text-stroke: 1px rgba(0,0,0,0.3);
             order: 1;
         }
@@ -380,95 +393,11 @@
             order: 5;
         }
 
-        /* Common header styling for both columns */
-        #calendar-header {
-            font-family: 'Zain', sans-serif;
-            font-weight: 800;
-            text-decoration: underline;
-            font-size: min(3vw, 2rem);
-            margin: 0;
-            padding: 0;
-        }
 
-        /* Weather display styling */
-        #weather-display {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1vh;
-            padding: 0 2vw;
-            max-width: 50%;
-        }
-
+        /* Weather and calendar content */
         .current-weather-info, .forecast-weather-info {
             text-align: center;
             width: 100%;
-        }
-
-        .current-weather-info .temp {
-            font-size: min(3vw, 1.5rem);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: 0.5vh;
-        }
-
-        .current-weather-info .details,
-        .forecast-weather-info .details {
-            font-size: min(3vw, 1.5rem);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: 0.5vh;
-        }
-
-        .current-weather-info .feels-like {
-            font-size: min(3vw, 1.5rem);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: 1vh;
-        }
-
-        
-        .forecast-weather-info .temp {
-            font-size: min(3vw, 1.5rem);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: 0.5vh;
-        }
-
-        .current-weather-icon {
-            width: min(100px, 15vw);
-            height: min(100px, 15vw);
-            margin: 1vh 0;
-        }
-
-        /* Calendar display styling */
-        #calendar-display {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1vh;
-            padding: 0 2vw;
-            max-width: 50%;
-				
-        }
-
-        #calendar-events {
-            font-size: min(2.5vw, 1.8rem);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-        }
-
-        /* Common styles for both columns */
-        #weather-display, #calendar-display {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1vh;
-            padding: 0 2vw;
-            max-width: 50%;
         }
 
         /* Headers with depth */
@@ -476,57 +405,45 @@
             font-family: 'Zain', sans-serif;
             font-weight: 800;
             text-decoration: underline;
-            font-size: min(3vw, 2rem);
+            font-size: var(--font-size-lg);
             margin: 0;
             padding: 0;
-            margin-bottom: .5vh;
-            color: #ffffff;
-            text-shadow: 
-                2px 2px 0 #333,
-                3px 3px 0 #222,
-                4px 4px 0 #111;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text);
+            text-shadow: var(--shadow-strong);
             -webkit-text-stroke: 1px rgba(0,0,0,0.3);
         }
 
         /* Large text with strong depth - event name */
         .event-name {
-            font-size: min(5vw, 3.5rem);
+            font-size: var(--font-size-lg);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
-            margin-bottom: 0.5vh;
-            color: #ffffff;
-            text-shadow: 
-                2px 2px 0 #333,
-                3px 3px 0 #222,
-                4px 4px 0 #111;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text);
+            text-shadow: var(--shadow-strong);
             -webkit-text-stroke: 1px rgba(0,0,0,0.4);
         }
         
         /* Smaller text with strong depth - temperature */
         .current-weather-info .temp {
-            font-size: min(3vw, 1.5rem);
+            font-size: var(--font-size-sm);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
-            margin-bottom: 0.5vh;
-            color: #ffffff;
-            text-shadow: 
-                2px 2px 0 #333,
-                3px 3px 0 #222,
-                4px 4px 0 #111;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text);
+            text-shadow: var(--shadow-strong);
             -webkit-text-stroke: 1px rgba(0,0,0,0.4);
         }
 
         /* Calendar events with subtle depth */
         #calendar-events {
-            font-size: min(5vw, 3.5rem);
+            font-size: var(--font-size-lg);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
-            margin-bottom: 0.5vh;
-            color: #ffffff;
-            text-shadow: 
-                1px 1px 0 #333,
-                2px 2px 0 #222,
-                3px 3px 0 #111;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text);
+            text-shadow: var(--shadow-light);
             -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
         }
         
@@ -536,15 +453,12 @@
         .forecast-weather-info .details,
         .forecast-weather-info .temp,
         .event-datetime {
-            font-size: min(3vw, 1.5rem);
+            font-size: var(--font-size-sm);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
-            margin-bottom: 0.5vh;
-            color: #ffffff;
-            text-shadow: 
-                1px 1px 0 #333,
-                2px 2px 0 #222,
-                3px 3px 0 #111;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text);
+            text-shadow: var(--shadow-light);
             -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
         }
 
@@ -561,71 +475,12 @@
             opacity: 1;
         }
 
-        /* Current temperature - smaller size for tablet */
-        .current-weather-info .temp {
-            font-size: min(3vw, 1.5rem);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: 0.5vh;
-            color: #ffffff;
-        }
-        
-        /* Event name - same size as forecast-header */
-        .event-name {
-            font-size: min(5vw, 3.5rem);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: 0.5vh;
-            color: #ffffff;
-        }
-
-        /* Calendar events content */
-        #calendar-events {
-            font-size: min(5vw, 3.5rem);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: 0.5vh;
-            color: #ffffff;
-        }
-        
-        /* Smaller text for better tablet display */
-        .current-weather-info .details,
-        .current-weather-info .feels-like,
-        .forecast-weather-info .details,
-        .forecast-weather-info .temp,
-        .event-datetime {
-            font-size: min(3vw, 1.5rem);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: 0.5vh;
-            color: #ffffff;
-        }
-
+        /* Layout for temperature elements */
         .temp-line {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 1rem;
-        }
-
-        /* Temperature elements for better tablet display */
-        .current-weather-info .temp {
-            font-size: min(3vw, 1.5rem);
-            margin: 0;
-        }
-
-        .current-weather-info .feels-like {
-            font-size: min(3vw, 1.5rem);
-            margin: 0;
-        }
-
-        /* Ensure temp-line elements maintain proper sizing */
-        .temp-line .temp {
-            font-size: min(3vw, 1.5rem);
-        }
-
-        .temp-line .feels-like {
-            font-size: min(3vw, 1.5rem);
         }
 
         /* Weather transition styles */
@@ -666,15 +521,12 @@
             font-family: 'Zain', sans-serif;
             font-weight: 800;
             text-decoration: underline;
-            font-size: min(3vw, 2rem);
+            font-size: var(--font-size-lg);
             margin: 0;
             padding: 0;
-            margin-bottom: .5vh;
-            color: #ffffff;
-            text-shadow: 
-                2px 2px 0 #333,
-                3px 3px 0 #222,
-                4px 4px 0 #111;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text);
+            text-shadow: var(--shadow-strong);
             -webkit-text-stroke: 1px rgba(0,0,0,0.3);
         }
 
@@ -687,11 +539,11 @@
         }
 
         .currently-header {
-            color: #00ffd0;
+            color: var(--color-current);
         }
 
         .forecast-header {
-            color: #16F529;
+            color: var(--color-forecast);
         }
 
         /* Weather content */
