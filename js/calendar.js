@@ -13,7 +13,7 @@ export class CalendarDisplay {
         try {
             const start = new Date().toISOString();
             const end = new Date();
-            end.setDate(end.getDate() + 7);
+            end.setDate(end.getDate() + 10);
             const endStr = end.toISOString();
 
             const response = await fetch(
@@ -86,25 +86,27 @@ export class CalendarDisplay {
         if (eventElements.length > 0) {
             this.currentEvent = 0;
     
-            // Initialize carousel: show the first event
+            // Initialize: show the first event
             eventElements.forEach((el, index) => {
                 el.classList.toggle('active', index === 0);
                 el.classList.toggle('hidden', index !== 0);
             });
     
-            // Rotate events
+            // Rotate events with fade out only
             this.eventInterval = setInterval(() => {
-                // Hide current event
-                eventElements[this.currentEvent].classList.remove('active');
-                eventElements[this.currentEvent].classList.add('hidden');
-    
-                // Move to the next event
+                const prevEvent = eventElements[this.currentEvent];
                 this.currentEvent = (this.currentEvent + 1) % eventElements.length;
+                const nextEvent = eventElements[this.currentEvent];
     
-                // Show next event
-                eventElements[this.currentEvent].classList.remove('hidden');
-                eventElements[this.currentEvent].classList.add('active');
-            }, 5000); // Rotate every 5 seconds
+                // Fade out previous event and show next immediately
+                prevEvent.classList.remove('active');
+                prevEvent.classList.add('hidden');
+                
+                // Show next event immediately
+                nextEvent.classList.remove('hidden');
+                nextEvent.classList.add('active');
+                
+            }, 10000); // 10 second interval
         }
     }
 

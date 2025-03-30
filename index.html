@@ -65,19 +65,33 @@
             justify-content: center;
             width: 100%;
             
-            margin-bottom: 2vh;
+            margin-bottom: 1vh;
         }
 
         #time-display {
-            font-size: min(8vw, 5rem);
+            font-size: min(10vw, 6rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
             margin: 0;
-            text-shadow: 2px 2px 0 #333;
+            color: #ffffff;
+            text-shadow: 
+                2px 2px 0 #333,
+                3px 3px 0 #222,
+                4px 4px 0 #111;
+            -webkit-text-stroke: 1px rgba(0,0,0,0.4);
         }
 
         #date-display {
-            font-size: min(4vw, 2.5rem);
+            font-size: min(4.5vw, 3rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
             margin: 0;
-            text-shadow: 2px 2px 0 #333;
+            color: #ffffff;
+            text-shadow: 
+                2px 2px 0 #333,
+                3px 3px 0 #222,
+                4px 4px 0 #111;
+            -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
         }
 
         #info-section {
@@ -93,17 +107,17 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 1vh;
-            padding: 0 2vw;
+            gap: 0 1vh;
+            padding: 0 1vw;
             max-width: 50%;
-				
-				
+            position: relative;
+            min-height: 200px;
         }
 
         #weather-display img {
             width: min(100px, 15vw);
             height: min(100px, 15vw);
-            margin-top: 1vh;
+            
             filter: drop-shadow(2px 2px 0 #333);
         }
 
@@ -112,7 +126,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 1vh;
+            gap: 0 1vh;
             padding: 0 2vw;
             max-width: 50%;
         }
@@ -127,35 +141,42 @@
         }
 
         #calendar-events {
-            
             font-family: 'Zain', sans-serif;
             font-weight: bold;
+            position: relative;
+            min-height: 120px;
+            width: 100%;
         }
 
         .event {
-            opacity: 0; /* Start invisible */
-            flex: 0 0 100%; /* Ensure each event takes up the full width */
-            transition: opacity 0.5s ease; /* Smooth fade in and out */
-            text-align: center; /* Center the text within the event */
-            position: absolute; /* Ensure events overlap perfectly in a single row */
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 3s ease-in-out, transform 3s ease-in-out;
+            width: 100%;
+            text-align: center;
+            position: absolute;
             top: 0;
             left: 0;
-            width: 100%; /* Ensure event spans full width */
+            right: 0;
             display: flex;
-            flex-direction: column; /* Stack name and datetime vertically */
-            align-items: center; /* Center items horizontally */
-            justify-content: center; /* Center items vertically */
-            padding: 0.3rem 0; /* Slightly adjust padding */
-            box-sizing: border-box; /* Include padding in width calculations */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.3rem 0;
+            box-sizing: border-box;
         }
 
         .event.active {
-            opacity: 1; /* Fully visible */
-            position: relative; /* Align the active event naturally in the row */
+            opacity: 1;
+            transform: translateY(0);
+            z-index: 2;
         }
 
         .event.hidden {
-            opacity: 0; /* Hidden */
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+            z-index: 1;
         }
 
         .event-name {
@@ -226,19 +247,19 @@
         }
 
         #weather-display .temp {
-            font-size: min(4vw, 2.5rem);
+            font-size: min(5vw, 3.5rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
         }
 
         #weather-display .details {
-            font-size: min(2.5vw, 1.8rem);
+            font-size: min(5vw, 3.5rem);
             
         }
 
         #weather-display .feels-like {
-            font-size: min(2vw, 1.5rem);
-            
+            font-size: min(5vw, 3.5rem);
+        
         }
 
         .zain-bold {
@@ -278,20 +299,28 @@
             gap: 3vh;
         }
 
-        /* Current Weather Section */
-        .current-section {
+       
+        .current-section, .forecast-section {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 1vh;
         }
 
-        .currently-header {
+        .currently-header, .forecast-header {
             font-family: 'Zain', sans-serif;
-            font-weight: 800;
-            text-decoration: underline;
-            margin-top: 0;
-            padding-top: 0;
+            
+            font-size: min(5vw, 3.5rem);
+            margin: 0;
+            padding: 0;
+            margin-bottom: .5vh;
+            color: #ffffff;
+            text-shadow: 
+                2px 2px 0 #333,
+                3px 3px 0 #222,
+                4px 4px 0 #111;
+            -webkit-text-stroke: 1px rgba(0,0,0,0.3);
+            order: 1;
         }
 
         .current-weather-info {
@@ -301,26 +330,12 @@
         .current-weather-icon {
             width: min(100px, 15vw);
             height: min(100px, 15vw);
-            margin: 1vh 0;
             filter: drop-shadow(2px 2px 0 #333);
+            order: 2;
         }
 
         /* Forecast Section */
-        .forecast-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1vh;
-        }
-
-        .forecast-header {
-            font-family: 'Zain', sans-serif;
-            font-weight: 800;
-            text-decoration: underline;
-            font-size: min(3vw, 2rem);
-            margin: 0;
-            padding: 0;
-        }
+        
 
         .forecast-weather-info {
             text-align: center;
@@ -366,7 +381,7 @@
         }
 
         /* Common header styling for both columns */
-        .currently-header, #calendar-header {
+        #calendar-header {
             font-family: 'Zain', sans-serif;
             font-weight: 800;
             text-decoration: underline;
@@ -413,15 +428,7 @@
             margin-bottom: 1vh;
         }
 
-        .forecast-header {
-            font-family: 'Zain', sans-serif;
-            font-weight: 800;
-            text-decoration: underline;
-            font-size: min(3vw, 2rem);
-            margin: 0;
-            padding: 0;
-        }
-
+        
         .forecast-weather-info .temp {
             font-size: min(2.5vw, 1.8rem);
             font-family: 'Zain', sans-serif;
@@ -464,50 +471,55 @@
             max-width: 50%;
         }
 
-        /* Headers */
-        .currently-header, #calendar-header, .forecast-header {
+        /* Headers with depth */
+        #calendar-header {
             font-family: 'Zain', sans-serif;
             font-weight: 800;
             text-decoration: underline;
             font-size: min(3vw, 2rem);
             margin: 0;
             padding: 0;
-            margin-bottom: 1vh;
+            margin-bottom: .5vh;
             color: #ffffff;
-            text-shadow: 2px 2px 0 #333;
+            text-shadow: 
+                2px 2px 0 #333,
+                3px 3px 0 #222,
+                4px 4px 0 #111;
+            -webkit-text-stroke: 1px rgba(0,0,0,0.3);
         }
 
-        /* Content text - all same size except current temp */
+        /* Large text with strong depth */
+        .current-weather-info .temp,
+        .event-name {
+            font-size: min(4vw, 2.5rem);
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            margin-bottom: 0.5vh;
+            color: #ffffff;
+            text-shadow: 
+                2px 2px 0 #333,
+                3px 3px 0 #222,
+                4px 4px 0 #111;
+            -webkit-text-stroke: 1px rgba(0,0,0,0.4);
+        }
+
+        /* Standard text with subtle depth */
         .current-weather-info .details,
         .current-weather-info .feels-like,
         .forecast-weather-info .details,
         .forecast-weather-info .temp,
         #calendar-events,
-        .event-name,
         .event-datetime {
             font-size: min(2.5vw, 1.8rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin-bottom: 0.5vh;
             color: #ffffff;
-            text-shadow: 2px 2px 0 #333;
-        }
-
-        /* Current temperature only - larger size */
-        .current-weather-info .temp {
-            font-size: min(4vw, 2.5rem);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: 0.5vh;
-            color: #ffffff;
-            text-shadow: 2px 2px 0 #333;
-        }
-
-        /* Weather icon */
-        .current-weather-icon {
-            width: min(100px, 15vw);
-            height: min(100px, 15vw);
-            margin: 1vh 0;
+            text-shadow: 
+                1px 1px 0 #333,
+                2px 2px 0 #222,
+                3px 3px 0 #111;
+            -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
         }
 
         /* Event spacing */
@@ -540,11 +552,117 @@
         .forecast-weather-info .temp,
         #calendar-events,
         .event-datetime {
-            font-size: min(2.5vw, 1.8rem);
+            font-size: min(5vw, 3.5rem);
             font-family: 'Zain', sans-serif;
             font-weight: bold;
             margin-bottom: 0.5vh;
             color: #ffffff;
+        }
+
+        .temp-line {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .current-weather-info .temp {
+            font-size: min(5vw, 3.5rem);
+            margin: 0;
+        }
+
+        .current-weather-info .feels-like {
+            font-size: min(5vw, 3.5rem);
+            margin: 0;
+        }
+
+        /* Ensure temp-line elements maintain proper sizing */
+        .temp-line .temp {
+            font-size: min(4vw, 2.5rem);
+        }
+
+        .temp-line .feels-like {
+            font-size: min(2.5vw, 1.8rem);
+        }
+
+        /* Weather transition styles */
+        .weather-section {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 3s ease-in-out, transform 3s ease-in-out;
+            width: 100%;
+            text-align: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.3rem 0;
+            box-sizing: border-box;
+            
+        }
+
+        .weather-section.active {
+            opacity: 1;
+            transform: translateY(0);
+            z-index: 2;
+        }
+
+        .weather-section.hidden {
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Weather headers */
+        .weather-header {
+            font-family: 'Zain', sans-serif;
+            font-weight: 800;
+            text-decoration: underline;
+            font-size: min(3vw, 2rem);
+            margin: 0;
+            padding: 0;
+            margin-bottom: .5vh;
+            color: #ffffff;
+            text-shadow: 
+                2px 2px 0 #333,
+                3px 3px 0 #222,
+                4px 4px 0 #111;
+            -webkit-text-stroke: 1px rgba(0,0,0,0.3);
+        }
+
+        .currently-header, .forecast-header {
+            text-decoration: none;
+            
+            margin: 0;
+            padding: 0;
+            order: 1;
+        }
+
+        .currently-header {
+            color: #00ffd0;
+        }
+
+        .forecast-header {
+            color: #16F529;
+        }
+
+        /* Weather content */
+        .weather-content {
+            position: relative;
+            min-height: 200px;
+            width: 100%;
+            margin-top: 0.5vh;
+        }
+
+        .current-weather-info, .forecast-weather-info {
+            width: 100%;
+            text-align: center;
+            order: 3;
         }
     </style>
 </head>

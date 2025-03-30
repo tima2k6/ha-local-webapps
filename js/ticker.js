@@ -4,27 +4,40 @@ export class Ticker {
         this.token = token;
         this.container = container;
         this.ws = null;
+        // State management for different types of sensors/entities
         this.states = {
-            feedingState: null,
-            wasteReminder: null,
-            garbageCollection: null,
-            recyclingCollection: null,
-            garageDoor: null,
-            backyardDoor: null,
-            trashOut: null,
-            openWindowsCount: 0,          // New Sensor
-            exteriorDoorCount: 0          // New Sensor
+            // Pet Care
+            feedingState: null,          // Zoey's feeding status
+            
+            // Waste Management
+            wasteReminder: null,         // General waste collection reminder
+            garbageCollection: null,     // Garbage collection date
+            recyclingCollection: null,    // Recycling collection date
+            trashOut: null,              // Whether trash has been taken out
+            
+            // Security & Access
+            garageDoor: null,            // Dog door in garage
+            backyardDoor: null,          // Dog door to backyard
+            openWindowsCount: 0,         // Number of open windows
+            exteriorDoorCount: 0,        // Number of open exterior doors
+            westGate: null,              // West gate status
+            eastGate: null,              // East gate status
+            backyardShed: null,          // Backyard shed status
+            boatShed: null               // Boat shed status
         };
         this.currentContent = '';
         this.setupWebSocket();
     }
 
     setupWebSocket() {
+        // Initialize WebSocket connection
         const wsUrl = this.haUrl.replace(/^http/, 'ws');
         this.ws = new WebSocket(`${wsUrl}/api/websocket`);
 
+        // WebSocket Event Handlers
         this.ws.onopen = () => {
             console.log('WebSocket: Connected');
+            // Authenticate with Home Assistant
             this.ws.send(JSON.stringify({
                 type: "auth",
                 access_token: this.token
@@ -34,20 +47,23 @@ export class Ticker {
         this.ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
 
+            // Handle authentication response
             if (data.type === "auth_ok") {
                 console.log('WebSocket: Authenticated');
+                // Request initial states after authentication
                 this.ws.send(JSON.stringify({
                     id: 1,
                     type: "get_states"
                 }));
             } 
+            // Handle initial state response
             else if (data.type === "result" && data.id === 1) {
                 // Process initial states
                 data.result.forEach(entity => {
                     this.processEntityState(entity.entity_id, entity.state);
                 });
                 
-                // Subscribe to all relevant entities (including input_boolean.trash_out)
+                // Subscribe to state change events
                 this.ws.send(JSON.stringify({
                     id: 2,
                     type: "subscribe_events",
@@ -56,6 +72,7 @@ export class Ticker {
                 
                 this.updateTicker();
             }
+            // Handle state change events
             else if (data.type === "event" && 
                      data.event?.event_type === "state_changed") {
                 const entityId = data.event.data.entity_id;
@@ -65,6 +82,7 @@ export class Ticker {
             }
         };
 
+        // Handle connection failures
         this.ws.onclose = () => {
             console.log('WebSocket: Disconnected, reconnecting...');
             setTimeout(() => this.setupWebSocket(), 5000);
@@ -75,12 +93,15 @@ export class Ticker {
         let stateChanged = false;
         
         switch(entityId) {
+            // Pet Care Sensors
             case "sensor.zoey_feeding_status":
                 if (this.states.feedingState !== state) {
                     this.states.feedingState = state;
                     stateChanged = true;
                 }
                 break;
+
+            // Waste Management Sensors
             case "sensor.waste_collection_reminder":
                 const newState = state.toLowerCase() === 'true';
                 if (this.states.wasteReminder !== newState) {
@@ -100,6 +121,15 @@ export class Ticker {
                     stateChanged = true;
                 }
                 break;
+            case "input_boolean.trash_out":
+                const newTrashState = state.toLowerCase() === 'on';
+                if (this.states.trashOut !== newTrashState) {
+                    this.states.trashOut = newTrashState;
+                    stateChanged = true;
+                }
+                break;
+
+            // Security & Access Sensors
             case "binary_sensor.dog_door_garage_contact":
                 if (this.states.garageDoor !== state) {
                     this.states.garageDoor = state;
@@ -112,24 +142,45 @@ export class Ticker {
                     stateChanged = true;
                 }
                 break;
-            case "input_boolean.trash_out":
-                const newTrashState = state.toLowerCase() === 'on';
-                if (this.states.trashOut !== newTrashState) {
-                    this.states.trashOut = newTrashState;
-                    stateChanged = true;
-                }
-                break;
-            case "sensor.open_windows_count": // New Sensor
+            case "sensor.open_windows_count":
                 const openWindows = parseInt(state, 10) || 0;
                 if (this.states.openWindowsCount !== openWindows) {
                     this.states.openWindowsCount = openWindows;
                     stateChanged = true;
                 }
                 break;
-            case "sensor.exterior_door_count": // New Sensor
+            case "sensor.exterior_door_count":
                 const exteriorDoors = parseInt(state, 10) || 0;
                 if (this.states.exteriorDoorCount !== exteriorDoors) {
                     this.states.exteriorDoorCount = exteriorDoors;
+                    stateChanged = true;
+                }
+                break;
+
+            // Gates
+            case "binary_sensor.west_gate_contact":
+                if (this.states.westGate !== state) {
+                    this.states.westGate = state;
+                    stateChanged = true;
+                }
+                break;
+            case "binary_sensor.east_gate_contact":
+                if (this.states.eastGate !== state) {
+                    this.states.eastGate = state;
+                    stateChanged = true;
+                }
+                break;
+
+            // Sheds
+            case "binary_sensor.backyard_shed_contact":
+                if (this.states.backyardShed !== state) {
+                    this.states.backyardShed = state;
+                    stateChanged = true;
+                }
+                break;
+            case "binary_sensor.boat_shed_contact":
+                if (this.states.boatShed !== state) {
+                    this.states.boatShed = state;
                     stateChanged = true;
                 }
                 break;
@@ -151,7 +202,7 @@ export class Ticker {
         let tickerMessages = [];
 
         try {
-            // Zoey Feeding Status
+            // Pet Care Messages
             if (this.states.feedingState && this.states.feedingState !== 'outside-feeding-time') {
                 if (this.states.feedingState === 'fed') {
                     tickerMessages.push('<span style="color: #16F529;">Zoey\'s been fed</span>');
@@ -162,12 +213,12 @@ export class Ticker {
                 }
             }
 
-            // Waste Collection Reminder
+            // Waste Management Messages
             if (this.states.wasteReminder && !this.states.trashOut) {
                 if (tickerMessages.length > 0) {
                     tickerMessages.push('<span style="margin: 0 2rem;"></span>');
                 }
-                tickerMessages.push('<span style="color: orange;">Reminder: Trash pickup is soon!</span>');
+                tickerMessages.push('<span style="color: orange;">Reminder: </span>');
                 
                 if (this.states.garbageCollection) {
                     tickerMessages.push(`<span style="margin-left: 2rem;">Trash: ${this.states.garbageCollection}</span>`);
@@ -178,7 +229,7 @@ export class Ticker {
                 }
             }
 
-            // Garage and Backyard Doors
+            // Security & Access Messages
             if (this.states.garageDoor === 'on' && this.states.backyardDoor === 'on') {
                 if (tickerMessages.length > 0) {
                     tickerMessages.push('<span style="margin: 0 2rem;"></span>');
@@ -186,7 +237,6 @@ export class Ticker {
                 tickerMessages.push('<span style="color: #16F529;">Both Dog Doors are open</span>');
             }
 
-            // **New Section: Open Windows Count**
             if (this.states.openWindowsCount > 0) {
                 if (tickerMessages.length > 0) {
                     tickerMessages.push('<span style="margin: 0 2rem;"></span>');
@@ -194,7 +244,6 @@ export class Ticker {
                 tickerMessages.push(`<span style="color: yellow;">Open Windows: ${this.states.openWindowsCount}</span>`);
             }
 
-            // **New Section: Exterior Door Count**
             if (this.states.exteriorDoorCount > 0) {
                 if (tickerMessages.length > 0) {
                     tickerMessages.push('<span style="margin: 0 2rem;"></span>');
@@ -202,6 +251,28 @@ export class Ticker {
                 tickerMessages.push(`<span style="color: yellow;">Open Exterior Doors: ${this.states.exteriorDoorCount}</span>`);
             }
 
+            // After the exterior doors message
+            let openGatesCount = [this.states.westGate, this.states.eastGate]
+                .filter(state => state === 'on').length;
+            
+            if (openGatesCount > 0) {
+                if (tickerMessages.length > 0) {
+                    tickerMessages.push('<span style="margin: 0 2rem;"></span>');
+                }
+                tickerMessages.push(`<span style="color: yellow;">Open Gates: ${openGatesCount}</span>`);
+            }
+
+            let openShedsCount = [this.states.backyardShed, this.states.boatShed]
+                .filter(state => state === 'on').length;
+            
+            if (openShedsCount > 0) {
+                if (tickerMessages.length > 0) {
+                    tickerMessages.push('<span style="margin: 0 2rem;"></span>');
+                }
+                tickerMessages.push(`<span style="color: yellow;">Open Sheds: ${openShedsCount}</span>`);
+            }
+
+            // Ticker Display Logic
             const newContent = tickerMessages.join('');
 
             // Only update if content actually changed

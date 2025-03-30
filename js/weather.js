@@ -5,6 +5,7 @@ export class WeatherDisplay {
         this.lat = '47.5673';
         this.lon = '-122.6327';
         this.units = 'imperial';
+        this.weatherInterval = null;
     }
 
     async fetchWeather() {
@@ -14,8 +15,46 @@ export class WeatherDisplay {
                 this.fetchForecast()
             ]);
             
-            if (currentData && forecastData) {
-                this.updateDisplay(currentData, forecastData);
+            if (currentData && forecastData && forecastData.length > 0) {
+                // Process current weather data
+                const currentWeather = {
+                    temp: Math.round(currentData.main.temp),
+                    feelsLike: Math.round(currentData.main.feels_like),
+                    description: this.capitalizeWords(currentData.weather[0].description),
+                    icon: `https://openweathermap.org/img/wn/${currentData.weather[0].icon}@4x.png`
+                };
+
+                // Initialize with first forecast values instead of Infinity
+                let highTemp = forecastData[0].main.temp;
+                let lowTemp = forecastData[0].main.temp;
+                let conditions = new Set();
+                let weatherCounts = {};
+
+                forecastData.forEach(forecast => {
+                    if (forecast && forecast.main && typeof forecast.main.temp === 'number') {
+                        const forecastTemp = forecast.main.temp;
+                        highTemp = Math.max(highTemp, forecastTemp);
+                        lowTemp = Math.min(lowTemp, forecastTemp);
+                        const condition = forecast.weather[0].description;
+                        conditions.add(this.capitalizeWords(condition));
+                        
+                        const weatherKey = `${condition}|${forecast.weather[0].icon}`;
+                        weatherCounts[weatherKey] = (weatherCounts[weatherKey] || 0) + 1;
+                    }
+                });
+
+                // Get most common weather condition and its icon
+                const mostCommonWeather = Object.entries(weatherCounts)
+                    .sort((a, b) => b[1] - a[1])[0][0]
+                    .split('|');
+
+                const forecastWeather = {
+                    temp: `High ${Math.round(highTemp)}°F • Low ${Math.round(lowTemp)}°F`,
+                    description: Array.from(conditions).slice(0, 2).join(', '),
+                    icon: `https://openweathermap.org/img/wn/${mostCommonWeather[1]}@4x.png`
+                };
+
+                this.updateDisplay(currentWeather, forecastWeather);
             } else {
                 this.showError();
             }
@@ -40,19 +79,23 @@ export class WeatherDisplay {
             const response = await fetch(this.buildUrl('forecast'));
             const data = await response.json();
             
-            // Get all forecasts for today
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
+            // Get forecasts for next 24 hours
+            const now = new Date();
+            const tomorrow = new Date(now);
+            tomorrow.setHours(now.getHours() + 24);
             
-            // Filter forecasts for today only
-            const todaysForecasts = data.list.filter(item => {
+            console.log('Fetching forecasts between:', now, 'and', tomorrow);
+            
+            // Filter forecasts for next 24 hours
+            const forecasts = data.list.filter(item => {
                 const forecastDate = new Date(item.dt * 1000);
-                return forecastDate >= today && forecastDate < tomorrow;
+                return forecastDate >= now && forecastDate < tomorrow;
             });
-
-            return todaysForecasts;
+            
+            console.log('Found forecasts:', forecasts.length);
+            console.log('First forecast:', forecasts[0]);
+            
+            return forecasts;
         } catch (error) {
             console.error('Forecast fetch error:', error);
             return null;
@@ -63,65 +106,68 @@ export class WeatherDisplay {
         return `https://api.openweathermap.org/data/2.5/${type}?lat=${this.lat}&lon=${this.lon}&units=${this.units}&appid=${this.apiKey}`;
     }
 
-    updateDisplay(currentData, forecastData) {
-        const temp = Math.round(currentData.main.temp);
-        const description = this.capitalizeWords(currentData.weather[0].description);
-        const icon = currentData.weather[0].icon;
-        const feelsLike = Math.round(currentData.main.feels_like);
-
-        // Process forecast data
-        let highTemp = -Infinity;
-        let lowTemp = Infinity;
-        let conditions = new Set();
-
-        forecastData.forEach(forecast => {
-            const forecastTemp = forecast.main.temp;
-            highTemp = Math.max(highTemp, forecastTemp);
-            lowTemp = Math.min(lowTemp, forecastTemp);
-            conditions.add(this.capitalizeWords(forecast.weather[0].description));
-        });
-
-        // Convert conditions Set to Array and get unique values
-        const uniqueConditions = Array.from(conditions);
-        const forecastSummary = uniqueConditions.length > 2 
-            ? uniqueConditions.slice(0, 2).join(', ') + ', Variable'
-            : uniqueConditions.join(', ');
-
-        // Add styles for the layout
-        const style = document.createElement('style');
-        style.textContent = `
-            .weather-container {
-                text-align: center;
-            }
-            .weather-columns {
-                display: flex;
-                justify-content: space-between;
-                margin-top: 10px;
-            }
-            .weather-column {
-                flex: 1;
-                padding: 0 10px;
-            }
-            .weather-row {
-                margin: 5px 0;
-            }
-        `;
-        document.head.appendChild(style);
-
-        this.container.innerHTML = `
-            <div class="currently-header">Current Weather</div>
-            <div class="current-weather-info">
-                <div class="temp">${temp}°F</div>
-                <div class="details">${description}</div>
-                <div class="feels-like">Feels like ${feelsLike}°F</div>
-            </div>
-            <img class="current-weather-icon" src="https://openweathermap.org/img/wn/${icon}@4x.png" alt="${description}">
-            <div class="forecast-header">Today's Weather</div>
-            <div class="forecast-weather-info">
-                <div class="temp">High ${Math.round(highTemp)}°F • Low ${Math.round(lowTemp)}°F</div>
-                <div class="details">${forecastSummary}</div>
+    updateDisplay(currentWeather, forecastWeather) {
+        const html = `
+            <div class="weather-header">Weather</div>
+            <div class="weather-content">
+                <div class="weather-section active" id="current-weather">
+                    <div class="currently-header">Currently</div>
+                    <img class="current-weather-icon" src="${currentWeather.icon}" alt="Weather icon">
+                    <div class="current-weather-info">
+                        <div class="temp-line">
+                            <div class="temp">${currentWeather.temp}°F</div>
+                            <div class="feels-like">(Feels: ${currentWeather.feelsLike}°F)</div>
+                        </div>
+                        <div class="details">${currentWeather.description}</div>
+                    </div>
+                </div>
+                <div class="weather-section hidden" id="forecast-weather">
+                    <div class="forecast-header">Today's Forecast</div>
+                    <img class="current-weather-icon" src="${forecastWeather.icon}" alt="Forecast icon">
+                    <div class="forecast-weather-info">
+                        <div class="temp">${forecastWeather.temp}</div>
+                        <div class="details">${forecastWeather.description}</div>
+                    </div>
+                </div>
             </div>
         `;
+
+        this.container.innerHTML = html;
+        this.startWeatherCarousel();
+    }
+
+    startWeatherCarousel() {
+        const sections = Array.from(this.container.querySelectorAll('.weather-section'));
+        
+        if (this.weatherInterval) {
+            clearInterval(this.weatherInterval);
+        }
+
+        if (sections.length > 0) {
+            let currentSection = 0;
+
+            this.weatherInterval = setInterval(() => {
+                const prevSection = sections[currentSection];
+                currentSection = (currentSection + 1) % sections.length;
+                const nextSection = sections[currentSection];
+
+                // Fade out previous section
+                prevSection.classList.remove('active');
+                prevSection.classList.add('hidden');
+
+                // Show next section immediately
+                nextSection.classList.remove('hidden');
+                nextSection.classList.add('active');
+                
+            }, 10000); // Match calendar interval timing
+        }
+    }
+
+    clearWeatherCarousel() {
+        if (this.weatherInterval) {
+            clearInterval(this.weatherInterval);
+            this.weatherInterval = null;
+        }
     }
 
     capitalizeWords(str) {
