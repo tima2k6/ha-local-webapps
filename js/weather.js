@@ -1,9 +1,9 @@
 export class WeatherDisplay {
-    constructor(apiKey, container) {
+    constructor(apiKey, container, lat, lon) {
         this.apiKey = apiKey;
         this.container = container;
-        this.lat = '47.5673';
-        this.lon = '-122.6327';
+        this.lat = lat;
+        this.lon = lon;
         this.units = 'imperial';
         this.weatherInterval = null;
     }

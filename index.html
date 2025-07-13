@@ -595,7 +595,9 @@
             // Initialize weather
             const weatherDisplay = new WeatherDisplay(
                 config.weatherApiKey, 
-                document.getElementById('weather-display')
+                document.getElementById('weather-display'),
+                config.weatherLocation.lat,
+                config.weatherLocation.lon
             );
             weatherDisplay.start();
 
