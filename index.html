@@ -585,12 +585,16 @@
         import { Ticker } from './js/ticker.js';
 
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('Full config object:', config);
+            console.log('Weather location:', config.weatherLocation);
+            
             // Initialize clock
             const clock = new Clock(
                 document.getElementById('time-display'),
                 document.getElementById('date-display')
             );
             clock.start();
+            console.log('Clock initialized');
 
             // Initialize weather
             const weatherDisplay = new WeatherDisplay(
@@ -600,6 +604,7 @@
                 config.weatherLocation.lon
             );
             weatherDisplay.start();
+            console.log('Weather initialized');
 
             // Initialize calendar
             const calendarDisplay = new CalendarDisplay(
@@ -608,6 +613,7 @@
                 document.getElementById('calendar-events')
             );
             calendarDisplay.start();
+            console.log('Calendar initialized');
 
             // Initialize ticker
             const ticker = new Ticker(
@@ -616,6 +622,7 @@
                 document.getElementById('sensor-ticker')
             );
             ticker.start();
+            console.log('Ticker initialized');
         });
     </script>
 </body>
