@@ -16,14 +16,10 @@ export class Ticker {
             trashOut: null,              // Whether trash has been taken out
             
             // Security & Access
-            garageDoor: null,            // Dog door in garage
-            backyardDoor: null,          // Dog door to backyard
+            
             openWindowsCount: 0,         // Number of open windows
             exteriorDoorCount: 0,        // Number of open exterior doors
-            westGate: null,              // West gate status
-            eastGate: null,              // East gate status
-            backyardShed: null,          // Backyard shed status
-            boatShed: null               // Boat shed status
+           
         };
         this.currentContent = '';
         this.setupWebSocket();
@@ -109,13 +105,13 @@ export class Ticker {
                     stateChanged = true;
                 }
                 break;
-            case "sensor.garbage_collection":
+            case "sensor.garbage_pickup":
                 if (this.states.garbageCollection !== state) {
                     this.states.garbageCollection = state;
                     stateChanged = true;
                 }
                 break;
-            case "sensor.recycling_collection":
+            case "sensor.recycling_pickup":
                 if (this.states.recyclingCollection !== state) {
                     this.states.recyclingCollection = state;
                     stateChanged = true;
@@ -130,18 +126,7 @@ export class Ticker {
                 break;
 
             // Security & Access Sensors
-            case "binary_sensor.dog_door_garage_contact":
-                if (this.states.garageDoor !== state) {
-                    this.states.garageDoor = state;
-                    stateChanged = true;
-                }
-                break;
-            case "binary_sensor.dog_door_backyard_contact":
-                if (this.states.backyardDoor !== state) {
-                    this.states.backyardDoor = state;
-                    stateChanged = true;
-                }
-                break;
+            
             case "sensor.open_windows_count":
                 const openWindows = parseInt(state, 10) || 0;
                 if (this.states.openWindowsCount !== openWindows) {
@@ -157,33 +142,7 @@ export class Ticker {
                 }
                 break;
 
-            // Gates
-            case "binary_sensor.west_gate_contact":
-                if (this.states.westGate !== state) {
-                    this.states.westGate = state;
-                    stateChanged = true;
-                }
-                break;
-            case "binary_sensor.east_gate_contact":
-                if (this.states.eastGate !== state) {
-                    this.states.eastGate = state;
-                    stateChanged = true;
-                }
-                break;
-
-            // Sheds
-            case "binary_sensor.backyard_shed_contact":
-                if (this.states.backyardShed !== state) {
-                    this.states.backyardShed = state;
-                    stateChanged = true;
-                }
-                break;
-            case "binary_sensor.boat_shed_contact":
-                if (this.states.boatShed !== state) {
-                    this.states.boatShed = state;
-                    stateChanged = true;
-                }
-                break;
+            
         }
 
         // Only update ticker if state actually changed
@@ -229,13 +188,8 @@ export class Ticker {
                 }
             }
 
-            // Security & Access Messages
-            if (this.states.garageDoor === 'on' && this.states.backyardDoor === 'on') {
-                if (tickerMessages.length > 0) {
-                    tickerMessages.push('<span style="margin: 0 2rem;"></span>');
-                }
-                tickerMessages.push('<span style="color: #16F529;">Both Dog Doors are open</span>');
-            }
+
+            
 
             if (this.states.openWindowsCount > 0) {
                 if (tickerMessages.length > 0) {
@@ -251,26 +205,7 @@ export class Ticker {
                 tickerMessages.push(`<span style="color: yellow;">Open Exterior Doors: ${this.states.exteriorDoorCount}</span>`);
             }
 
-            // After the exterior doors message
-            let openGatesCount = [this.states.westGate, this.states.eastGate]
-                .filter(state => state === 'on').length;
             
-            if (openGatesCount > 0) {
-                if (tickerMessages.length > 0) {
-                    tickerMessages.push('<span style="margin: 0 2rem;"></span>');
-                }
-                tickerMessages.push(`<span style="color: yellow;">Open Gates: ${openGatesCount}</span>`);
-            }
-
-            let openShedsCount = [this.states.backyardShed, this.states.boatShed]
-                .filter(state => state === 'on').length;
-            
-            if (openShedsCount > 0) {
-                if (tickerMessages.length > 0) {
-                    tickerMessages.push('<span style="margin: 0 2rem;"></span>');
-                }
-                tickerMessages.push(`<span style="color: yellow;">Open Sheds: ${openShedsCount}</span>`);
-            }
 
             // Ticker Display Logic
             const newContent = tickerMessages.join('');
