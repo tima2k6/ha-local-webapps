@@ -5,3 +5,4 @@ package-lock.json
 src/
 *.code-workspace
 index.nginx-debian.html
+js/ha-config.js

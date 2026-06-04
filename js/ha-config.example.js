@@ -1,0 +1,2 @@
+const HA_URL   = 'http://YOUR_HA_IP:8123';
+const HA_TOKEN = 'YOUR_LONG_LIVED_ACCESS_TOKEN';

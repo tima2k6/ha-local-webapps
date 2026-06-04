@@ -446,10 +446,9 @@
   </div>
 </div>
 
+<script src="js/ha-config.js"></script>
 <script>
-const HA_URL = 'http://192.168.2.125:8123';
-const TOKEN  = 'REDACTED';
-const HEADERS = { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
+const HEADERS = { 'Authorization': `Bearer ${HA_TOKEN}`, 'Content-Type': 'application/json' };
 
 const PHASE_EMOJIS = {
   '10-min warning':'⏰','Jammies Time!':'🚿','Books!':'📚',
