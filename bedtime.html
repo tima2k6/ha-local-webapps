@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Liam's Bedtime">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgMTgwIj4KICA8cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgcng9IjM4IiBmaWxsPSIjMGQxMTE3Ii8+CiAgPGNpcmNsZSBjeD0iOTYiIGN5PSI5MCIgcj0iNDgiIGZpbGw9IiNmMGE1MDAiLz4KICA8Y2lyY2xlIGN4PSIxMTgiIGN5PSI3MCIgcj0iMzYiIGZpbGw9IiMwZDExMTciLz4KPC9zdmc+">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgMTgwIj4KICA8cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgcng9IjM4IiBmaWxsPSIjMGQxMTE3Ii8+CiAgPGNpcmNsZSBjeD0iOTYiIGN5PSI5MCIgcj0iNDgiIGZpbGw9IiNmMGE1MDAiLz4KICA8Y2lyY2xlIGN4PSIxMTgiIGN5PSI3MCIgcj0iMzYiIGZpbGw9IiMwZDExMTciLz4KPC9zdmc+">
+<title>🌙 Liam's Bedtime</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2330;
+    --border: #30363d;
+    --amber: #f0a500;
+    --amber-dim: #7a5200;
+    --amber-glow: rgba(240,165,0,0.15);
+    --red: #e05252;
+    --green: #3fb950;
+    --blue: #58a6ff;
+    --muted: #8b949e;
+    --text: #e6edf3;
+    --text-dim: #c9d1d9;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 40px;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 15%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 40% 60%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 25%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 70%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 55% 85%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 92% 40%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 45%, rgba(255,255,255,0.2) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    width: 100%;
+    max-width: 480px;
+    padding: 0 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Header ── */
+  .header { text-align: center; padding: 36px 0 24px; }
+  .header .moon {
+    font-size: 42px; display: block; margin-bottom: 8px;
+    filter: drop-shadow(0 0 12px rgba(240,165,0,0.5));
+    animation: moonPulse 4s ease-in-out infinite;
+  }
+  @keyframes moonPulse {
+    0%,100% { filter: drop-shadow(0 0 12px rgba(240,165,0,0.5)); }
+    50%      { filter: drop-shadow(0 0 24px rgba(240,165,0,0.8)); }
+  }
+  .header h1 { font-family:'DM Serif Display',serif; font-size:28px; color:var(--amber); letter-spacing:-0.5px; }
+  .header .subtitle { font-size:13px; color:var(--muted); margin-top:4px; letter-spacing:0.5px; text-transform:uppercase; }
+
+  /* ── Phase card ── */
+  .phase-card {
+    background: var(--surface); border:1px solid var(--border); border-radius:20px;
+    padding:28px 24px; margin-bottom:16px; position:relative; overflow:hidden;
+    transition: border-color 0.4s; text-align:center;
+  }
+  .phase-card .countdown-wrap { justify-content:center; }
+  .phase-card .step-dots { justify-content:center; }
+  #startsInWrap { text-align:center; }
+  .phase-card::before {
+    content:''; position:absolute; inset:0; background:var(--amber-glow);
+    opacity:0; transition:opacity 0.4s; pointer-events:none;
+  }
+  .phase-card.active::before { opacity:1; }
+  .phase-card.active  { border-color:var(--amber-dim); }
+  .phase-card.paused  { border-color:#4a4a00; }
+  .phase-card.paused::before { opacity:1; background:rgba(240,165,0,0.08); }
+
+
+  .phase-label { font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:10px; }
+  .phase-name  { font-family:'DM Serif Display',serif; font-size:32px; color:var(--text); line-height:1.1; margin-bottom:6px; transition:color 0.3s; min-height:38px; }
+  .phase-card.paused .phase-name { color:var(--amber); }
+  .phase-step  { font-size:14px; color:var(--muted); margin-bottom:24px; min-height:20px; }
+
+  .progress-track { height:4px; background:var(--border); border-radius:2px; margin-bottom:20px; overflow:hidden; }
+  .progress-fill  { height:100%; background:var(--amber); border-radius:2px; transition:width 1s linear; width:0%; }
+
+  .countdown-wrap { display:flex; align-items:baseline; gap:8px; }
+  .countdown {
+    font-family:'DM Serif Display',serif; font-size:56px; color:var(--amber);
+    letter-spacing:-2px; line-height:1; transition:color 0.5s; min-width:140px;
+  }
+  .countdown.warning     { color:var(--red); }
+  .countdown.idle        { color:var(--muted); font-size:32px; letter-spacing:0; }
+  .countdown.paused-text { color:var(--amber); font-size:36px; letter-spacing:0; }
+  .countdown-unit { font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+
+  .step-dots { display:flex; gap:6px; margin-top:20px; flex-wrap:wrap; }
+  .step-dot  { width:8px; height:8px; border-radius:50%; background:var(--border); transition:background 0.3s,transform 0.3s; }
+  .step-dot.done    { background:var(--amber-dim); }
+  .step-dot.current { background:var(--amber); transform:scale(1.4); }
+
+  /* ── Controls ── */
+  .controls { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:16px; }
+  .ctrl-btn {
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:14px 6px 10px; display:flex; flex-direction:column; align-items:center; gap:6px;
+    cursor:pointer; transition:all 0.15s; color:var(--text-dim); font-family:'DM Sans',sans-serif;
+    font-size:11px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px;
+    -webkit-appearance:none; user-select:none;
+  }
+  .ctrl-btn:active { transform:scale(0.94); opacity:0.8; }
+  .ctrl-btn svg { width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .ctrl-btn.start  { border-color:#1a4a1a; color:var(--green); }
+  .ctrl-btn.start:active  { background:rgba(63,185,80,0.1); }
+  .ctrl-btn.cancel { border-color:#4a1a1a; color:var(--red); }
+  .ctrl-btn.cancel:active { background:rgba(224,82,82,0.1); }
+  .ctrl-btn.skip   { border-color:#1a2a4a; color:var(--blue); }
+  .ctrl-btn.skip:active   { background:rgba(88,166,255,0.1); }
+  .ctrl-btn.pause,.ctrl-btn.resume { border-color:var(--amber-dim); color:var(--amber); }
+  .ctrl-btn.pause:active,.ctrl-btn.resume:active { background:var(--amber-glow); }
+  .ctrl-btn:disabled { opacity:0.3; cursor:not-allowed; transform:none; }
+
+  /* ── Settings card ── */
+  .settings-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; overflow:hidden; margin-bottom:16px; }
+  .settings-header {
+    padding:16px 20px; font-size:12px; text-transform:uppercase; letter-spacing:1.5px;
+    color:var(--muted); border-bottom:1px solid var(--border); display:flex; align-items:center;
+    gap:8px; cursor:pointer; user-select:none;
+  }
+  .settings-header .chevron { margin-left:auto; transition:transform 0.3s; color:var(--muted); }
+  .settings-header.open .chevron { transform:rotate(180deg); }
+  .settings-body { display:none; }
+  .settings-body.open { display:block; }
+
+  /* ── Generic setting row (auto-start, start time, etc) ── */
+  .setting-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 20px; border-bottom:1px solid var(--border); gap:12px;
+  }
+  .setting-row:last-child { border-bottom:none; }
+  .setting-label { font-size:14px; color:var(--text-dim); flex:1; }
+  .setting-label small { display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+
+  /* ── Section divider inside settings ── */
+  .section-divider {
+    padding:10px 20px 4px; font-size:11px; text-transform:uppercase;
+    letter-spacing:1px; color:var(--muted); border-top:1px solid var(--border);
+  }
+
+  /* ── Phase rows (drag list + fixed) ── */
+  /*
+    Layout per row:
+    [handle] [num] [emoji+name flex] [stepper] [toggle]
+  */
+  .phase-rows-wrap { padding:4px 12px 8px; }
+
+  .drag-hint {
+    font-size:11px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:0.8px; padding:8px 8px 6px;
+  }
+
+  /* shared row shell */
+  .phase-row {
+    display:flex; align-items:center; gap:8px;
+    padding:7px 6px; border-bottom:1px solid rgba(48,54,61,0.5);
+  }
+  .phase-row:last-child { border-bottom:none; }
+
+  /* fixed rows (warning / goodnight) — no handle, no toggle */
+  .phase-row.fixed { opacity:0.5; }
+
+  .phase-row-num {
+    font-size:11px; font-weight:600; color:var(--muted);
+    min-width:16px; text-align:center; flex-shrink:0;
+  }
+  .phase-row.fixed .phase-row-num { color:var(--amber); }
+
+  .phase-row-name {
+    font-size:13px; color:var(--text-dim); flex:1; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  .phase-row.excluded .phase-row-name { color:var(--muted); text-decoration:line-through; }
+
+  /* compact stepper */
+  .mini-stepper {
+    display:flex; align-items:center;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; overflow:hidden; flex-shrink:0;
+  }
+  .mini-stepper button {
+    background:none; border:none; color:var(--amber); font-size:17px;
+    width:28px; height:30px; cursor:pointer; display:flex; align-items:center;
+    justify-content:center; transition:background 0.15s; font-family:'DM Sans',sans-serif;
+    -webkit-appearance:none;
+  }
+  .mini-stepper button:active { background:var(--amber-glow); }
+  .mini-stepper .val {
+    font-size:12px; font-weight:600; color:var(--text);
+    min-width:26px; text-align:center;
+  }
+
+  /* small toggle */
+  .sm-toggle { position:relative; width:36px; height:22px; flex-shrink:0; }
+  .sm-toggle input { opacity:0; width:0; height:0; }
+  .sm-toggle-slider {
+    position:absolute; inset:0; background:var(--border);
+    border-radius:11px; cursor:pointer; transition:background 0.3s;
+  }
+  .sm-toggle-slider::before {
+    content:''; position:absolute; width:16px; height:16px;
+    left:3px; top:3px; background:white; border-radius:50%; transition:transform 0.3s;
+  }
+  .sm-toggle input:checked + .sm-toggle-slider { background:var(--amber); }
+  .sm-toggle input:checked + .sm-toggle-slider::before { transform:translateX(14px); }
+
+  /* drag handle */
+  .drag-handle {
+    display:flex; flex-direction:column; gap:3px; padding:4px 3px;
+    cursor:grab; flex-shrink:0; touch-action:none;
+  }
+  .drag-handle:active { cursor:grabbing; }
+  .drag-handle span { display:block; width:14px; height:2px; background:var(--muted); border-radius:1px; }
+
+  /* drag states */
+  .phase-row.dragging  { opacity:0.35; }
+  .phase-row.drag-over { border-top:2px solid var(--amber); }
+
+  /* ghost */
+  .drag-ghost {
+    position:fixed; pointer-events:none; z-index:1000;
+    background:var(--surface2); border:1px solid var(--amber-dim); border-radius:10px;
+    padding:7px 10px; display:flex; align-items:center; gap:8px;
+    opacity:0.96; box-shadow:0 8px 24px rgba(0,0,0,0.5);
+  }
+
+  /* ── Misc ── */
+  .time-input {
+    background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+    color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px;
+    padding:8px 12px; -webkit-appearance:none; outline:none; flex-shrink:0;
+  }
+  .time-input:focus { border-color:var(--amber-dim); }
+
+  .toggle { position:relative; width:44px; height:26px; flex-shrink:0; }
+  .toggle input { opacity:0; width:0; height:0; }
+  .toggle-slider { position:absolute; inset:0; background:var(--border); border-radius:13px; cursor:pointer; transition:background 0.3s; }
+  .toggle-slider::before { content:''; position:absolute; width:20px; height:20px; left:3px; top:3px; background:white; border-radius:50%; transition:transform 0.3s; }
+  .toggle input:checked + .toggle-slider { background:var(--amber); }
+  .toggle input:checked + .toggle-slider::before { transform:translateX(18px); }
+
+  .phase-select {
+    background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+    color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px;
+    padding:8px 12px; -webkit-appearance:none; outline:none; cursor:pointer; width:100%;
+  }
+  .phase-select:focus { border-color:var(--amber-dim); }
+
+  .status-dot { width:8px; height:8px; border-radius:50%; background:var(--muted); flex-shrink:0; transition:background 0.3s; }
+  .status-dot.connected { background:var(--green); box-shadow:0 0 6px rgba(63,185,80,0.5); }
+  .status-dot.error     { background:var(--red); }
+
+  .connection-bar {
+    display:flex; align-items:center; gap:8px; padding:10px 0 0;
+    font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; justify-content:center;
+  }
+
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); z-index:100; display:none; align-items:center; justify-content:center; padding:24px; }
+  .overlay.show { display:flex; }
+  .confirm-box { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:28px 24px; max-width:320px; width:100%; text-align:center; }
+  .confirm-box h3 { font-family:'DM Serif Display',serif; font-size:22px; margin-bottom:10px; }
+  .confirm-box p  { font-size:14px; color:var(--muted); margin-bottom:24px; }
+  .confirm-btns   { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .confirm-btn    { padding:12px; border-radius:12px; border:1px solid var(--border); font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; -webkit-appearance:none; transition:all 0.15s; }
+  .confirm-btn:active { transform:scale(0.96); }
+  .confirm-btn.yes { background:var(--red); border-color:var(--red); color:white; }
+  .confirm-btn.no  { background:var(--surface2); color:var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <div class="header">
+    <span class="moon">🌙</span>
+    <h1>Liam's Bedtime</h1>
+    <div class="subtitle">Routine Control</div>
+  </div>
+
+  <!-- Phase status card -->
+  <div class="phase-card" id="phaseCard">
+    <div class="phase-label">Current Phase</div>
+    <div class="phase-name" id="phaseName">Loading…</div>
+    <div class="phase-step" id="phaseStep">—</div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="countdown-wrap">
+      <div class="countdown idle" id="countdown">--:--</div>
+      <div class="countdown-unit" id="countdownUnit"></div>
+    </div>
+    <div class="step-dots" id="stepDots"></div>
+    <div id="startsInWrap" style="display:none; margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin-bottom:4px;">Bedtime starts in</div>
+      <div id="startsInTimer" style="font-family:'DM Serif Display',serif; font-size:36px; color:var(--amber); letter-spacing:-1px; line-height:1;">—</div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="ctrl-btn start"  id="btnStart"  onclick="callScript('script.bedtime_routine_start')">
+      <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>Start
+    </button>
+    <button class="ctrl-btn skip"   id="btnSkip"   onclick="callScript('script.bedtime_routine_skip_to_next_2')">
+      <svg viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>Skip
+    </button>
+    <button class="ctrl-btn pause"  id="btnPause"  onclick="callScript('script.bedtime_routine_pause_2')">
+      <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>Pause
+    </button>
+    <button class="ctrl-btn resume" id="btnResume" onclick="callScript('script.bedtime_routine_resume_2')">
+      <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>Resume
+    </button>
+    <button class="ctrl-btn cancel" id="btnCancel" onclick="showConfirm()">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>Cancel
+    </button>
+  </div>
+
+  <!-- Always-visible quick settings -->
+  <div class="settings-card" style="margin-bottom:16px;">
+    <div class="setting-row">
+      <div class="setting-label">Start Time</div>
+      <input type="time" class="time-input" id="inputStartTime" onchange="setTime('input_datetime.bedtime_routine_start_time', this.value)">
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Auto-Start<small>Run at scheduled time</small></div>
+      <label class="toggle">
+        <input type="checkbox" id="toggleAutoStart" onchange="setBoolean('input_boolean.bedtime_routine_enabled', this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Countdown Screen<small>Liam's OLED display</small></div>
+      <label class="toggle">
+        <input type="checkbox" id="toggleCountdown" onchange="setLight('light.liams_clock_screen', this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="settings-card">
+    <div class="settings-header" onclick="toggleSection('settingsBody', this)">
+      ⚙️ &nbsp;Routine Setup
+      <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="settings-body" id="settingsBody">
+
+      <!-- Phase order + durations -->
+      <div class="section-divider">Phase Order &amp; Duration</div>
+
+      <div class="phase-rows-wrap">
+        <div class="drag-hint">Drag · toggle to include · set minutes</div>
+
+        <!-- Fixed: Warning -->
+        <div class="phase-row" id="row_warning">
+          <div style="width:20px;flex-shrink:0"></div><!-- spacer for handle -->
+          <div class="phase-row-num">1</div>
+          <div class="phase-row-name" id="warning_name">⏰ Warning</div>
+          <div class="mini-stepper">
+            <button onclick="stepNumber('input_number.bedtime_warning_delay',-1)">−</button>
+            <span class="val" data-entity="input_number.bedtime_warning_delay">—</span>
+            <button onclick="stepNumber('input_number.bedtime_warning_delay',1)">+</button>
+          </div>
+          <label class="sm-toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="toggleWarning"
+              onchange="setBoolean('input_boolean.bedtime_warning_enabled',
+      'input_datetime.bedtime_phase_ends', this.checked)">
+            <span class="sm-toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- Draggable middle phases -->
+        <ul id="dragList" style="list-style:none;margin:0;padding:0;"></ul>
+
+        <!-- Fixed: Goodnight -->
+        <div class="phase-row fixed" id="row_goodnight">
+          <div style="width:20px;flex-shrink:0"></div>
+          <div class="phase-row-num">—</div>
+          <div class="phase-row-name">😴 Goodnight</div>
+          <div style="flex:1"></div><!-- no duration input for goodnight -->
+          <div style="width:36px;flex-shrink:0"></div>
+        </div>
+      </div>
+
+      <!-- Jump to phase -->
+      <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:8px;border-top:1px solid var(--border);">
+        <div class="setting-label">Jump to Phase</div>
+        <select class="phase-select" id="phaseRequest" onchange="setPhaseRequest(this.value)">
+          <option value="Select Phase...">Select Phase...</option>
+          <option value="10-min warning">⏰ Warning</option>
+          <option value="Jammies Time!">🚿 Jammies Time</option>
+          <option value="Books!">📚 Books</option>
+          <option value="Snuggle Time 1">💕 Snuggle Time 1</option>
+          <option value="Snuggle Time 2">🔄 Snuggle Time 2</option>
+          <option value="Goodnight Liam!">😴 Goodnight</option>
+        </select>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="connection-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Connecting…</span>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="confirm-box">
+    <h3>Cancel Routine?</h3>
+    <p>This will stop the current bedtime routine and reset to Idle.</p>
+    <div class="confirm-btns">
+      <button class="confirm-btn no"  onclick="hideConfirm()">Keep Going</button>
+      <button class="confirm-btn yes" onclick="confirmCancel()">Cancel It</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const HA_URL = 'http://192.168.2.125:8123';
+const TOKEN  = 'REDACTED';
+const HEADERS = { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
+
+const PHASE_EMOJIS = {
+  '10-min warning':'⏰','Jammies Time!':'🚿','Books!':'📚',
+  'Snuggle Time 1':'💕','Snuggle Time 2':'🔄','Goodnight Liam!':'😴',
+};
+
+const PHASE_DURATION_ENTITY = {
+  'Jammies Time!':   'input_number.bedtime_ready_delay',
+  'Books!':          'input_number.bedtime_winddown_delay',
+  'Snuggle Time 1':  'input_number.bedtime_snuggle1_delay',
+  'Snuggle Time 2':  'input_number.bedtime_snuggle2_delay',
+};
+
+const ALL_MIDDLE = [
+  { key:'Jammies Time!',  label:'🚿 Jammies' },
+  { key:'Books!',         label:'📚 Books'    },
+  { key:'Snuggle Time 1', label:'💕 Snuggle 1'},
+  { key:'Snuggle Time 2', label:'🔄 Snuggle 2'},
+];
+
+let phaseOrder = ALL_MIDDLE.map(p => ({ ...p, enabled: true }));
+let numberCache = {};
+let saveTimer = null;
+let lastSlots = null;
+
+// ── HA API ────────────────────────────────────────────────────
+async function fetchState(id) {
+  return (await fetch(`${HA_URL}/api/states/${id}`, { headers: HEADERS })).json();
+}
+async function callService(domain, service, data = {}) {
+  await fetch(`${HA_URL}/api/services/${domain}/${service}`, {
+    method:'POST', headers: HEADERS, body: JSON.stringify(data)
+  });
+}
+async function callScript(id)           { await callService('script','turn_on',{ entity_id:id }); }
+async function setBoolean(id, v)        { await callService('input_boolean', v?'turn_on':'turn_off',{ entity_id:id }); }
+async function setSwitch(id, v)         { await callService('switch', v?'turn_on':'turn_off',{ entity_id:id }); }
+async function setLight(id, v)          { await callService('light',  v?'turn_on':'turn_off',{ entity_id:id }); }
+async function setTime(id, v)           { await callService('input_datetime','set_datetime',{ entity_id:id, time:v }); }
+
+async function stepNumber(id, delta) {
+  const cur = numberCache[id] ?? 0;
+  const val = Math.max(1, cur + delta);
+  numberCache[id] = val;
+  // update all val elements for this entity
+  document.querySelectorAll(`[data-entity="${id}"]`).forEach(el => el.textContent = val);
+  await callService('input_number','set_value',{ entity_id:id, value:val });
+}
+
+async function setPhaseRequest(v) {
+  if (v === 'Select Phase...') return;
+  await callService('input_select','select_option',{ entity_id:'input_select.bedtime_phase_request', option:v });
+  setTimeout(() => { document.getElementById('phaseRequest').value = 'Select Phase...'; }, 1000);
+}
+
+async function saveSlots() {
+  const enabled = phaseOrder.filter(p => p.enabled).map(p => p.key);
+  const ids = ['input_select.bedtime_slot_2','input_select.bedtime_slot_3',
+                'input_select.bedtime_slot_4','input_select.bedtime_slot_5'];
+  await Promise.all(ids.map((id, i) =>
+    callService('input_select','select_option',{ entity_id:id, option: enabled[i] ?? 'None' })
+  ));
+}
+
+function queueSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => { await saveSlots(); saveTimer = null; }, 600);
+}
+
+// ── Drag list ─────────────────────────────────────────────────
+function renderDragList() {
+  const list = document.getElementById('dragList');
+  list.innerHTML = '';
+
+  phaseOrder.forEach((phase, idx) => {
+    const enabledAbove = phaseOrder.slice(0, idx).filter(p => p.enabled).length;
+    const slotNum = phase.enabled ? (enabledAbove + 2) : '–';
+    const durEntity = PHASE_DURATION_ENTITY[phase.key];
+
+    const li = document.createElement('li');
+    li.className = 'phase-row' + (phase.enabled ? '' : ' excluded');
+    li.dataset.idx = idx;
+
+    li.innerHTML = `
+      <div class="drag-handle" data-idx="${idx}">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="phase-row-num">${slotNum}</div>
+      <div class="phase-row-name">${phase.label}</div>
+      <div class="mini-stepper">
+        <button onclick="stepNumber('${durEntity}',-1)">−</button>
+        <span class="val" data-entity="${durEntity}">—</span>
+        <button onclick="stepNumber('${durEntity}',1)">+</button>
+      </div>
+      <label class="sm-toggle" onclick="event.stopPropagation()">
+        <input type="checkbox" ${phase.enabled ? 'checked' : ''}
+          onchange="togglePhase(${idx},this.checked)">
+        <span class="sm-toggle-slider"></span>
+      </label>
+    `;
+
+    list.appendChild(li);
+  });
+
+  // Populate stepper values from cache
+  Object.entries(PHASE_DURATION_ENTITY).forEach(([, entity]) => {
+    const val = numberCache[entity];
+    if (val !== undefined) {
+      document.querySelectorAll(`[data-entity="${entity}"]`).forEach(el => el.textContent = val);
+    }
+  });
+
+  initDrag();
+}
+
+function togglePhase(idx, enabled) {
+  phaseOrder[idx].enabled = enabled;
+  renderDragList();
+  queueSave();
+}
+
+// ── Touch/mouse drag ──────────────────────────────────────────
+function initDrag() {
+  const list = document.getElementById('dragList');
+  let dragIdx = null, ghost = null, offsetY = 0, lastOverIdx = null;
+
+  list.querySelectorAll('.drag-handle').forEach(h => {
+    h.addEventListener('touchstart', startTouch, { passive:false });
+    h.addEventListener('mousedown',  startMouse);
+  });
+
+  function mkGhost(item, clientY) {
+    ghost = document.createElement('div');
+    ghost.className = 'drag-ghost';
+    // Copy name and slot num only
+    const num  = item.querySelector('.phase-row-num').textContent;
+    const name = item.querySelector('.phase-row-name').textContent;
+    ghost.innerHTML = `<div class="phase-row-num">${num}</div><div class="phase-row-name">${name}</div>`;
+    document.body.appendChild(ghost);
+    const wRect = document.querySelector('.wrapper').getBoundingClientRect();
+    ghost.style.width = (wRect.width - 32) + 'px';
+    moveGhost(clientY);
+  }
+
+  function moveGhost(clientY) {
+    if (!ghost) return;
+    const wRect = document.querySelector('.wrapper').getBoundingClientRect();
+    ghost.style.left = (wRect.left + 16) + 'px';
+    ghost.style.top  = (clientY - offsetY) + 'px';
+  }
+
+  function rmGhost() { ghost?.remove(); ghost = null; }
+
+  function overIdx(clientY) {
+    const items = [...list.querySelectorAll('.phase-row')];
+    for (let i = 0; i < items.length; i++) {
+      const r = items[i].getBoundingClientRect();
+      if (clientY < r.top + r.height / 2) return i;
+    }
+    return items.length - 1;
+  }
+
+  function clearIndicators() {
+    list.querySelectorAll('.phase-row').forEach(el => el.classList.remove('drag-over'));
+  }
+
+  function begin(idx, clientY, item) {
+    dragIdx = idx;
+    const r = item.getBoundingClientRect();
+    offsetY = clientY - r.top;
+    item.classList.add('dragging');
+    mkGhost(item, clientY);
+  }
+
+  function move(clientY) {
+    if (dragIdx === null) return;
+    moveGhost(clientY);
+    const oi = overIdx(clientY);
+    if (oi !== lastOverIdx) {
+      clearIndicators();
+      const items = list.querySelectorAll('.phase-row');
+      items[oi]?.classList.add('drag-over');
+      lastOverIdx = oi;
+    }
+  }
+
+  function end(clientY) {
+    if (dragIdx === null) return;
+    const oi = overIdx(clientY);
+    clearIndicators();
+    rmGhost();
+    list.querySelectorAll('.phase-row').forEach(el => el.classList.remove('dragging'));
+
+    if (oi !== dragIdx) {
+      const [moved] = phaseOrder.splice(dragIdx, 1);
+      phaseOrder.splice(oi, 0, moved);
+      renderDragList();
+      queueSave();
+    }
+    dragIdx = null; lastOverIdx = null;
+  }
+
+  function startTouch(e) {
+    const idx  = parseInt(e.currentTarget.dataset.idx);
+    const item = e.currentTarget.closest('.phase-row');
+    begin(idx, e.touches[0].clientY, item);
+    e.preventDefault();
+    const mv = ev => move(ev.touches[0].clientY);
+    const up = ev => { end(ev.changedTouches[0].clientY); document.removeEventListener('touchmove',mv); document.removeEventListener('touchend',up); };
+    document.addEventListener('touchmove', mv, { passive:false });
+    document.addEventListener('touchend', up);
+  }
+
+  function startMouse(e) {
+    const idx  = parseInt(e.currentTarget.dataset.idx);
+    const item = e.currentTarget.closest('.phase-row');
+    begin(idx, e.clientY, item);
+    e.preventDefault();
+    const mv = ev => move(ev.clientY);
+    const up = ev => { end(ev.clientY); document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
+    document.addEventListener('mousemove', mv);
+    document.addEventListener('mouseup', up);
+  }
+}
+
+// ── Sequence builder ──────────────────────────────────────────
+function buildSequence() {
+  return ['10-min warning', ...phaseOrder.filter(p => p.enabled).map(p => p.key), 'Goodnight Liam!'];
+}
+
+function syncSlotsFromHA(slots) {
+  const enabled = slots.filter(s => s !== 'None');
+  const disabled = ALL_MIDDLE.filter(p => !enabled.includes(p.key));
+  phaseOrder = [
+    ...enabled.map(key => ({ ...ALL_MIDDLE.find(p => p.key === key), enabled: true })),
+    ...disabled.map(p => ({ ...p, enabled: false })),
+  ];
+}
+
+// ── UI helpers ────────────────────────────────────────────────
+function pad(n) { return String(Math.floor(n)).padStart(2,'0'); }
+function fmt(s) { return `${pad(s/60)}:${pad(s%60)}`; }
+
+function toggleSection(id, header) {
+  header.classList.toggle('open');
+  document.getElementById(id).classList.toggle('open');
+}
+
+function showConfirm() { document.getElementById('overlay').classList.add('show'); }
+function hideConfirm() { document.getElementById('overlay').classList.remove('show'); }
+async function confirmCancel() { hideConfirm(); await callScript('script.bedtime_routine_cancel_2'); }
+
+// ── Poll ──────────────────────────────────────────────────────
+async function poll() {
+  try {
+    const ids = [
+      'input_select.bedtime_routine_phase',
+      'input_text.bedtime_pause_seconds',
+      'sensor.bedtime_phase_time_remaining',
+      'input_datetime.bedtime_pause_remaining',
+      'input_number.bedtime_warning_delay',
+      'input_number.bedtime_ready_delay',
+      'input_number.bedtime_winddown_delay',
+      'input_number.bedtime_snuggle1_delay',
+      'input_number.bedtime_snuggle2_delay',
+      'input_boolean.bedtime_routine_enabled',
+      'input_datetime.bedtime_routine_start_time',
+      'light.liams_clock_screen',
+      'input_select.bedtime_slot_2',
+      'input_select.bedtime_slot_3',
+      'input_select.bedtime_slot_4',
+      'input_select.bedtime_slot_5',
+      'input_boolean.bedtime_warning_enabled',
+      'input_datetime.bedtime_phase_ends',
+    ];
+    const results = await Promise.all(ids.map(fetchState));
+    const s = Object.fromEntries(ids.map((id,i) => [id, results[i]]));
+    updateUI(s);
+    document.getElementById('statusDot').className = 'status-dot connected';
+    document.getElementById('statusText').textContent = 'Connected';
+  } catch {
+    document.getElementById('statusDot').className = 'status-dot error';
+    document.getElementById('statusText').textContent = 'Connection error';
+  }
+}
+
+function updateUI(s) {
+  const phase       = s['input_select.bedtime_routine_phase']?.state ?? 'Idle';
+  const pausedPhase = s['input_text.bedtime_pause_seconds']?.state ?? '';
+  const isPaused    = phase === 'Paused';
+  const isIdle      = phase === 'Idle' || phase === 'Completed';
+  const warnMin     = Math.round(parseFloat(s['input_number.bedtime_warning_delay']?.state ?? '10'));
+  const resolve     = p => p.includes('warning') ? `${warnMin} Min Warning` : p;
+
+  // Sync slots from HA (skip if mid-drag-save)
+  if (!saveTimer) {
+    const slots = [2,3,4,5].map(n => s[`input_select.bedtime_slot_${n}`]?.state ?? 'None');
+    const str = slots.join(',');
+    if (str !== lastSlots) {
+      lastSlots = str;
+      syncSlotsFromHA(slots);
+      renderDragList();
+    }
+  }
+
+  // Update number caches and all stepper vals
+  const numMap = {
+    'input_number.bedtime_warning_delay':  'val_warning',
+    'input_number.bedtime_ready_delay':    null,
+    'input_number.bedtime_winddown_delay': null,
+    'input_number.bedtime_snuggle1_delay': null,
+    'input_number.bedtime_snuggle2_delay': null,
+  };
+  Object.keys(numMap).forEach(entity => {
+    const val = Math.round(parseFloat(s[entity]?.state ?? '0'));
+    numberCache[entity] = val;
+    // fixed warning stepper
+    const fixedEl = document.getElementById('val_warning');
+    if (entity === 'input_number.bedtime_warning_delay' && fixedEl) fixedEl.textContent = val;
+    // dynamic stepper vals in drag list
+    document.querySelectorAll(`[data-entity="${entity}"]`).forEach(el => el.textContent = val);
+  });
+
+  // Phase card
+  const seq = buildSequence();
+  const effectivePhase = isPaused && pausedPhase ? pausedPhase : phase;
+  const idx   = seq.indexOf(effectivePhase);
+  const total = seq.length;
+
+  const card = document.getElementById('phaseCard');
+  card.className = 'phase-card' + (isIdle ? '' : isPaused ? ' paused' : ' active');
+
+  document.getElementById('phaseName').textContent =
+    isIdle ? 'Ready to begin' : (isPaused ? `⏸ ${resolve(pausedPhase)}` : resolve(phase));
+
+  document.getElementById('phaseStep').textContent =
+    isIdle ? (phase === 'Completed' ? '✅ All done!' : 'Auto-start will trigger at set time, or Press Start below') :
+    idx >= 0 ? `${PHASE_EMOJIS[effectivePhase]??'📋'} Step ${idx+1} of ${total}${isPaused?' — Paused':''}` : '';
+
+  // Countdown
+  const cdEl = document.getElementById('countdown'), unitEl = document.getElementById('countdownUnit');
+  if (isIdle) {
+    cdEl.className = 'countdown idle'; cdEl.textContent = '--:--'; unitEl.textContent = '';
+  } else if (isPaused) {
+    const ts = Math.round(s['input_datetime.bedtime_pause_remaining']?.attributes?.timestamp ?? 0);
+    cdEl.className = 'countdown paused-text';
+    cdEl.textContent = ts ? fmt(ts) : 'PAUSED';
+    unitEl.textContent = ts ? 'paused at' : '';
+  } else if (phase === 'Completed') {
+    cdEl.className = 'countdown idle'; cdEl.textContent = '✓'; unitEl.textContent = 'complete';
+  } else {
+    const rem = parseInt(s['sensor.bedtime_phase_time_remaining']?.state ?? '0');
+    cdEl.className = 'countdown' + (rem <= 1 && rem > 0 ? ' warning' : '');
+    // display updated by tickCountdown() using phase end time
+    unitEl.textContent = 'remaining';
+    const endsAttr = s['input_datetime.bedtime_phase_ends']?.attributes?.timestamp;
+    phaseEndsAt = endsAttr ? endsAttr * 1000 : null;
+  }
+
+  // Step dots
+  const dotsEl = document.getElementById('stepDots');
+  dotsEl.innerHTML = '';
+  seq.forEach((ph, i) => {
+    const d = document.createElement('div');
+    d.className = 'step-dot' + (i < idx ? ' done' : i === idx ? ' current' : '');
+    d.title = resolve(ph);
+    dotsEl.appendChild(d);
+  });
+
+  document.getElementById('progressFill').style.width =
+    isIdle || idx < 0 ? '0%' : (idx / Math.max(total-1,1) * 100) + '%';
+
+  // Buttons
+  document.getElementById('btnStart').disabled  = !isIdle;
+  document.getElementById('btnSkip').disabled   = isIdle || isPaused || phase === 'Completed';
+  document.getElementById('btnPause').disabled  = isIdle || isPaused || phase === 'Completed' || phase === 'Goodnight Liam!';
+  document.getElementById('btnResume').disabled = !isPaused;
+  document.getElementById('btnCancel').disabled = isIdle;
+
+  // Other settings
+  // Warning toggle + excluded style
+  const warningEnabled = s['input_boolean.bedtime_warning_enabled']?.state !== 'off';
+  const toggleWarningEl = document.getElementById('toggleWarning');
+  if (toggleWarningEl) toggleWarningEl.checked = warningEnabled;
+  const warningRow = document.getElementById('row_warning');
+  if (warningRow) {
+    warningRow.classList.toggle('excluded', !warningEnabled);
+    const wName = document.getElementById('warning_name');
+    if (wName) wName.style.textDecoration = warningEnabled ? '' : 'line-through';
+  }
+
+  const autoStartState = s['input_boolean.bedtime_routine_enabled']?.state === 'on';
+  autoStartEnabled = autoStartState;
+  document.getElementById('toggleAutoStart').checked = autoStartState;
+  const st = s['input_datetime.bedtime_routine_start_time']?.state ?? '';
+  startTimeStr = st.length >= 5 ? st.substring(0,5) : '';
+  if (st.length >= 5) document.getElementById('inputStartTime').value = st.substring(0,5);
+  document.getElementById('toggleCountdown').checked =
+    s['light.liams_clock_screen']?.state === 'on';
+}
+
+renderDragList();
+poll();
+setInterval(poll, 2000);
+
+// ── Client-side countdown tickers ──
+let autoStartEnabled = false;
+let startTimeStr = '';
+let phaseEndsAt = null; // ms timestamp of when current phase ends
+
+function tickCountdown() {
+  const cdEl = document.getElementById('countdown');
+  if (!cdEl) return;
+  // Only drive display when active (not idle/paused/completed)
+  const card = document.getElementById('phaseCard');
+  if (!card || !card.classList.contains('active') || phaseEndsAt === null) return;
+
+  const remMs = phaseEndsAt - Date.now();
+  const remSec = Math.max(0, Math.round(remMs / 1000));
+  const mins = Math.floor(remSec / 60);
+  const secs = remSec % 60;
+  cdEl.textContent = `${mins}:${String(secs).padStart(2,'0')}`;
+  cdEl.className = 'countdown' + (remSec <= 60 && remSec > 0 ? ' warning' : '');
+}
+
+setInterval(tickCountdown, 1000);
+
+function getSecondsUntilStart() {
+  if (!startTimeStr || startTimeStr.length < 5) return null;
+  const [h, m] = startTimeStr.split(':').map(Number);
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(h, m, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  return Math.round((target - now) / 1000);
+}
+
+function tickStartsIn() {
+  const wrap = document.getElementById('startsInWrap');
+  const timerEl = document.getElementById('startsInTimer');
+  const phase = document.getElementById('phaseCard')?.className ?? '';
+  const isIdle = !phase.includes('active') && !phase.includes('paused');
+
+  if (!isIdle || !autoStartEnabled) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  const secs = getSecondsUntilStart();
+  if (secs === null) { wrap.style.display = 'none'; return; }
+
+  wrap.style.display = 'block';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  timerEl.textContent = h > 0
+    ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    : `${m}:${String(s).padStart(2,'0')}`;
+}
+
+setInterval(tickStartsIn, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LED Panel Mirror & Controller</title>
+    <link rel="icon" type="image/png" href="led-icon.png">
+    <link rel="apple-touch-icon" href="led-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="LED Panel">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; line-height: 1.5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: #1e293b; padding: 28px; border-radius: 24px; margin-bottom: 24px; border: 1px solid #334155; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
+        .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .card { background: #1e293b; padding: 28px; border-radius: 24px; border: 1px solid #334155; height: fit-content; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .matrix-container { background: #000; padding: 45px 25px; border-radius: 20px; border: 4px solid #334155; display: flex; flex-direction: column; align-items: center; position: relative; }
+        #panelCanvas { background: #000; width: 100%; max-width: 512px; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; border: 1px solid #222; border-radius: 4px; }
+        #modeBadge { position: absolute; top: 18px; left: 18px; background: #3b82f6; padding: 6px 14px; border-radius: 10px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; background: #ef4444; display: inline-block; margin-right: 8px; }
+        .dot.on { background: #22c55e; box-shadow: 0 0 12px #22c55e; }
+        .grid { display: grid; grid-template-columns: 1fr 420px; gap: 24px; }
+        h2 { font-size: 16px; color: #94a3b8; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
+        h3 { font-size: 12px; color: #64748b; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .live-readout { background: #0f172a; padding: 16px; border-radius: 16px; border-left: 5px solid #8b5cf6; margin-bottom: 24px; font-size: 14px; }
+        .live-label { font-size: 10px; color: #64748b; font-weight: 800; display: block; margin-bottom: 4px; }
+        textarea { width: 100%; height: 110px; background: #1e293b; border: 2px solid #334155; color: white; padding: 16px; border-radius: 16px; margin: 12px 0; font-family: monospace; resize: none; font-size: 16px; }
+        textarea:focus { border-color: #3b82f6; outline: none; background: #0f172a; }
+        .image-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 24px; }
+        .option-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+        .color-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+        .mode-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+        .opt-btn { background: #1e293b; border: 2px solid #334155; color: #cbd5e1; border-radius: 16px; padding: 14px 10px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 13px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+        .opt-btn:hover { border-color: #475569; background: #26334d; }
+        .opt-btn.selected { border-color: #22c55e; background: rgba(34,197,94,0.15); color: white; border-width: 3px; }
+        .image-emoji { font-size: 30px; line-height: 1; }
+        .color-btn { height: 52px; border-radius: 14px; border: 2px solid #334155; cursor: pointer; transition: transform 0.1s; }
+        .color-btn:active { transform: scale(0.92); }
+        .btn-main { width: 100%; padding: 18px; border: none; border-radius: 16px; font-weight: 800; cursor: pointer; margin-top: 12px; transition: all 0.3s; font-size: 15px; text-transform: uppercase; }
+        .btn-blue { background: #3b82f6; color: white; box-shadow: 0 4px 14px 0 rgba(59,130,246,0.4); }
+        .override-active { border-color: #eab308 !important; background: rgba(234,179,8,0.2) !important; color: #facc15 !important; border-width: 3px !important; }
+        .freeze-active { border-color: #06b6d4 !important; background: rgba(6,182,212,0.2) !important; color: #67e8f9 !important; border-width: 3px !important; }
+        .screen-active { border-color: #22c55e !important; background: rgba(34,197,94,0.15) !important; color: #86efac !important; border-width: 3px !important; }
+        .hardware-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        .btn-reboot { grid-column: span 2; background: #450a0a; color: #f87171; border: 1px solid #7f1d1d; }
+        .stepper-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #0f172a; padding: 8px 16px; border-radius: 16px; }
+        .stepper-label { font-size: 13px; color: #cbd5e1; font-weight: 700; margin: 0; }
+        .stepper { display: flex; align-items: center; background: #1e293b; border-radius: 10px; border: 1px solid #334155; }
+        .stepper button { background: transparent; color: #3b82f6; border: none; padding: 8px 16px; font-size: 14px; font-weight: 900; cursor: pointer; border-radius: 8px; }
+        .stepper button:hover { background: #26334d; }
+        .stepper-val-container { width: 50px; text-align: center; }
+        .stepper-val { font-family: monospace; font-size: 15px; font-weight: bold; color: white; }
+        .stepper-unit { color: #64748b; font-size: 12px; font-weight: bold; margin-left: 2px; }
+        .screens-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+            .image-grid { grid-template-columns: repeat(3, 1fr); }
+            .opt-btn { font-size: 11px; padding: 10px 4px; }
+            .mode-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="status-row">
+            <div>
+                <h1 style="font-size: 22px; font-weight: 800;">Panel Control Center</h1>
+                <span id="syncText" style="font-size: 13px; color: #94a3b8;">Initializing...</span>
+            </div>
+            <div style="background: #0f172a; padding: 12px 20px; border-radius: 30px; border: 1px solid #334155; display: flex; align-items: center;">
+                <span class="dot" id="syncDot"></span>
+                <input type="checkbox" id="liveSync" onchange="toggleSync(this.checked)" checked style="width:20px;height:20px;cursor:pointer;">
+                <label for="liveSync" style="font-size:14px;cursor:pointer;font-weight:700;margin-left:10px;">LIVE MIRROR</label>
+            </div>
+        </div>
+        <div class="matrix-container">
+            <div id="modeBadge">PREVIEW</div>
+            <canvas id="panelCanvas" width="128" height="64"></canvas>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- LEFT: Message Designer -->
+        <div class="card">
+            <h2>Message Designer</h2>
+            <div class="live-readout">
+                <button style="background:transparent;color:#3b82f6;border:1px solid #3b82f6;padding:8px 16px;font-size:12px;font-weight:800;border-radius:10px;float:right;cursor:pointer;" onclick="loadFromHardware()">LOAD CURRENT</button>
+                <span class="live-label">ACTIVE ON PANEL:</span>
+                <span id="liveTextDisplay" style="color:#cbd5e1;">Syncing...</span>
+            </div>
+
+            <h3>1. Type Message</h3>
+            <textarea id="msgInput" oninput="updatePreview()" placeholder="Type message..."></textarea>
+
+            <h3 style="margin-top:12px;">2. Pick Color</h3>
+            <div class="color-grid">
+                <button class="color-btn" style="background:#fff;"     onclick="draftColor(255,255,255)"></button>
+                <button class="color-btn" style="background:#ef4444;"  onclick="draftColor(255,0,0)"></button>
+                <button class="color-btn" style="background:#22c55e;"  onclick="draftColor(0,255,0)"></button>
+                <button class="color-btn" style="background:#3b82f6;"  onclick="draftColor(0,150,255)"></button>
+                <button class="color-btn" style="background:#eab308;"  onclick="draftColor(255,255,0)"></button>
+                <button class="color-btn" style="background:#f97316;"  onclick="draftColor(255,140,0)"></button>
+                <button class="color-btn" style="background:#a855f7;"  onclick="draftColor(200,0,255)"></button>
+                <button class="color-btn" style="background:#ec4899;"  onclick="draftColor(255,105,180)"></button>
+            </div>
+            <div style="display:flex;align-items:center;gap:20px;background:#0f172a;padding:15px;border-radius:16px;margin-bottom:24px;">
+                <input type="color" id="colorPicker" value="#ffffff" oninput="updatePreview()" style="border:none;width:50px;height:50px;cursor:pointer;background:none;">
+                <div style="font-family:monospace;font-size:14px;font-weight:700;flex-grow:1;color:#94a3b8;">RGB: <span id="rV" style="color:white;">255</span>, <span id="gV" style="color:white;">255</span>, <span id="bV" style="color:white;">255</span></div>
+            </div>
+
+            <h3>3. Text Scale</h3>
+            <div class="option-grid">
+                <div class="opt-btn" id="size-small"  onclick="selectSize('small')">SMALL</div>
+                <div class="opt-btn selected" id="size-medium" onclick="selectSize('medium')">MEDIUM</div>
+                <div class="opt-btn" id="size-large"  onclick="selectSize('large')">LARGE</div>
+            </div>
+
+            <h3>4. Select Icon</h3>
+            <div class="image-grid">
+                <div class="opt-btn selected" id="img-none"        onclick="selectImage('none')"><div style="font-size:20px;color:#64748b;">✕</div><div style="font-size:9px;">NONE</div></div>
+                <div class="opt-btn" id="img-heart"       onclick="selectImage('heart')"><div class="image-emoji">❤️</div><div style="font-size:9px;">HEART</div></div>
+                <div class="opt-btn" id="img-seahawks"    onclick="selectImage('seahawks')"><div class="image-emoji">🏈</div><div style="font-size:9px;">HAWKS</div></div>
+                <div class="opt-btn" id="img-mariners"    onclick="selectImage('mariners')"><div class="image-emoji">⚾</div><div style="font-size:9px;">M'S</div></div>
+                <div class="opt-btn" id="img-cheers"      onclick="selectImage('cheers')"><div class="image-emoji">🥂</div><div style="font-size:9px;">CHEERS</div></div>
+                <div class="opt-btn" id="img-bordercollie" onclick="selectImage('bordercollie')"><div class="image-emoji">🐶</div><div style="font-size:9px;">COLLIE</div></div>
+                <div class="opt-btn" id="img-sun"         onclick="selectImage('sun')"><div class="image-emoji">☀️</div><div style="font-size:9px;">SUN</div></div>
+                <div class="opt-btn" id="img-fire"        onclick="selectImage('fire')"><div class="image-emoji">🔥</div><div style="font-size:9px;">FIRE</div></div>
+                <div class="opt-btn" id="img-soccerball"       onclick="selectImage('soccerball')"><div class="image-emoji">⚽</div><div style="font-size:9px;">SOCCER</div></div>
+                <div class="opt-btn" id="img-mealtime"       onclick="selectImage('mealtime')"><div class="image-emoji">🍽️</div><div style="font-size:9px;">MEALTIME</div></div>
+                <div class="opt-btn" id="img-gonzaga"       onclick="selectImage('gonzaga')"><div class="image-emoji">🐶</div><div style="font-size:9px;">GONZAGA</div></div>
+                <div class="opt-btn" id="img-house"       onclick="selectImage('house')"><div class="image-emoji">🏠</div><div style="font-size:9px;">HOUSE</div></div>
+                <div class="opt-btn" id="img-snow"       onclick="selectImage('snow')"><div class="image-emoji">❄️</div><div style="font-size:9px;">SNOW</div></div>
+                <div class="opt-btn" id="img-nighttime"       onclick="selectImage('nighttime')"><div class="image-emoji">🌙</div><div style="font-size:9px;">NIGHTTIME</div></div>
+            </div>
+
+            <button class="btn-main btn-blue" onclick="sendToPanel()">🚀 Push to Display</button>
+            <button class="btn-main" style="background:#334155;color:#f87171;" onclick="clearPanel()">🗑️ Clear Message</button>
+        </div>
+
+        <!-- RIGHT: Controls -->
+        <div class="card">
+            <h2>Hardware Overrides</h2>
+
+            <h3>Display Mode</h3>
+            <div class="mode-grid">
+                <button class="opt-btn override-active" id="mode-Auto"         onclick="setOverride('Auto')">🔄 AUTO</button>
+                <button class="opt-btn" id="mode-Idle"         onclick="setOverride('Idle')">🕒 CLOCK</button>
+                <button class="opt-btn" id="mode-Message"      onclick="setOverride('Message')">💬 MSG</button>
+                <button class="opt-btn" id="mode-Notification" onclick="setOverride('Notification')">⚠️ ALERTS</button>
+                <button class="opt-btn" id="mode-Zags"         onclick="setOverride('Zags')">🏀 ZAGS</button>
+                <button class="opt-btn" id="mode-Mariners"     onclick="setOverride('Mariners')">⚾ M'S</button>
+                <button class="opt-btn" id="mode-Bedtime"      onclick="setOverride('Bedtime')">🌙 SLEEP</button>
+            </div>
+
+            <h3>Active Screens</h3>
+            <div class="screens-grid">
+                <button class="opt-btn" id="btnZags"     onclick="toggleScreen('zags')">🏀 ZAGS</button>
+                <button class="opt-btn" id="btnMariners" onclick="toggleScreen('mariners')">⚾ MARINERS</button>
+            </div>
+
+            <h3>Playback Control</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:28px;">
+                <button class="opt-btn" id="btnFreeze" onclick="toggleFreeze()">⏸ FREEZE</button>
+                <button class="opt-btn" onclick="skipScreen()">⏭ SKIP</button>
+            </div>
+
+            <hr style="border:none;border-top:2px solid #0f172a;margin-bottom:24px;">
+
+            <h3>Display Tuning</h3>
+            <div class="stepper-row">
+                <span class="stepper-label">Clock Time</span>
+                <div class="stepper">
+                    <button onclick="adjustDuration('idle',-5,'durIdleVal','durIdle')">▼</button>
+                    <div class="stepper-val-container"><span class="stepper-val" id="durIdleVal">10</span><span class="stepper-unit">s</span></div>
+                    <button onclick="adjustDuration('idle',5,'durIdleVal','durIdle')">▲</button>
+                </div>
+            </div>
+            <div class="stepper-row">
+                <span class="stepper-label">Bedtime Screen</span>
+                <div class="stepper">
+                    <button onclick="adjustDuration('bedtime',-5,'durBedVal','durBed')">▼</button>
+                    <div class="stepper-val-container"><span class="stepper-val" id="durBedVal">30</span><span class="stepper-unit">s</span></div>
+                    <button onclick="adjustDuration('bedtime',5,'durBedVal','durBed')">▲</button>
+                </div>
+            </div>
+            <div class="stepper-row">
+                <span class="stepper-label">Message Time</span>
+                <div class="stepper">
+                    <button onclick="adjustDuration('message',-5,'durMsgVal','durMsg')">▼</button>
+                    <div class="stepper-val-container"><span class="stepper-val" id="durMsgVal">30</span><span class="stepper-unit">s</span></div>
+                    <button onclick="adjustDuration('message',5,'durMsgVal','durMsg')">▲</button>
+                </div>
+            </div>
+            <div class="stepper-row">
+                <span class="stepper-label">Mariners Time</span>
+                <div class="stepper">
+                    <button onclick="adjustDuration('mariners',-5,'durMarinersVal','durMariners')">▼</button>
+                    <div class="stepper-val-container"><span class="stepper-val" id="durMarinersVal">30</span><span class="stepper-unit">s</span></div>
+                    <button onclick="adjustDuration('mariners',5,'durMarinersVal','durMariners')">▲</button>
+                </div>
+            </div>
+            <div class="stepper-row" style="margin-bottom:24px;">
+                <span class="stepper-label">Zags Time</span>
+                <div class="stepper">
+                    <button onclick="adjustDuration('zags',-5,'durZagsVal','durZags')">▼</button>
+                    <div class="stepper-val-container"><span class="stepper-val" id="durZagsVal">30</span><span class="stepper-unit">s</span></div>
+                    <button onclick="adjustDuration('zags',5,'durZagsVal','durZags')">▲</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom:24px;">
+                <label style="font-size:13px;color:#cbd5e1;font-weight:700;display:block;margin-bottom:12px;">Brightness: <span id="briVal" style="color:#3b82f6;">20</span>%</label>
+                <input type="range" id="briSlider" min="1" max="100" value="20" oninput="document.getElementById('briVal').innerText=this.value;" onchange="changeBrightness(this.value)" style="width:100%;cursor:pointer;">
+            </div>
+
+            <div class="hardware-controls">
+                <button class="btn-main" id="pwrOnBtn"  onclick="setPower(true)"  style="margin-top:0;background:#064e3b;color:#6ee7b7;">ON</button>
+                <button class="btn-main" id="pwrOffBtn" onclick="setPower(false)" style="margin-top:0;background:#450a0a;color:#f87171;">OFF</button>
+                <button class="btn-main btn-reboot" onclick="rebootESP()">⚡ REBOOT ESP32</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────────────────────
+const HA_URL   = 'http://192.168.2.125:8123';
+const HA_TOKEN = 'REDACTED';
+
+// ── Entity map — updated for Arduino/MQTT architecture ─────────────────────────
+const HA = {
+    // Status from MQTT discovery
+    mode:            'sensor.led_matrix_panel_display_mode',
+
+    // Control helpers (automations push changes to MQTT)
+    power:           'input_boolean.panel_power',
+    brightness:      'input_number.panel_brightness',
+    zags_screen:     'input_boolean.show_zags_screen',
+    mariners_screen: 'input_boolean.show_mariners_screen',
+    freeze:          'input_boolean.panel_freeze_cycle',
+    override:        'input_select.panel_mode_override',
+
+    // Message
+    msg_input:  'input_text.panel_message_input',
+    msg_red:    'input_number.panel_message_red',
+    msg_green:  'input_number.panel_message_green',
+    msg_blue:   'input_number.panel_message_blue',
+    msg_image:  'input_select.panel_message_image',
+    msg_size:   'input_select.panel_message_size',
+
+    // Durations
+    dur_message:  'input_number.panel_duration_message',
+    dur_zags:     'input_number.panel_duration_zags',
+    dur_idle:     'input_number.panel_duration_idle',
+    dur_bedtime:  'input_number.panel_duration_bedtime',
+    dur_mariners: 'input_number.panel_duration_mariners',
+
+    // Data
+    zags_data:    'sensor.zags',
+    weather_cond: 'weather.forecast_home',
+    weather_temp: 'sensor.weather_temperature',
+    mariners_day: 'input_datetime.mariners_opening_day',
+};
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let syncInterval = null;
+let hs = {
+    text:'', color:{r:255,g:255,b:255}, image:'none', size:'medium',
+    mode:'idle', power:'on', override:'Auto', isFrozen:false,
+    zagsOn:false, marinersOn:false,
+    durMsg:30, durZags:30, durIdle:10, durBed:30, durMariners:30,
+    weather:{temp:0,condition:''},
+    zags:{teamScore:0,oppScore:0,opponent:'TBD'},
+    marinersTarget:null
+};
+let draft = {text:'',color:{r:255,g:255,b:255},image:'none',size:'medium',active:false};
+
+// ── HA helpers ─────────────────────────────────────────────────────────────────
+async function fetchHA(eid) {
+    try { const r=await fetch(`${HA_URL}/api/states/${eid}`,{headers:{'Authorization':`Bearer ${HA_TOKEN}`}}); return await r.json(); }
+    catch(e) { return {state:null,attributes:{}}; }
+}
+async function callService(domain,svc,data) {
+    return fetch(`${HA_URL}/api/services/${domain}/${svc}`,{method:'POST',headers:{'Authorization':`Bearer ${HA_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify(data)});
+}
+async function mqttPublish(topic,payload,retain=false) {
+    return callService('mqtt','publish',{topic,payload:String(payload),retain});
+}
+
+// ── Sync ───────────────────────────────────────────────────────────────────────
+async function sync() {
+    try {
+        const [mode,pwr,bri,msg,r,g,b,img,sz,ov,frz,zagsScr,marinersScr,
+               wC,wT,zagsD,dM,dZ,dI,dB,dMar,marinersDay] = await Promise.all([
+            fetchHA(HA.mode),fetchHA(HA.power),fetchHA(HA.brightness),
+            fetchHA(HA.msg_input),fetchHA(HA.msg_red),fetchHA(HA.msg_green),
+            fetchHA(HA.msg_blue),fetchHA(HA.msg_image),fetchHA(HA.msg_size),
+            fetchHA(HA.override),fetchHA(HA.freeze),
+            fetchHA(HA.zags_screen),fetchHA(HA.mariners_screen),
+            fetchHA(HA.weather_cond),fetchHA(HA.weather_temp),
+            fetchHA(HA.zags_data),
+            fetchHA(HA.dur_message),fetchHA(HA.dur_zags),
+            fetchHA(HA.dur_idle),fetchHA(HA.dur_bedtime),fetchHA(HA.dur_mariners),
+            fetchHA(HA.mariners_day)
+        ]);
+
+        hs.mode        = (mode?.state||'idle').toLowerCase();
+        hs.power       = pwr?.state==='on'?'on':'off';
+        hs.text        = msg?.state||'';
+        hs.color       = {r:parseInt(r?.state)||255,g:parseInt(g?.state)||255,b:parseInt(b?.state)||255};
+        hs.image       = img?.state||'none';
+        hs.size        = sz?.state||'medium';
+        hs.override    = ov?.state||'Auto';
+        hs.isFrozen    = frz?.state==='on';
+        hs.zagsOn      = zagsScr?.state==='on';
+        hs.marinersOn  = marinersScr?.state==='on';
+        hs.weather     = {condition:wC?.state||'',temp:parseFloat(wT?.state)||0};
+        hs.zags        = {teamScore:zagsD?.attributes?.team_score||0,oppScore:zagsD?.attributes?.opponent_score||0,opponent:zagsD?.attributes?.opponent_name||'TBD'};
+        hs.durMsg      = parseFloat(dM?.state)||30;
+        hs.durZags     = parseFloat(dZ?.state)||30;
+        hs.durIdle     = parseFloat(dI?.state)||10;
+        hs.durBed      = parseFloat(dB?.state)||30;
+        hs.durMariners = parseFloat(dMar?.state)||30;
+
+        if(marinersDay?.state&&marinersDay.state!=='unknown'&&marinersDay.state!=='unavailable')
+            hs.marinersTarget=new Date(marinersDay.state.replace(' ','T')).getTime();
+
+        // Update UI
+        document.getElementById('liveTextDisplay').innerText=hs.text||'(Default Screens)';
+        document.getElementById('syncDot').classList.add('on');
+        document.getElementById('syncText').innerText='Connected';
+        document.getElementById('pwrOnBtn').style.opacity =hs.power==='on' ?'1':'0.4';
+        document.getElementById('pwrOffBtn').style.opacity=hs.power==='off'?'1':'0.4';
+
+        document.querySelectorAll('.mode-grid .opt-btn').forEach(b=>b.classList.remove('override-active'));
+        document.getElementById(`mode-${hs.override}`)?.classList.add('override-active');
+
+        const fb=document.getElementById('btnFreeze');
+        fb.classList.toggle('freeze-active',hs.isFrozen);
+        fb.innerText=hs.isFrozen?'▶️ UNFREEZE':'⏸ FREEZE';
+
+        document.getElementById('btnZags').classList.toggle('screen-active',hs.zagsOn);
+        document.getElementById('btnMariners').classList.toggle('screen-active',hs.marinersOn);
+
+        if(document.activeElement!==document.getElementById('briSlider')){
+            document.getElementById('briSlider').value=bri?.state||20;
+            document.getElementById('briVal').innerText=Math.round(bri?.state||20);
+        }
+
+        document.getElementById('durMsgVal').innerText     =hs.durMsg;
+        document.getElementById('durZagsVal').innerText    =hs.durZags;
+        document.getElementById('durIdleVal').innerText    =hs.durIdle;
+        document.getElementById('durBedVal').innerText     =hs.durBed;
+        document.getElementById('durMarinersVal').innerText=hs.durMariners;
+
+        if(!draft.active){
+            document.querySelectorAll('.image-grid .opt-btn').forEach(e=>e.classList.remove('selected'));
+            document.getElementById(`img-${hs.image}`)?.classList.add('selected');
+            document.querySelectorAll('.option-grid .opt-btn').forEach(e=>e.classList.remove('selected'));
+            document.getElementById(`size-${hs.size}`)?.classList.add('selected');
+        }
+        draw();
+    } catch(e) {
+        document.getElementById('syncDot').classList.remove('on');
+        document.getElementById('syncText').innerText='Syncing...';
+    }
+}
+
+// ── Canvas ─────────────────────────────────────────────────────────────────────
+function draw() {
+    const canvas=document.getElementById('panelCanvas');
+    const ctx=canvas.getContext('2d');
+    const badge=document.getElementById('modeBadge');
+    ctx.fillStyle='#000';ctx.fillRect(0,0,128,64);
+    if(hs.power==='off'){badge.innerText='PANEL OFF';badge.style.background='#7f1d1d';return;}
+    const txt=draft.active?draft.text:hs.text;
+    const col=draft.active?draft.color:hs.color;
+    const img=draft.active?draft.image:hs.image;
+    const sz =draft.active?draft.size :hs.size;
+    badge.innerText=(draft.active?'DESIGNING':hs.mode).toUpperCase();
+    badge.style.background=draft.active?'#3b82f6':'#8b5cf6';
+    if     (!draft.active&&hs.mode==='idle')    renderIdle(ctx);
+    else if(!draft.active&&hs.mode==='zags')    renderZags(ctx);
+    else if(!draft.active&&hs.mode==='bedtime') renderBedtime(ctx);
+    else if(!draft.active&&hs.mode==='mariners')renderMariners(ctx);
+    else renderMessage(ctx,txt,col,img,sz);
+}
+
+function renderIdle(ctx) {
+    const now=new Date();
+    let h=now.getHours()%12||12;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='#fff';ctx.font='bold 14px monospace';
+    ctx.fillText(`${h}:${String(now.getMinutes()).padStart(2,'0')}`,50,14);
+    ctx.fillStyle='#aaa';ctx.font='bold 8px monospace';
+    ctx.fillText(now.getHours()>=12?'PM':'AM',95,8);
+    ctx.fillStyle='#888';ctx.font='7px monospace';
+    const D=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    ctx.fillText(`${D[now.getDay()]} ${M[now.getMonth()]} ${now.getDate()}`,64,24);
+    const tc=hs.weather.temp<=32?'#82b4ff':hs.weather.temp<=64?'#50dcc8':hs.weather.temp<=75?'#64ff64':hs.weather.temp<=85?'#ffb400':'#ff3c00';
+    ctx.fillStyle=tc;ctx.font='bold 11px monospace';
+    ctx.fillText(`${hs.weather.temp}°`,50,44);
+    ctx.fillStyle='#ccc';ctx.font='7px monospace';
+    ctx.fillText(hs.weather.condition||'',64,57);
+}
+
+function renderZags(ctx) {
+    ctx.fillStyle='#003594';ctx.fillRect(2,18,48,44);
+    ctx.fillStyle='#fff';ctx.font='bold 8px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('GONZAGA',26,40);
+    ctx.textAlign='left';ctx.textBaseline='top';
+    ctx.fillStyle='#facc15';ctx.font='8px monospace';
+    ctx.fillText(hs.zags.opponent.substring(0,12),52,9);
+    ctx.fillStyle='#fff';ctx.font='14px monospace';
+    ctx.fillText(hs.zags.oppScore,52,18);
+    ctx.fillStyle='#aaa';ctx.font='8px monospace';ctx.fillText('ZAGS',52,36);
+    ctx.fillStyle='#fff';ctx.font='14px monospace';ctx.fillText(hs.zags.teamScore,52,44);
+}
+
+function renderBedtime(ctx) {
+    ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillStyle='#8b5cf6';ctx.font='bold 8px monospace';ctx.fillText('BEDTIME',64,2);
+    ctx.font='28px monospace';ctx.textBaseline='middle';ctx.fillText('🌙',64,40);
+}
+
+function renderMariners(ctx) {
+    ctx.fillStyle='#001e46';ctx.fillRect(0,0,128,11);
+    ctx.fillStyle='#00c896';ctx.font='bold 7px monospace';ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText('OPENING DAY',64,2);
+    ctx.font='20px sans-serif';ctx.textAlign='left';ctx.fillText('⚾',2,14);
+    if(!hs.marinersTarget){ctx.fillStyle='#64748b';ctx.font='7px monospace';ctx.fillText('No date set',40,24);}
+    else {
+        const rem=Math.max(0,Math.floor((hs.marinersTarget-Date.now())/1000));
+        if(rem===0){ctx.fillStyle='#00c896';ctx.font='bold 10px monospace';ctx.fillText('PLAY',40,18);ctx.fillText('BALL!',40,30);}
+        else {
+            const d=Math.floor(rem/86400);
+            const hms=`${String(Math.floor((rem%86400)/3600)).padStart(2,'0')}:${String(Math.floor((rem%3600)/60)).padStart(2,'0')}:${String(rem%60).padStart(2,'0')}`;
+            if(d>0){ctx.fillStyle='#00c896';ctx.font='bold 8px monospace';ctx.fillText(`${d} day${d===1?'':'s'}`,40,14);ctx.fillStyle='#fff';ctx.font='8px monospace';ctx.fillText(hms,40,24);}
+            else{ctx.fillStyle='#fff';ctx.font='8px monospace';ctx.fillText(hms,40,22);}
+            ctx.fillStyle='#475569';ctx.font='6px monospace';ctx.fillText('to first pitch',40,46);
+        }
+    }
+}
+
+function renderMessage(ctx,text,color,image,size) {
+    ctx.fillStyle=`rgb(${color.r},${color.g},${color.b})`;
+    let f='16px monospace',lh=18;
+    if(size==='small'){f='10px monospace';lh=12;}else if(size==='large'){f='24px monospace';lh=26;}
+    const hasImg=image&&image!=='none';
+    if(hasImg&&text){
+        drawImagePreview(ctx,image,8,16);
+        ctx.font=f;ctx.textAlign='left';ctx.textBaseline='top';
+        const w=getLines(text,true,size);let y=(64-w.lines.length*lh)/2;
+        w.lines.forEach(l=>{ctx.fillText(l,48,y);y+=lh;});
+    }else if(hasImg){drawImagePreview(ctx,image,48,16);}
+    else{
+        const w=getLines(text,false,size);
+        ctx.font=f;ctx.textAlign='center';ctx.textBaseline='middle';
+        let sy=(64-w.lines.length*lh)/2+lh/2;
+        w.lines.forEach((l,i)=>ctx.fillText(l,64,sy+i*lh));
+    }
+}
+
+function drawImagePreview(ctx,n,x,y) {
+    const e={heart:'❤️',seahawks:'🏈',mariners:'⚾',cheers:'🥂',bordercollie:'🐶',sun:'☀️',fire:'🔥',soccerball:'⚽', gonzaga:'🐶',house:'🏠', snow:'❄️',nighttime:'🌙'};
+    ctx.font='30px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+    ctx.fillText(e[n]||'🖼️',x,y);
+}
+
+function getLines(s,hasImg,size) {
+    if(!s)return{lines:[]};
+    let max=12;
+    if(hasImg){if(size==='small')max=12;else if(size==='large')max=5;else max=7;}
+    else{if(size==='small')max=20;else if(size==='large')max=9;else max=12;}
+    let lines=['','',''],li=0;
+    for(let w of s.split(' ')){
+        if(li>2)break;
+        let t=lines[li]===''?w:lines[li]+' '+w;
+        if(t.length<=max)lines[li]=t;else if(li<2){li++;lines[li]=w;}
+    }
+    return{lines:lines.filter(l=>l!=='')};
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────────
+function selectImage(n){document.querySelectorAll('.image-grid .opt-btn').forEach(e=>e.classList.remove('selected'));document.getElementById(`img-${n}`)?.classList.add('selected');draft.image=n;draft.active=true;draw();}
+function selectSize(n){document.querySelectorAll('.option-grid .opt-btn').forEach(e=>e.classList.remove('selected'));document.getElementById(`size-${n}`)?.classList.add('selected');draft.size=n;draft.active=true;draw();}
+function updatePreview(){draft.active=true;draft.text=document.getElementById('msgInput').value;draft.color=hexToRgb(document.getElementById('colorPicker').value);document.getElementById('rV').innerText=draft.color.r;document.getElementById('gV').innerText=draft.color.g;document.getElementById('bV').innerText=draft.color.b;draw();}
+function draftColor(r,g,b){const h='#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);document.getElementById('colorPicker').value=h;updatePreview();}
+function loadFromHardware(){document.getElementById('msgInput').value=hs.text;const h='#'+((1<<24)+(hs.color.r<<16)+(hs.color.g<<8)+hs.color.b).toString(16).slice(1);document.getElementById('colorPicker').value=h;selectImage(hs.image);selectSize(hs.size);updatePreview();}
+function hexToRgb(h){return{r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)};}
+
+async function sendToPanel() {
+    draft.active=false;
+    // Publish colors and appearance first via MQTT directly, then text last
+    // This ensures color arrives before text triggers a render
+    await Promise.all([
+        mqttPublish('house/panel/message/red',   draft.color.r, true),
+        mqttPublish('house/panel/message/green', draft.color.g, true),
+        mqttPublish('house/panel/message/blue',  draft.color.b, true),
+        mqttPublish('house/panel/message/size',  draft.size,    true),
+        mqttPublish('house/panel/message/image', draft.image,   true),
+        // Also update HA helpers so they stay in sync
+        callService('input_number','set_value',{entity_id:HA.msg_red,  value:draft.color.r}),
+        callService('input_number','set_value',{entity_id:HA.msg_green,value:draft.color.g}),
+        callService('input_number','set_value',{entity_id:HA.msg_blue, value:draft.color.b}),
+        callService('input_select','select_option',{entity_id:HA.msg_image,option:draft.image}),
+        callService('input_select','select_option',{entity_id:HA.msg_size,option:draft.size})
+    ]);
+    // Send text last so panel renders with correct colors already set
+    await mqttPublish('house/panel/message/text', draft.text, true);
+    await callService('input_text','set_value',{entity_id:HA.msg_input,value:draft.text});
+    sync();
+}
+
+async function clearPanel() {
+    draft.active=false;
+    document.getElementById('msgInput').value='';
+    await callService('input_text','set_value',{entity_id:HA.msg_input,value:''});
+    sync();
+}
+
+async function setOverride(mode) {
+    await callService('input_select','select_option',{entity_id:HA.override,option:mode});
+    sync();
+}
+
+async function toggleFreeze() {
+    await callService('input_boolean',hs.isFrozen?'turn_off':'turn_on',{entity_id:HA.freeze});
+    sync();
+}
+
+async function skipScreen() {
+    await mqttPublish('house/panel/skip','1');
+    sync();
+}
+
+async function toggleScreen(screen) {
+    const entity=screen==='zags'?HA.zags_screen:HA.mariners_screen;
+    const isOn  =screen==='zags'?hs.zagsOn:hs.marinersOn;
+    await callService('input_boolean',isOn?'turn_off':'turn_on',{entity_id:entity});
+    sync();
+}
+
+async function setPower(on) {
+    await callService('input_boolean',on?'turn_on':'turn_off',{entity_id:HA.power});
+    sync();
+}
+
+async function changeBrightness(v) {
+    await callService('input_number','set_value',{entity_id:HA.brightness,value:parseInt(v)});
+}
+
+function adjustDuration(type,delta,valId,stateProp) {
+    let v=hs[stateProp]+delta;v=Math.max(5,Math.min(120,v));hs[stateProp]=v;
+    document.getElementById(valId).innerText=v;
+    const m={message:HA.dur_message,zags:HA.dur_zags,idle:HA.dur_idle,bedtime:HA.dur_bedtime,mariners:HA.dur_mariners};
+    callService('input_number','set_value',{entity_id:m[type],value:v});
+}
+
+async function rebootESP() {
+    if(confirm('Reboot ESP32?')) await mqttPublish('house/panel/reboot','1');
+}
+
+function toggleSync(on) {
+    if(on){sync();syncInterval=setInterval(sync,2500);}
+    else{clearInterval(syncInterval);document.getElementById('syncDot').classList.remove('on');}
+}
+
+toggleSync(true);
+draw();
+</script>
+</body>
+</html>
