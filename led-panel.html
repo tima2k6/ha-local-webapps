@@ -54,11 +54,13 @@
         .stepper-val { font-family: monospace; font-size: 15px; font-weight: bold; color: white; }
         .stepper-unit { color: #64748b; font-size: 12px; font-weight: bold; margin-left: 2px; }
         .screens-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+        .span-2 { grid-column: span 2; }
         @media (max-width: 768px) {
             .grid { grid-template-columns: 1fr; }
             .image-grid { grid-template-columns: repeat(3, 1fr); }
             .opt-btn { font-size: 11px; padding: 10px 4px; }
             .mode-grid { grid-template-columns: repeat(2, 1fr); }
+            .mode-grid .span-2 { grid-column: span 1; }
         }
     </style>
 </head>
@@ -129,6 +131,8 @@
                 <div class="opt-btn" id="img-sun"         onclick="selectImage('sun')"><div class="image-emoji">☀️</div><div style="font-size:9px;">SUN</div></div>
                 <div class="opt-btn" id="img-fire"        onclick="selectImage('fire')"><div class="image-emoji">🔥</div><div style="font-size:9px;">FIRE</div></div>
                 <div class="opt-btn" id="img-soccerball"       onclick="selectImage('soccerball')"><div class="image-emoji">⚽</div><div style="font-size:9px;">SOCCER</div></div>
+                <div class="opt-btn" id="img-sounders"         onclick="selectImage('sounders')"><img src="" class="sounders-logo" alt="" style="width:30px;height:30px;image-rendering:pixelated;"><div style="font-size:9px;">SOUNDERS</div></div>
+                <div class="opt-btn" id="img-kraken"           onclick="selectImage('kraken')"><img src="" class="kraken-logo" alt="" style="width:30px;height:30px;image-rendering:pixelated;"><div style="font-size:9px;">KRAKEN</div></div>
                 <div class="opt-btn" id="img-mealtime"       onclick="selectImage('mealtime')"><div class="image-emoji">🍽️</div><div style="font-size:9px;">MEALTIME</div></div>
                 <div class="opt-btn" id="img-gonzaga"       onclick="selectImage('gonzaga')"><div class="image-emoji">🐶</div><div style="font-size:9px;">GONZAGA</div></div>
                 <div class="opt-btn" id="img-house"       onclick="selectImage('house')"><div class="image-emoji">🏠</div><div style="font-size:9px;">HOUSE</div></div>
@@ -152,13 +156,19 @@
                 <button class="opt-btn" id="mode-Notification" onclick="setOverride('Notification')">⚠️ ALERTS</button>
                 <button class="opt-btn" id="mode-Zags"         onclick="setOverride('Zags')">🏀 ZAGS</button>
                 <button class="opt-btn" id="mode-Mariners"     onclick="setOverride('Mariners')">⚾ M'S</button>
-                <button class="opt-btn" id="mode-Bedtime"      onclick="setOverride('Bedtime')">🌙 SLEEP</button>
+                <button class="opt-btn" id="mode-Seahawks"     onclick="setOverride('Seahawks')">🏈 HAWKS</button>
+                <button class="opt-btn" id="mode-Sounders"     onclick="setOverride('Sounders')">⚽ SOUNDERS</button>
+                <button class="opt-btn span-2" id="mode-Kraken"  onclick="setOverride('Kraken')">🏒 KRAKEN</button>
+                <button class="opt-btn span-2" id="mode-Bedtime" onclick="setOverride('Bedtime')">🌙 SLEEP</button>
             </div>
 
             <h3>Active Screens</h3>
             <div class="screens-grid">
                 <button class="opt-btn" id="btnZags"     onclick="toggleScreen('zags')">🏀 ZAGS</button>
                 <button class="opt-btn" id="btnMariners" onclick="toggleScreen('mariners')">⚾ MARINERS</button>
+                <button class="opt-btn" id="btnSeahawks" onclick="toggleScreen('seahawks')">🏈 SEAHAWKS</button>
+                <button class="opt-btn" id="btnSounders" onclick="toggleScreen('sounders')">⚽ SOUNDERS</button>
+                <button class="opt-btn span-2" id="btnKraken" onclick="toggleScreen('kraken')">🏒 KRAKEN</button>
             </div>
 
             <h3>Playback Control</h3>
@@ -202,6 +212,30 @@
                     <button onclick="adjustDuration('mariners',5,'durMarinersVal','durMariners')">▲</button>
                 </div>
             </div>
+            <div class="stepper-row">
+                <span class="stepper-label">Seahawks Time</span>
+                <div class="stepper">
+                    <button onclick="adjustDuration('seahawks',-5,'durSeahawksVal','durSeahawks')">▼</button>
+                    <div class="stepper-val-container"><span class="stepper-val" id="durSeahawksVal">30</span><span class="stepper-unit">s</span></div>
+                    <button onclick="adjustDuration('seahawks',5,'durSeahawksVal','durSeahawks')">▲</button>
+                </div>
+            </div>
+            <div class="stepper-row">
+                <span class="stepper-label">Sounders Time</span>
+                <div class="stepper">
+                    <button onclick="adjustDuration('sounders',-5,'durSoundersVal','durSounders')">▼</button>
+                    <div class="stepper-val-container"><span class="stepper-val" id="durSoundersVal">30</span><span class="stepper-unit">s</span></div>
+                    <button onclick="adjustDuration('sounders',5,'durSoundersVal','durSounders')">▲</button>
+                </div>
+            </div>
+            <div class="stepper-row">
+                <span class="stepper-label">Kraken Time</span>
+                <div class="stepper">
+                    <button onclick="adjustDuration('kraken',-5,'durKrakenVal','durKraken')">▼</button>
+                    <div class="stepper-val-container"><span class="stepper-val" id="durKrakenVal">30</span><span class="stepper-unit">s</span></div>
+                    <button onclick="adjustDuration('kraken',5,'durKrakenVal','durKraken')">▲</button>
+                </div>
+            </div>
             <div class="stepper-row" style="margin-bottom:24px;">
                 <span class="stepper-label">Zags Time</span>
                 <div class="stepper">
@@ -227,6 +261,20 @@
 <script src="js/ha-config.js"></script>
 <script>
 
+// Sounders crest — the same 32×32 the panel draws (img_sounders in images.h)
+const SOUNDERS_LOGO = 'data:image/png;base64,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';
+const soundersImg = new Image();
+soundersImg.onload = () => draw();
+soundersImg.src = SOUNDERS_LOGO;
+document.querySelectorAll('.sounders-logo').forEach(el => el.src = SOUNDERS_LOGO);
+
+// Kraken S — the same 32×32 the panel draws (img_kraken in images.h)
+const KRAKEN_LOGO = 'data:image/png;base64,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';
+const krakenImg = new Image();
+krakenImg.onload = () => draw();
+krakenImg.src = KRAKEN_LOGO;
+document.querySelectorAll('.kraken-logo').forEach(el => el.src = KRAKEN_LOGO);
+
 // ── Entity map — updated for Arduino/MQTT architecture ─────────────────────────
 const HA = {
     // Status from MQTT discovery
@@ -237,6 +285,9 @@ const HA = {
     brightness:      'input_number.panel_brightness',
     zags_screen:     'input_boolean.show_zags_screen',
     mariners_screen: 'input_boolean.show_mariners_screen',
+    seahawks_screen: 'input_boolean.show_seahawks_screen',
+    sounders_screen: 'input_boolean.show_sounders_screen',
+    kraken_screen:   'input_boolean.show_kraken_screen',
     freeze:          'input_boolean.panel_freeze_cycle',
     override:        'input_select.panel_mode_override',
 
@@ -254,12 +305,18 @@ const HA = {
     dur_idle:     'input_number.panel_duration_idle',
     dur_bedtime:  'input_number.panel_duration_bedtime',
     dur_mariners: 'input_number.panel_duration_mariners',
+    dur_seahawks: 'input_number.panel_duration_seahawks',
+    dur_sounders: 'input_number.panel_duration_sounders',
+    dur_kraken:   'input_number.panel_duration_kraken',
 
     // Data
-    zags_data:    'sensor.zags',
-    weather_cond: 'weather.forecast_home',
-    weather_temp: 'sensor.weather_temperature',
-    mariners_day: 'input_datetime.mariners_opening_day',
+    zags_data:     'sensor.zags',
+    seahawks_data: 'sensor.seahawks',
+    sounders_data: 'sensor.sounders',
+    kraken_data:   'sensor.kraken',
+    weather_cond:  'weather.forecast_home',
+    weather_temp:  'sensor.weather_temperature',
+    mariners_day:  'input_datetime.mariners_opening_day',
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -267,10 +324,18 @@ let syncInterval = null;
 let hs = {
     text:'', color:{r:255,g:255,b:255}, image:'none', size:'medium',
     mode:'idle', power:'on', override:'Auto', isFrozen:false,
-    zagsOn:false, marinersOn:false,
-    durMsg:30, durZags:30, durIdle:10, durBed:30, durMariners:30,
+    zagsOn:false, marinersOn:false, seahawksOn:false, soundersOn:false, krakenOn:false,
+    durMsg:30, durZags:30, durIdle:10, durBed:30, durMariners:30, durSeahawks:30, durSounders:30, durKraken:30,
     weather:{temp:0,condition:''},
     zags:{teamScore:0,oppScore:0,opponent:'TBD'},
+    seahawks:{state:'',teamScore:0,oppScore:0,oppAbbr:'',oppName:'',quarter:0,clock:'',
+              homeaway:'',downDist:'',possession:'',redZone:false,
+              teamRecord:'',oppRecord:'',gameTime:''},
+    sounders:{state:'',teamScore:0,oppScore:0,oppAbbr:'',oppName:'',clock:'',homeaway:'',
+              teamRecord:'',oppRecord:'',broadcast:'',gameTime:'',
+              teamShots:0,oppShots:0,teamSOT:0,oppSOT:0},
+    kraken:{state:'',teamScore:0,oppScore:0,oppAbbr:'',clock:'',period:0,homeaway:'',
+            teamRecord:'',oppRecord:'',broadcast:'',gameTime:'',gameToday:false,lastPlay:'',teamSOG:0,oppSOG:0},
     marinersTarget:null
 };
 let draft = {text:'',color:{r:255,g:255,b:255},image:'none',size:'medium',active:false};
@@ -287,20 +352,37 @@ async function mqttPublish(topic,payload,retain=false) {
     return callService('mqtt','publish',{topic,payload:String(payload),retain});
 }
 
+// TeamTracker leaves unset attributes as null; treat those as empty strings so
+// the canvas never paints the literal word "null".
+function attr(o,k,fallback='') {
+    const v=o?.attributes?.[k];
+    if(v===null||v===undefined||v==='unknown'||v==='unavailable') return fallback;
+    return v;
+}
+
+// Kickoff as local "7:30 PM" — matches what the bridge publishes to the panel
+function localKickoff(iso) {
+    if(!iso) return '';
+    const d=new Date(iso);
+    if(isNaN(d)) return '';
+    return d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+}
+
 // ── Sync ───────────────────────────────────────────────────────────────────────
 async function sync() {
     try {
-        const [mode,pwr,bri,msg,r,g,b,img,sz,ov,frz,zagsScr,marinersScr,
-               wC,wT,zagsD,dM,dZ,dI,dB,dMar,marinersDay] = await Promise.all([
+        const [mode,pwr,bri,msg,r,g,b,img,sz,ov,frz,zagsScr,marinersScr,seahawksScr,soundersScr,krakenScr,
+               wC,wT,zagsD,seahawksD,soundersD,krakenD,dM,dZ,dI,dB,dMar,dSea,dSnd,dKrk,marinersDay] = await Promise.all([
             fetchHA(HA.mode),fetchHA(HA.power),fetchHA(HA.brightness),
             fetchHA(HA.msg_input),fetchHA(HA.msg_red),fetchHA(HA.msg_green),
             fetchHA(HA.msg_blue),fetchHA(HA.msg_image),fetchHA(HA.msg_size),
             fetchHA(HA.override),fetchHA(HA.freeze),
-            fetchHA(HA.zags_screen),fetchHA(HA.mariners_screen),
+            fetchHA(HA.zags_screen),fetchHA(HA.mariners_screen),fetchHA(HA.seahawks_screen),fetchHA(HA.sounders_screen),fetchHA(HA.kraken_screen),
             fetchHA(HA.weather_cond),fetchHA(HA.weather_temp),
-            fetchHA(HA.zags_data),
+            fetchHA(HA.zags_data),fetchHA(HA.seahawks_data),fetchHA(HA.sounders_data),fetchHA(HA.kraken_data),
             fetchHA(HA.dur_message),fetchHA(HA.dur_zags),
-            fetchHA(HA.dur_idle),fetchHA(HA.dur_bedtime),fetchHA(HA.dur_mariners),
+            fetchHA(HA.dur_idle),fetchHA(HA.dur_bedtime),
+            fetchHA(HA.dur_mariners),fetchHA(HA.dur_seahawks),fetchHA(HA.dur_sounders),fetchHA(HA.dur_kraken),
             fetchHA(HA.mariners_day)
         ]);
 
@@ -314,6 +396,9 @@ async function sync() {
         hs.isFrozen    = frz?.state==='on';
         hs.zagsOn      = zagsScr?.state==='on';
         hs.marinersOn  = marinersScr?.state==='on';
+        hs.seahawksOn  = seahawksScr?.state==='on';
+        hs.soundersOn  = soundersScr?.state==='on';
+        hs.krakenOn    = krakenScr?.state==='on';
         hs.weather     = {condition:wC?.state||'',temp:parseFloat(wT?.state)||0};
         hs.zags        = {teamScore:zagsD?.attributes?.team_score||0,oppScore:zagsD?.attributes?.opponent_score||0,opponent:zagsD?.attributes?.opponent_name||'TBD'};
         hs.durMsg      = parseFloat(dM?.state)||30;
@@ -321,6 +406,67 @@ async function sync() {
         hs.durIdle     = parseFloat(dI?.state)||10;
         hs.durBed      = parseFloat(dB?.state)||30;
         hs.durMariners = parseFloat(dMar?.state)||30;
+        hs.durSeahawks = parseFloat(dSea?.state)||30;
+        hs.durSounders = parseFloat(dSnd?.state)||30;
+        hs.durKraken   = parseFloat(dKrk?.state)||30;
+
+        hs.seahawks = {
+            state:      (seahawksD?.state||'').toUpperCase(),
+            teamScore:  parseInt(attr(seahawksD,'team_score',0))||0,
+            oppScore:   parseInt(attr(seahawksD,'opponent_score',0))||0,
+            oppAbbr:    attr(seahawksD,'opponent_abbr','OPP'),
+            oppName:    attr(seahawksD,'opponent_name',''),
+            quarter:    parseInt(attr(seahawksD,'quarter',0))||0,
+            clock:      attr(seahawksD,'clock',''),
+            homeaway:   attr(seahawksD,'team_homeaway',''),
+            downDist:   attr(seahawksD,'down_distance_text',''),
+            possession: attr(seahawksD,'possession',''),
+            redZone:    String(attr(seahawksD,'redzone','false')).toLowerCase()==='true',
+            teamRecord: attr(seahawksD,'team_record',''),
+            oppRecord:  attr(seahawksD,'opponent_record',''),
+            gameTime:   attr(seahawksD,'kickoff_in','')||attr(seahawksD,'date','')
+        };
+
+        hs.sounders = {
+            state:      (soundersD?.state||'').toUpperCase(),
+            teamScore:  parseInt(attr(soundersD,'team_score',0))||0,
+            oppScore:   parseInt(attr(soundersD,'opponent_score',0))||0,
+            oppAbbr:    attr(soundersD,'opponent_abbr',''),
+            oppName:    attr(soundersD,'opponent_name',''),
+            clock:      attr(soundersD,'clock',''),
+            homeaway:   attr(soundersD,'team_homeaway',''),
+            teamRecord: attr(soundersD,'team_record',''),
+            oppRecord:  attr(soundersD,'opponent_record',''),
+            broadcast:  attr(soundersD,'tv_network',''),
+            gameTime:   localKickoff(attr(soundersD,'date','')),
+            teamShots:  parseInt(attr(soundersD,'team_total_shots',0))||0,
+            oppShots:   parseInt(attr(soundersD,'opponent_total_shots',0))||0,
+            teamSOT:    parseInt(attr(soundersD,'team_shots_on_target',0))||0,
+            oppSOT:     parseInt(attr(soundersD,'opponent_shots_on_target',0))||0
+        };
+
+        {
+            const kd=attr(krakenD,'date','');
+            const kdt=kd?new Date(kd):null;
+            const today=kdt&&!isNaN(kdt)&&kdt.toDateString()===new Date().toDateString();
+            hs.kraken = {
+                state:      (krakenD?.state||'').toUpperCase(),
+                teamScore:  parseInt(attr(krakenD,'team_score',0))||0,
+                oppScore:   parseInt(attr(krakenD,'opponent_score',0))||0,
+                oppAbbr:    attr(krakenD,'opponent_abbr',''),
+                clock:      attr(krakenD,'clock',''),
+                period:     parseInt(attr(krakenD,'quarter',0))||0,
+                homeaway:   attr(krakenD,'team_homeaway',''),
+                teamRecord: attr(krakenD,'team_record',''),
+                oppRecord:  attr(krakenD,'opponent_record',''),
+                broadcast:  String(attr(krakenD,'tv_network','')).split('/')[0],
+                gameToday:  !!today,
+                gameTime:   kdt&&!isNaN(kdt)?(today?'':kdt.toLocaleDateString([], {weekday:'short'})+' ')+kdt.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'',
+                lastPlay:   attr(krakenD,'last_play',''),
+                teamSOG:    parseInt(attr(krakenD,'team_shots_on_target',0))||0,
+                oppSOG:     parseInt(attr(krakenD,'opponent_shots_on_target',0))||0
+            };
+        }
 
         if(marinersDay?.state&&marinersDay.state!=='unknown'&&marinersDay.state!=='unavailable')
             hs.marinersTarget=new Date(marinersDay.state.replace(' ','T')).getTime();
@@ -341,17 +487,23 @@ async function sync() {
 
         document.getElementById('btnZags').classList.toggle('screen-active',hs.zagsOn);
         document.getElementById('btnMariners').classList.toggle('screen-active',hs.marinersOn);
+        document.getElementById('btnSeahawks').classList.toggle('screen-active',hs.seahawksOn);
+        document.getElementById('btnSounders').classList.toggle('screen-active',hs.soundersOn);
+        document.getElementById('btnKraken').classList.toggle('screen-active',hs.krakenOn);
 
         if(document.activeElement!==document.getElementById('briSlider')){
             document.getElementById('briSlider').value=bri?.state||20;
             document.getElementById('briVal').innerText=Math.round(bri?.state||20);
         }
 
-        document.getElementById('durMsgVal').innerText     =hs.durMsg;
-        document.getElementById('durZagsVal').innerText    =hs.durZags;
-        document.getElementById('durIdleVal').innerText    =hs.durIdle;
-        document.getElementById('durBedVal').innerText     =hs.durBed;
-        document.getElementById('durMarinersVal').innerText=hs.durMariners;
+        document.getElementById('durMsgVal').innerText      =hs.durMsg;
+        document.getElementById('durZagsVal').innerText     =hs.durZags;
+        document.getElementById('durIdleVal').innerText     =hs.durIdle;
+        document.getElementById('durBedVal').innerText      =hs.durBed;
+        document.getElementById('durMarinersVal').innerText =hs.durMariners;
+        document.getElementById('durSeahawksVal').innerText =hs.durSeahawks;
+        document.getElementById('durSoundersVal').innerText =hs.durSounders;
+        document.getElementById('durKrakenVal').innerText   =hs.durKraken;
 
         if(!draft.active){
             document.querySelectorAll('.image-grid .opt-btn').forEach(e=>e.classList.remove('selected'));
@@ -379,10 +531,13 @@ function draw() {
     const sz =draft.active?draft.size :hs.size;
     badge.innerText=(draft.active?'DESIGNING':hs.mode).toUpperCase();
     badge.style.background=draft.active?'#3b82f6':'#8b5cf6';
-    if     (!draft.active&&hs.mode==='idle')    renderIdle(ctx);
-    else if(!draft.active&&hs.mode==='zags')    renderZags(ctx);
-    else if(!draft.active&&hs.mode==='bedtime') renderBedtime(ctx);
-    else if(!draft.active&&hs.mode==='mariners')renderMariners(ctx);
+    if     (!draft.active&&hs.mode==='idle')     renderIdle(ctx);
+    else if(!draft.active&&hs.mode==='zags')     renderZags(ctx);
+    else if(!draft.active&&hs.mode==='bedtime')  renderBedtime(ctx);
+    else if(!draft.active&&hs.mode==='mariners') renderMariners(ctx);
+    else if(!draft.active&&hs.mode==='seahawks') renderSeahawks(ctx);
+    else if(!draft.active&&hs.mode==='sounders') renderSounders(ctx);
+    else if(!draft.active&&hs.mode==='kraken')   renderKraken(ctx);
     else renderMessage(ctx,txt,col,img,sz);
 }
 
@@ -442,6 +597,293 @@ function renderMariners(ctx) {
     }
 }
 
+// Seahawks — mirrors the firmware layout, minus the quarter-by-quarter columns.
+// Those come from the Python bridge over MQTT and never land on sensor.seahawks,
+// so the preview shows running totals only.
+function renderSeahawks(ctx) {
+    const s=hs.seahawks;
+    const live =(s.state==='IN');
+    const final=(s.state==='POST');
+
+    if(live||final){
+        // Panel shows a steady "LIVE - RED ZONE" and suppresses the API's stale
+        // flag after scores; the preview can't see that history, so it just
+        // mirrors the steady style.
+        const rz=live&&s.redZone;
+        ctx.fillStyle='#002244';
+        ctx.fillRect(0,0,128,10);
+        ctx.textAlign='center';ctx.textBaseline='top';ctx.font='bold 7px monospace';
+        ctx.fillStyle=rz?'#ff4646':(live?'#ff3c3c':'#69be28');
+        ctx.fillText(rz?'LIVE - RED ZONE':(live?'LIVE':'FINAL'),64,2);
+
+        const seaHome=(s.homeaway==='home');
+        const opp=(s.oppAbbr||'OPP').substring(0,3).toUpperCase();
+        const visAbbr=seaHome?opp:'SEA', homAbbr=seaHome?'SEA':opp;
+        const visTot =seaHome?s.oppScore:s.teamScore;
+        const homTot =seaHome?s.teamScore:s.oppScore;
+
+        let seaCol='#69be28', oppCol='#c8c8c8';
+        if(final){
+            if     (s.teamScore>s.oppScore){seaCol='#69be28';oppCol='#b94141';}
+            else if(s.teamScore<s.oppScore){seaCol='#b94141';oppCol='#ffffff';}
+            else                           {seaCol='#c8c8c8';oppCol='#c8c8c8';}
+        }
+        const visCol=seaHome?oppCol:seaCol, homCol=seaHome?seaCol:oppCol;
+
+        // Divider rows, same geometry as the panel
+        ctx.fillStyle='#5a5a64';
+        ctx.fillRect(0,27,128,1);
+        ctx.fillRect(0,37,128,1);
+
+        ctx.textAlign='left';ctx.textBaseline='top';ctx.font='8px monospace';
+        ctx.fillStyle=visCol;ctx.fillText(visAbbr,2,12);
+        ctx.fillStyle=homCol;ctx.fillText(homAbbr,2,29);
+
+        // Possession marker
+        if(live&&s.possession){
+            const p=s.possession.toUpperCase();
+            let seaBall=null;
+            if     (p==='SEA'||p==='SEAHAWKS') seaBall=true;
+            else if(p===opp)                   seaBall=false;
+            else if(p==='HOME')                seaBall=seaHome;
+            else if(p==='AWAY')                seaBall=!seaHome;
+            if(seaBall!==null){
+                const visBall=seaHome?!seaBall:seaBall;
+                ctx.font='7px sans-serif';
+                ctx.fillText('🏈',26,visBall?12:29);
+            }
+        }
+
+        ctx.textAlign='right';ctx.font='bold 14px monospace';
+        ctx.fillStyle=visCol;ctx.fillText(String(visTot),126,11);
+        ctx.fillStyle=homCol;ctx.fillText(String(homTot),126,28);
+
+        ctx.textAlign='left';ctx.font='7px monospace';
+        if(live){
+            let q='--';
+            if     (s.quarter===1)q='1st';
+            else if(s.quarter===2)q='2nd';
+            else if(s.quarter===3)q='3rd';
+            else if(s.quarter===4)q='4th';
+            else if(s.quarter===5)q='OT';
+            else if(s.quarter>5)  q=(s.quarter-4)+'OT';
+            ctx.fillStyle='#ffffff';ctx.fillText(q,2,40);
+            if(s.clock){ctx.fillStyle='#ffc800';ctx.fillText(s.clock==='Halftime'?'HALF':s.clock,26,40);}
+            if(s.downDist){
+                ctx.textAlign='center';
+                ctx.fillStyle=s.redZone?'#ff5050':'#ffffff';
+                ctx.fillText(s.downDist.substring(0,22),64,52);
+            }
+        } else {
+            const visRec=seaHome?(s.oppRecord||'-'):(s.teamRecord||'-');
+            const homRec=seaHome?(s.teamRecord||'-'):(s.oppRecord||'-');
+            ctx.fillStyle=visCol;ctx.fillText(`${visAbbr} ${visRec}`,2,40);
+            ctx.textAlign='right';
+            ctx.fillStyle=homCol;ctx.fillText(`${homAbbr} ${homRec}`,126,40);
+            ctx.textAlign='center';
+            if(s.teamScore>s.oppScore)      {ctx.fillStyle='#69be28';ctx.fillText('SEAHAWKS WIN',64,54);}
+            else if(s.teamScore<s.oppScore) {ctx.fillStyle='#b94141';ctx.fillText('SEAHAWKS LOSE',64,54);}
+            else                            {ctx.fillStyle='#c8c8c8';ctx.fillText('TIE GAME',64,54);}
+        }
+
+    } else {
+        // Pre-game / no game
+        ctx.fillStyle='#002244';ctx.fillRect(0,0,128,11);
+        ctx.textAlign='center';ctx.textBaseline='top';
+        ctx.fillStyle='#69be28';ctx.font='bold 7px monospace';ctx.fillText('SEAHAWKS',64,2);
+        ctx.textAlign='left';ctx.font='20px sans-serif';ctx.fillText('🏈',6,20);
+
+        if(!s.oppAbbr||s.oppAbbr==='OPP'){
+            ctx.fillStyle='#64748b';ctx.font='7px monospace';
+            ctx.fillText('No game',46,26);
+            ctx.fillText('scheduled',46,36);
+            return;
+        }
+
+        const seaHome=(s.homeaway==='home');
+        ctx.font='7px monospace';
+        let vs=(seaHome?'vs ':'@ ')+s.oppAbbr.toUpperCase();
+        if(s.oppRecord) vs+=` (${s.oppRecord})`;
+        ctx.fillStyle='#c8c8c8';ctx.fillText(vs,46,14);
+        if(s.oppName){ctx.fillStyle='#969696';ctx.fillText(s.oppName.substring(0,13),52,23);}
+        ctx.fillStyle='#69be28';
+        ctx.fillText(s.teamRecord?`SEA (${s.teamRecord})`:'SEA',46,34);
+        if(s.gameTime){ctx.fillStyle='#ffffcc';ctx.fillText(String(s.gameTime).substring(0,16),46,50);}
+    }
+}
+
+// Sounders — mirrors the firmware layout: clock in the header, big scoreline
+// with home on the right, shots / on-target rows, shot-share bar while live,
+// result line at full time. Colors: Rave Green / Sounder Blue / Cascade Shale.
+function renderSounders(ctx) {
+    const s=hs.sounders;
+    const live =(s.state==='IN');
+    const final=(s.state==='POST');
+    const RAVE='#5d9741', BLUE='#005595', SHALE='#aab4be';
+
+    if(live||final){
+        ctx.fillStyle=BLUE;ctx.fillRect(0,0,128,10);
+        ctx.textAlign='center';ctx.textBaseline='top';ctx.font='bold 7px monospace';
+        if(live){
+            const ck=s.clock||'';
+            const half=/^ht$/i.test(ck)||/half/i.test(ck);
+            if(half){ctx.fillStyle='#ffc800';ctx.fillText('HALF TIME',64,2);}
+            else    {ctx.fillStyle='#ff5a5a';ctx.fillText(ck?`LIVE  ${ck}`:'LIVE',64,2);}
+        } else {
+            ctx.fillStyle=RAVE;ctx.fillText('FULL TIME',64,2);
+        }
+
+        const seaHome=(s.homeaway==='home');
+        const opp=(s.oppAbbr||'OPP').substring(0,4).toUpperCase();
+        const visAbbr=seaHome?opp:'SEA', homAbbr=seaHome?'SEA':opp;
+        const visScore=seaHome?s.oppScore:s.teamScore;
+        const homScore=seaHome?s.teamScore:s.oppScore;
+
+        let seaCol=RAVE, oppCol='#dcdcdc';
+        if(final){
+            if     (s.teamScore>s.oppScore){seaCol=RAVE;     oppCol='#b94141';}
+            else if(s.teamScore<s.oppScore){seaCol='#b94141';oppCol='#ffffff';}
+            else                           {seaCol='#c8c8c8';oppCol='#c8c8c8';}
+        }
+        const visCol=seaHome?oppCol:seaCol, homCol=seaHome?seaCol:oppCol;
+
+        // Scoreline
+        ctx.textAlign='center';ctx.textBaseline='top';ctx.font='8px monospace';
+        ctx.fillStyle=visCol;ctx.fillText(visAbbr,36,13);
+        ctx.fillStyle=homCol;ctx.fillText(homAbbr,92,13);
+        ctx.font='bold 18px monospace';ctx.textBaseline='alphabetic';
+        ctx.fillStyle=visCol;ctx.fillText(String(visScore),36,38);
+        ctx.fillStyle=homCol;ctx.fillText(String(homScore),92,38);
+        ctx.fillStyle='#6e6e6e';ctx.fillText('-',64,36);
+
+        ctx.fillStyle='#232323';ctx.fillRect(0,41,128,1);
+
+        // Shots / on target
+        const visSh =seaHome?s.oppShots:s.teamShots, homSh =seaHome?s.teamShots:s.oppShots;
+        const visSOT=seaHome?s.oppSOT  :s.teamSOT,   homSOT=seaHome?s.teamSOT  :s.oppSOT;
+        ctx.font='7px monospace';ctx.textBaseline='top';
+        ctx.textAlign='left'; ctx.fillStyle=visCol;   ctx.fillText(String(visSh),4,44);
+        ctx.textAlign='center';ctx.fillStyle='#6e6e6e';ctx.fillText('SHOTS',64,44);
+        ctx.textAlign='right';ctx.fillStyle=homCol;   ctx.fillText(String(homSh),124,44);
+        ctx.textAlign='left'; ctx.fillStyle=visCol;   ctx.fillText(String(visSOT),4,52);
+        ctx.textAlign='center';ctx.fillStyle='#6e6e6e';ctx.fillText('ON TARGET',64,52);
+        ctx.textAlign='right';ctx.fillStyle=homCol;   ctx.fillText(String(homSOT),124,52);
+
+        if(final){
+            ctx.textAlign='center';
+            if     (s.teamScore>s.oppScore){ctx.fillStyle=RAVE;     ctx.fillText('SOUNDERS WIN',64,57);}
+            else if(s.teamScore<s.oppScore){ctx.fillStyle='#b94141';ctx.fillText('SOUNDERS LOSE',64,57);}
+            else                           {ctx.fillStyle='#c8c8c8';ctx.fillText('DRAW',64,57);}
+        } else {
+            const tot=visSh+homSh;
+            if(tot>0){
+                const vw=Math.round(128*visSh/tot);
+                ctx.fillStyle=visCol;ctx.fillRect(0,61,vw,3);
+                ctx.fillStyle=homCol;ctx.fillRect(vw,61,128-vw,3);
+            }
+        }
+
+    } else {
+        // Pre-match / no match
+        const pre=(s.state==='PRE');
+        ctx.fillStyle=BLUE;ctx.fillRect(0,0,128,11);
+        ctx.textAlign='center';ctx.textBaseline='top';ctx.font='bold 7px monospace';
+        ctx.fillStyle=pre?'#ffc800':RAVE;ctx.fillText(pre?'MATCH DAY':'SOUNDERS',64,2);
+        if(soundersImg.complete){ctx.imageSmoothingEnabled=false;ctx.drawImage(soundersImg,9,19,32,32);}
+
+        // TeamTracker only sees soccer on match day — anything but PRE means no match today
+        if(!pre){
+            ctx.fillStyle='#64748b';ctx.font='7px monospace';
+            ctx.fillText('No match',46,26);
+            ctx.fillText('today',46,36);
+            return;
+        }
+
+        // Same layout as the panel: each record on its own line
+        const seaHome=(s.homeaway==='home');
+        ctx.font='7px monospace';
+        if(s.oppAbbr){ctx.fillStyle='#c8c8c8';ctx.fillText((seaHome?'vs ':'@ ')+s.oppAbbr.toUpperCase(),46,13);}
+        if(s.oppRecord){ctx.fillStyle='#969696';ctx.fillText(s.oppRecord.substring(0,12),52,21);}
+        else if(s.oppName){ctx.fillStyle='#969696';ctx.fillText(s.oppName.substring(0,12),52,21);}
+        ctx.fillStyle=RAVE;ctx.fillText('SEA',46,31);
+        if(s.teamRecord){ctx.fillStyle='#467332';ctx.fillText(s.teamRecord.substring(0,12),52,39);}
+        if(s.broadcast){ctx.fillStyle=SHALE;ctx.fillText(s.broadcast.substring(0,12),46,48);}
+        if(s.gameTime){ctx.fillStyle='#ffffcc';ctx.fillText(s.gameTime,46,56);}
+    }
+}
+
+// Kraken — mirrors the firmware: period + clock header, scoreline, shots on
+// goal, last play + shot bar while live, records + result at the final.
+function renderKraken(ctx) {
+    const k=hs.kraken;
+    const live=(k.state==='IN'), final=(k.state==='POST');
+    const ICE='#99d9d9', NAVY='#001e37', SHADOW='#68a2b9';
+    const per=p=>p===1?'1ST':p===2?'2ND':p===3?'3RD':p===4?'OT':p>=5?'SO':'';
+
+    if(live||final){
+        ctx.fillStyle=NAVY;ctx.fillRect(0,0,128,10);
+        ctx.textAlign='center';ctx.textBaseline='top';ctx.font='bold 7px monospace';
+        if(live){
+            if(/end|int/i.test(k.clock)){ctx.fillStyle='#ffc800';ctx.fillText('END OF '+(per(k.period)||'PERIOD'),64,2);}
+            else{const h=[per(k.period),k.clock].filter(Boolean).join('  ');ctx.fillStyle='#ff5a5a';ctx.fillText(h||'LIVE',64,2);}
+        } else {
+            ctx.fillStyle=ICE;ctx.fillText(k.period===4?'FINAL / OT':k.period>=5?'FINAL / SO':'FINAL',64,2);
+        }
+
+        const seaHome=(k.homeaway==='home');
+        const opp=(k.oppAbbr||'OPP').substring(0,4).toUpperCase();
+        const visAbbr=seaHome?opp:'SEA', homAbbr=seaHome?'SEA':opp;
+        const visScore=seaHome?k.oppScore:k.teamScore, homScore=seaHome?k.teamScore:k.oppScore;
+        let seaCol=ICE, oppCol='#dcdcdc';
+        if(final){ if(k.teamScore>k.oppScore){seaCol=ICE;oppCol='#b94141';} else {seaCol='#b94141';oppCol='#ffffff';} }
+        const visCol=seaHome?oppCol:seaCol, homCol=seaHome?seaCol:oppCol;
+
+        ctx.font='8px monospace';
+        ctx.fillStyle=visCol;ctx.fillText(visAbbr,36,13);
+        ctx.fillStyle=homCol;ctx.fillText(homAbbr,92,13);
+        ctx.font='bold 18px monospace';ctx.textBaseline='alphabetic';
+        ctx.fillStyle=visCol;ctx.fillText(String(visScore),36,38);
+        ctx.fillStyle=homCol;ctx.fillText(String(homScore),92,38);
+        ctx.fillStyle='#6e6e6e';ctx.fillText('-',64,36);
+        ctx.fillStyle='#232323';ctx.fillRect(0,41,128,1);
+
+        const visSOG=seaHome?k.oppSOG:k.teamSOG, homSOG=seaHome?k.teamSOG:k.oppSOG;
+        ctx.font='7px monospace';ctx.textBaseline='top';
+        ctx.textAlign='left'; ctx.fillStyle=visCol;   ctx.fillText(String(visSOG),4,43);
+        ctx.textAlign='center';ctx.fillStyle='#6e6e6e';ctx.fillText('SHOTS',64,43);
+        ctx.textAlign='right';ctx.fillStyle=homCol;   ctx.fillText(String(homSOG),124,43);
+
+        if(live){
+            if(k.lastPlay){ctx.textAlign='center';ctx.fillStyle='#969696';ctx.fillText(k.lastPlay.substring(0,21),64,50);}
+            const tot=visSOG+homSOG;
+            if(tot>0){const vw=Math.round(128*visSOG/tot);ctx.fillStyle=visCol;ctx.fillRect(0,61,vw,3);ctx.fillStyle=homCol;ctx.fillRect(vw,61,128-vw,3);}
+        } else {
+            const visRec=(seaHome?k.oppRecord:k.teamRecord)||'-', homRec=(seaHome?k.teamRecord:k.oppRecord)||'-';
+            ctx.textAlign='left'; ctx.fillStyle=visCol;ctx.fillText(visRec,4,50);
+            ctx.textAlign='right';ctx.fillStyle=homCol;ctx.fillText(homRec,124,50);
+            ctx.textAlign='center';
+            if(k.teamScore>k.oppScore){ctx.fillStyle=ICE;ctx.fillText('KRAKEN WIN',64,57);}
+            else{ctx.fillStyle='#b94141';ctx.fillText('KRAKEN LOSE',64,57);}
+        }
+    } else {
+        const pre=(k.state==='PRE');
+        const today=pre&&k.gameToday;
+        ctx.fillStyle=NAVY;ctx.fillRect(0,0,128,11);
+        ctx.textAlign='center';ctx.textBaseline='top';ctx.font='bold 7px monospace';
+        ctx.fillStyle=today?'#ffc800':ICE;ctx.fillText(today?'GAME DAY':'KRAKEN',64,2);
+        if(krakenImg.complete){ctx.imageSmoothingEnabled=false;ctx.drawImage(krakenImg,9,19,32,32);}
+        ctx.textAlign='left';ctx.font='7px monospace';
+        if(!pre||!k.oppAbbr){ctx.fillStyle='#64748b';ctx.fillText('No game',46,26);ctx.fillText('scheduled',46,36);return;}
+        const seaHome=(k.homeaway==='home');
+        ctx.fillStyle='#c8c8c8';ctx.fillText((seaHome?'vs ':'@ ')+k.oppAbbr.toUpperCase(),46,13);
+        if(k.oppRecord){ctx.fillStyle='#969696';ctx.fillText(k.oppRecord.substring(0,12),52,21);}
+        ctx.fillStyle=ICE;ctx.fillText('SEA',46,31);
+        if(k.teamRecord){ctx.fillStyle=SHADOW;ctx.fillText(k.teamRecord.substring(0,12),52,39);}
+        if(k.broadcast){ctx.fillStyle='#aab4be';ctx.fillText(k.broadcast.substring(0,12),46,48);}
+        if(k.gameTime){ctx.fillStyle=today?'#ffffcc':'#c8c8c8';ctx.fillText(k.gameTime,46,56);}
+    }
+}
+
 function renderMessage(ctx,text,color,image,size) {
     ctx.fillStyle=`rgb(${color.r},${color.g},${color.b})`;
     let f='16px monospace',lh=18;
@@ -462,6 +904,11 @@ function renderMessage(ctx,text,color,image,size) {
 }
 
 function drawImagePreview(ctx,n,x,y) {
+    if(n==='sounders'||n==='kraken'){
+        const im=n==='sounders'?soundersImg:krakenImg;
+        if(im.complete){ctx.imageSmoothingEnabled=false;ctx.drawImage(im,x,y,32,32);}
+        return;
+    }
     const e={heart:'❤️',seahawks:'🏈',mariners:'⚾',cheers:'🥂',bordercollie:'🐶',sun:'☀️',fire:'🔥',soccerball:'⚽', gonzaga:'🐶',house:'🏠', snow:'❄️',nighttime:'🌙'};
     ctx.font='30px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
     ctx.fillText(e[n]||'🖼️',x,y);
@@ -519,9 +966,15 @@ async function clearPanel() {
     sync();
 }
 
+// Optimistic: highlight and redraw immediately, then let HA/the panel confirm.
 async function setOverride(mode) {
+    hs.override=mode;
+    if(mode!=='Auto') hs.mode=mode.toLowerCase();
+    document.querySelectorAll('.mode-grid .opt-btn').forEach(b=>b.classList.remove('override-active'));
+    document.getElementById(`mode-${mode}`)?.classList.add('override-active');
+    draw();
     await callService('input_select','select_option',{entity_id:HA.override,option:mode});
-    sync();
+    setTimeout(sync,600);
 }
 
 async function toggleFreeze() {
@@ -535,10 +988,17 @@ async function skipScreen() {
 }
 
 async function toggleScreen(screen) {
-    const entity=screen==='zags'?HA.zags_screen:HA.mariners_screen;
-    const isOn  =screen==='zags'?hs.zagsOn:hs.marinersOn;
-    await callService('input_boolean',isOn?'turn_off':'turn_on',{entity_id:entity});
-    sync();
+    const entities={zags:HA.zags_screen,mariners:HA.mariners_screen,seahawks:HA.seahawks_screen,sounders:HA.sounders_screen,kraken:HA.kraken_screen};
+    const states  ={zags:hs.zagsOn,     mariners:hs.marinersOn,     seahawks:hs.seahawksOn,     sounders:hs.soundersOn,     kraken:hs.krakenOn};
+    const entity=entities[screen];
+    if(!entity) return;
+    const turningOn=!states[screen];
+    hs[screen+'On']=turningOn;
+    document.getElementById('btn'+screen[0].toUpperCase()+screen.slice(1))?.classList.toggle('screen-active',turningOn);
+    // The panel jumps straight to a screen that was just switched on
+    if(turningOn && hs.override==='Auto'){ hs.mode=screen; draw(); }
+    await callService('input_boolean',turningOn?'turn_on':'turn_off',{entity_id:entity});
+    setTimeout(sync,600);
 }
 
 async function setPower(on) {
@@ -553,7 +1013,7 @@ async function changeBrightness(v) {
 function adjustDuration(type,delta,valId,stateProp) {
     let v=hs[stateProp]+delta;v=Math.max(5,Math.min(120,v));hs[stateProp]=v;
     document.getElementById(valId).innerText=v;
-    const m={message:HA.dur_message,zags:HA.dur_zags,idle:HA.dur_idle,bedtime:HA.dur_bedtime,mariners:HA.dur_mariners};
+    const m={message:HA.dur_message,zags:HA.dur_zags,idle:HA.dur_idle,bedtime:HA.dur_bedtime,mariners:HA.dur_mariners,seahawks:HA.dur_seahawks,sounders:HA.dur_sounders,kraken:HA.dur_kraken};
     callService('input_number','set_value',{entity_id:m[type],value:v});
 }
 
