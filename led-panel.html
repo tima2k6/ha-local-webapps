@@ -134,16 +134,12 @@
         .alert-send { display: grid; grid-template-columns: minmax(0, 1fr) auto 118px auto auto; gap: 10px; align-items: center; }
         .alert-send .color-custom { margin-left: 0; }
         .alert-send .btn-primary { padding: 10px 18px; }
-        .del-btn { background: transparent; border: 1px solid var(--line); border-radius: 9px; width: 34px; height: 30px; color: #fca5a5; cursor: pointer; }
-        .del-btn:hover { background: rgba(239,68,68,.1); border-color: #7f1d1d; }
-        .add-alert { margin-top: 14px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; padding: 14px; }
-        .add-alert[hidden], #addAlertBtn[hidden] { display: none; }
-        .add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .add-grid label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .8px; }
-        .add-row { display: flex; gap: 16px; align-items: flex-end; }
-        .add-row .stepper { width: 118px; }
-        .add-alert input[type=color] { width: 40px; height: 38px; border: 0; background: none; cursor: pointer; }
-        .alert-rule { display: grid; grid-template-columns: 150px 42px minmax(0, 1fr) 34px 118px 64px 34px; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+        .edit-link { font-size: 12px; font-weight: 700; color: #93c5fd; text-decoration: none; text-align: center; border: 1px solid var(--line); border-radius: 9px; padding: 6px 0; }
+        .edit-link:hover { border-color: #3a4866; }
+        .add-hint { display: flex; align-items: center; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+        .add-hint .btn { text-decoration: none; }
+        .add-hint .hint { flex: 1; min-width: 220px; }
+        .alert-rule { display: grid; grid-template-columns: 170px 42px minmax(0, 1fr) 34px 118px 58px 50px; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
         .alert-rule:first-child { border-top: 0; }
         .alert-rule.off .text-input, .alert-rule.off .stepper, .alert-rule.off input[type=color] { opacity: .45; }
         .alert-rule input[type=color] { width: 34px; height: 34px; border: 0; background: none; cursor: pointer; }
@@ -161,7 +157,6 @@
             .alert-send .text-input, .alert-send .color-row { grid-column: span 2; }
             .alert-rule { grid-template-columns: minmax(0, 1fr) auto auto auto; }
             .alert-rule .text-input { grid-column: span 4; }
-            .add-grid { grid-template-columns: 1fr; }
             .quick { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
             .quick .now { grid-column: span 2; }
         }
@@ -405,24 +400,9 @@
         <h3>Automatic</h3>
         <div class="alert-rules" id="alertRules"><div class="hint">Loading…</div></div>
 
-        <button class="btn" id="addAlertBtn" style="margin-top:14px;" onclick="toggleAddForm(true)">＋ Add alert</button>
-        <div class="add-alert" id="addAlertForm" hidden>
-            <h3 style="margin-top:0;">New alert</h3>
-            <div class="add-grid">
-                <label>Name<input type="text" class="text-input" id="newName" maxlength="40" placeholder="e.g. Garage door"></label>
-                <label>When this turns on<input type="text" class="text-input" id="newSensor" list="sensorList" placeholder="Type to search sensors…"></label>
-                <label>Text on panel<input type="text" class="text-input" id="newText" maxlength="100" placeholder="Blank = the name in capitals"></label>
-                <div class="add-row">
-                    <label>Color<input type="color" id="newColor" value="#ff0000"></label>
-                    <label>Seconds<div class="stepper"><button onclick="adjustNewSecs(-5)">−</button><span><span class="stepper-val" id="newSecsVal">20</span><span class="stepper-unit">s</span></span><button onclick="adjustNewSecs(5)">+</button></div></label>
-                </div>
-            </div>
-            <datalist id="sensorList"></datalist>
-            <div class="designer-actions">
-                <button class="btn btn-primary" onclick="createAlert()">Create alert</button>
-                <button class="btn" onclick="toggleAddForm(false)">Cancel</button>
-            </div>
-            <div class="hint" id="addStatus" style="margin-top:8px;">&nbsp;</div>
+        <div class="add-hint">
+            <a class="btn" id="addAlertLink" target="_blank" rel="noopener">＋ Add alert in Home Assistant</a>
+            <span class="hint">Opens HA's Blueprints page: pick <b>Panel alert</b> → <b>Create automation</b>, choose When / Text / Color / Seconds, save. It shows up here when you come back to this tab.</span>
         </div>
     </div>
 
@@ -1285,21 +1265,15 @@ async function clearAlert() {
 }
 
 // ── Automatic alerts ───────────────────────────────────────────────────────────
-// Each alert is 4 helpers, input_boolean/input_text/input_text/input_number
-// .panel_alert_<key>_{enabled,text,color,seconds}, plus one automation with
-// id panel_alert_<key> that watches a sensor and reads those helpers when it fires.
-// The tab finds alerts by their _enabled helper, so nothing here lists them.
-// Add/Delete create and remove those pieces in HA (needs an admin token).
-let alertRules=[];   // [{key,name,sensor}]
-const ruleState={};
-let sensorNames={};  // entity_id -> friendly name, for the picker and row subtitles
+// Every automation made from the HA blueprint below is one alert. HA owns them:
+// you create one in HA (Blueprints → Panel alert), and this tab finds it, shows
+// what sets it off, and edits its Text / Color / Seconds inputs and on/off.
+// Reading and changing automation configs needs an admin token.
+const ALERT_BLUEPRINT='tima2k6/panel_alert.yaml';
+let alertRules=[];   // [{entity, id, name, when, input}]
 
-const ruleIds=k=>({enabled:`input_boolean.panel_alert_${k}_enabled`,text:`input_text.panel_alert_${k}_text`,
-                   color:`input_text.panel_alert_${k}_color`,seconds:`input_number.panel_alert_${k}_seconds`});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-// Same result as HA's slugify for plain names, which is how it turns a helper's name into its id
-const slugify=s=>s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
-const fallbackText=a=>a.name.toUpperCase();
+const rgbToHex=c=>'#'+(c||[255,0,0]).map(v=>Math.max(0,Math.min(255,v|0)).toString(16).padStart(2,'0')).join('');
 
 async function haRest(method,path,body) {
     const r=await fetch(`${HA_URL}${path}`,{method,headers:{'Authorization':`Bearer ${HA_TOKEN}`,'Content-Type':'application/json'},
@@ -1308,201 +1282,121 @@ async function haRest(method,path,body) {
     return r.json();
 }
 
-// One-shot WebSocket session: helper create/delete only exists on HA's WebSocket API.
-function haWs() {
+// One-shot WebSocket call. "Which automations use this blueprint" only exists on HA's WebSocket API.
+function haWsCall(type,data={}) {
     return new Promise((resolve,reject)=>{
         const ws=new WebSocket(HA_URL.replace(/^http/,'ws')+'/api/websocket');
-        const pending={}; let n=0;
+        const done=(fn,v)=>{ws.close();fn(v);};
         ws.onerror=()=>reject(new Error('Could not open a WebSocket to HA'));
         ws.onmessage=e=>{
             const m=JSON.parse(e.data);
             if(m.type==='auth_required') ws.send(JSON.stringify({type:'auth',access_token:HA_TOKEN}));
-            else if(m.type==='auth_invalid') reject(new Error('HA rejected the token'));
-            else if(m.type==='auth_ok') resolve({
-                call:(type,data={})=>new Promise((res,rej)=>{const id=++n;pending[id]={res,rej};ws.send(JSON.stringify({id,type,...data}));}),
-                close:()=>ws.close()});
-            else if(m.type==='result'&&pending[m.id]){
-                const p=pending[m.id]; delete pending[m.id];
-                if(m.success) p.res(m.result);
-                else p.rej(new Error(m.error?.code==='unauthorized'?'HA refused: the webapp token needs to belong to an admin user':(m.error?.message||'failed')));
-            }
+            else if(m.type==='auth_invalid') done(reject,new Error('HA rejected the token'));
+            else if(m.type==='auth_ok') ws.send(JSON.stringify({id:1,type,...data}));
+            else if(m.type==='result') m.success?done(resolve,m.result)
+                : done(reject,new Error(m.error?.code==='unauthorized'?'the webapp token needs to belong to an admin user':(m.error?.message||'failed')));
         };
     });
 }
 
-function automationConfig(key,name,sensor) {
-    const ids=ruleIds(key), fb=name.toUpperCase().replace(/['"{}%#]/g,'');
-    return {
-        id:`panel_alert_${key}`, alias:`Panel Alert: ${name}`,
-        description:`LED panel pop-up alert, managed from the LED panel webapp (Alerts tab). Fires when ${sensor} turns on; text, color, seconds and on/off live in the input_*.panel_alert_${key}_* helpers.`,
-        triggers:[{trigger:'state',entity_id:sensor,from:'off',to:'on'}],
-        conditions:[{condition:'state',entity_id:ids.enabled,state:'on'}],
-        actions:[
-            {variables:{hex:`{{ states('${ids.color}') | trim | replace('#','') }}`}},
-            {action:'script.panel_show_alert',data:{
-                message:`{{ states('${ids.text}') | trim or '${fb}' }}`,
-                color:"{{ [hex[0:2] | int(255, base=16), hex[2:4] | int(0, base=16), hex[4:6] | int(0, base=16)] }}",
-                seconds:`{{ states('${ids.seconds}') | int(20) }}`}}],
-        mode:'single'};
+// Short plain-words summary of the "When" trigger(s), e.g. "Backyard gate contact → on"
+async function describeWhen(triggers) {
+    const parts=await Promise.all([].concat(triggers||[]).map(async t=>{
+        const kind=t.trigger||t.platform;
+        const ids=[].concat(t.entity_id||[]);
+        const names=await Promise.all(ids.map(async id=>(await fetchHA(id))?.attributes?.friendly_name||id));
+        const who=names.join(', ');
+        if(kind==='state') return `${who}${t.from!==undefined?` from ${t.from}`:''}${t.to!==undefined?` → ${t.to}`:' changes'}`;
+        if(kind==='numeric_state') return `${who}${t.above!==undefined?` above ${t.above}`:''}${t.below!==undefined?` below ${t.below}`:''}`;
+        if(kind==='time') return `at ${[].concat(t.at).join(', ')}`;
+        return who?`${kind}: ${who}`:kind;
+    }));
+    return parts.join(' or ')||'—';
 }
 
-// Finds every alert in HA and rebuilds the rows. Runs when the tab opens and after add/delete.
+// Finds every Panel alert automation and rebuilds the rows. Runs when the tab opens and after edits.
 async function discoverAlertRules() {
-    let states=[];
-    try { states=await haRest('GET','/api/states'); } catch(e){ alertStatus(`Couldn't load alerts: ${esc(e.message)}`); return; }
-    sensorNames={};
-    const found=[];
-    for(const s of states){
-        if(s.entity_id.startsWith('binary_sensor.')) sensorNames[s.entity_id]=s.attributes.friendly_name||s.entity_id;
-        const m=s.entity_id.match(/^input_boolean\.panel_alert_(.+)_enabled$/);
-        if(m){
-            const raw=(s.attributes.friendly_name||m[1]).replace(/^Panel alert\s+/i,'').replace(/\s+enabled$/i,'');
-            found.push({key:m[1],name:raw.charAt(0).toUpperCase()+raw.slice(1),sensor:''});
-        }
-    }
-    found.sort((a,b)=>a.name.localeCompare(b.name));
-    // Which sensor each alert watches comes from its automation (admin-only read; rows still work without it)
-    await Promise.all(found.map(async a=>{
-        try { const c=await haRest('GET',`/api/config/automation/config/panel_alert_${a.key}`); a.sensor=[].concat(c.triggers?.[0]?.entity_id||[])[0]||''; }
-        catch(e){ a.sensor=''; }
-    }));
-    alertRules=found;
-    document.getElementById('sensorList').innerHTML=Object.entries(sensorNames).sort((a,b)=>a[1].localeCompare(b[1]))
-        .map(([id,nm])=>`<option value="${esc(id)}">${esc(nm)}</option>`).join('');
+    document.getElementById('addAlertLink').href=`${HA_URL}/config/blueprint/dashboard`;
+    try {
+        const rel=await haWsCall('search/related',{item_type:'automation_blueprint',item_id:ALERT_BLUEPRINT});
+        const list=await Promise.all((rel.automation||[]).map(async entity=>{
+            const st=await fetchHA(entity);
+            const id=st?.attributes?.id;
+            if(!id) return null;
+            const cfg=await haRest('GET',`/api/config/automation/config/${id}`);
+            const input=cfg.use_blueprint?.input||{};
+            return {entity,id,name:(cfg.alias||entity).replace(/^Panel Alert:\s*/i,''),on:st.state==='on',
+                    input,when:await describeWhen(input.alert_trigger)};
+        }));
+        alertRules=list.filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
+    } catch(e) { alertStatus(`Couldn't load alerts: ${esc(e.message)}`); return; }
     buildAlertRules();
-    syncAlertRules();
 }
 
 function buildAlertRules() {
     const box=document.getElementById('alertRules');
-    if(!alertRules.length){box.innerHTML='<div class="hint">No automatic alerts yet. Add one below.</div>';return;}
-    box.innerHTML=alertRules.map(a=>{const k=a.key;return `
-        <div class="alert-rule" id="rule-${k}">
-            <div class="screen-name">${esc(a.name)}<small title="${esc(a.sensor)}">${a.sensor?esc(sensorNames[a.sensor]||a.sensor):'sensor unknown'}</small></div>
-            <button class="switch" id="rule-${k}-on" onclick="toggleRule('${k}')" aria-label="${esc(a.name)} alert on"></button>
-            <input type="text" class="text-input" id="rule-${k}-text" maxlength="100" placeholder="${esc(fallbackText(a))}"
-                   onchange="saveRuleText('${k}')" onkeydown="if(event.key==='Enter')this.blur()">
-            <input type="color" id="rule-${k}-color" title="Color" onchange="saveRuleColor('${k}')">
-            <div class="stepper"><button onclick="adjustRuleSecs('${k}',-5)">−</button><span><span class="stepper-val" id="rule-${k}-secs">20</span><span class="stepper-unit">s</span></span><button onclick="adjustRuleSecs('${k}',5)">+</button></div>
-            <button class="mode-btn" onclick="testRule('${k}')">Test</button>
-            <button class="del-btn" onclick="deleteRule('${k}')" title="Delete this alert">✕</button>
-        </div>`;}).join('');
+    if(!alertRules.length){box.innerHTML='<div class="hint">No automatic alerts yet. Add one in Home Assistant (button below).</div>';return;}
+    box.innerHTML=alertRules.map((a,i)=>`
+        <div class="alert-rule${a.on?'':' off'}" id="rule-${i}">
+            <div class="screen-name">${esc(a.name)}<small title="${esc(a.when)}">${esc(a.when)}</small></div>
+            <button class="switch${a.on?' on':''}" id="rule-${i}-on" onclick="toggleRule(${i})" aria-label="${esc(a.name)} alert on"></button>
+            <input type="text" class="text-input" id="rule-${i}-text" maxlength="100" value="${esc(a.input.message)}"
+                   onchange="saveRuleInput(${i},{message:this.value.trim()})" onkeydown="if(event.key==='Enter')this.blur()">
+            <input type="color" id="rule-${i}-color" title="Color" value="${rgbToHex(a.input.color)}"
+                   onchange="const c=hexToRgb(this.value);saveRuleInput(${i},{color:[c.r,c.g,c.b]})">
+            <div class="stepper"><button onclick="adjustRuleSecs(${i},-5)">−</button><span><span class="stepper-val" id="rule-${i}-secs">${a.input.seconds??20}</span><span class="stepper-unit">s</span></span><button onclick="adjustRuleSecs(${i},5)">+</button></div>
+            <button class="mode-btn" onclick="testRule(${i})">Test</button>
+            <a class="edit-link" href="${HA_URL}/config/automation/edit/${encodeURIComponent(a.id)}" target="_blank" rel="noopener" title="Change what sets it off, rename or delete it in HA">Edit</a>
+        </div>`).join('');
 }
 
-// Refreshes from HA, but never overwrites a field you're in the middle of editing.
+// Keeps on/off in step with HA (someone may flip it there); everything else refreshes on tab open.
 async function syncAlertRules() {
-    await Promise.all(alertRules.map(async a=>{
-        const ids=ruleIds(a.key);
-        const [en,tx,co,se]=await Promise.all([fetchHA(ids.enabled),fetchHA(ids.text),fetchHA(ids.color),fetchHA(ids.seconds)]);
-        const s={enabled:en.state==='on',text:tx.state||'',color:/^#[0-9a-f]{6}$/i.test(co.state)?co.state.toLowerCase():'#ff0000',
-                 seconds:parseInt(se.state)||20};
-        ruleState[a.key]=s;
-        const el=id=>document.getElementById(`rule-${a.key}-${id}`);
-        if(!el('on')) return;
-        el('on').classList.toggle('on',s.enabled);
-        document.getElementById(`rule-${a.key}`).classList.toggle('off',!s.enabled);
-        if(document.activeElement!==el('text')) el('text').value=s.text;
-        if(document.activeElement!==el('color')) el('color').value=s.color;
-        el('secs').innerText=s.seconds;
+    await Promise.all(alertRules.map(async (a,i)=>{
+        const st=await fetchHA(a.entity);
+        if(!st?.state) return;
+        a.on=st.state==='on';
+        document.getElementById(`rule-${i}-on`)?.classList.toggle('on',a.on);
+        document.getElementById(`rule-${i}`)?.classList.toggle('off',!a.on);
     }));
 }
 
-async function toggleRule(k) {
-    const on=!ruleState[k]?.enabled;
-    await callService('input_boolean',on?'turn_on':'turn_off',{entity_id:ruleIds(k).enabled});
+async function toggleRule(i) {
+    const a=alertRules[i];
+    await callService('automation',a.on?'turn_off':'turn_on',{entity_id:a.entity});
     syncAlertRules();
 }
-async function saveRuleText(k) {
-    await callService('input_text','set_value',{entity_id:ruleIds(k).text,value:document.getElementById(`rule-${k}-text`).value.trim()});
-    syncAlertRules();
+
+// Changes blueprint inputs: read the current config, merge, write it back (HA reloads that automation).
+async function saveRuleInput(i,changes) {
+    const a=alertRules[i];
+    try {
+        const cfg=await haRest('GET',`/api/config/automation/config/${a.id}`);
+        cfg.use_blueprint.input={...cfg.use_blueprint.input,...changes};
+        await haRest('POST',`/api/config/automation/config/${a.id}`,cfg);
+        Object.assign(a.input,changes);
+        alertStatus(`Saved ${esc(a.name)}.`);
+    } catch(e) { alertStatus(`Couldn't save ${esc(a.name)}: ${esc(e.message)}`); }
 }
-async function saveRuleColor(k) {
-    await callService('input_text','set_value',{entity_id:ruleIds(k).color,value:document.getElementById(`rule-${k}-color`).value.toUpperCase()});
-    syncAlertRules();
+// Each click saves after a short pause, so tapping + five times is one save, not five
+const secsTimers={};
+function adjustRuleSecs(i,d) {
+    const a=alertRules[i];
+    a.input.seconds=Math.max(5,Math.min(600,(a.input.seconds??20)+d));
+    document.getElementById(`rule-${i}-secs`).innerText=a.input.seconds;
+    clearTimeout(secsTimers[i]);
+    secsTimers[i]=setTimeout(()=>saveRuleInput(i,{seconds:a.input.seconds}),800);
 }
-async function adjustRuleSecs(k,d) {
-    const s=ruleState[k]; if(!s) return;
-    s.seconds=Math.max(5,Math.min(600,s.seconds+d));
-    document.getElementById(`rule-${k}-secs`).innerText=s.seconds;
-    await callService('input_number','set_value',{entity_id:ruleIds(k).seconds,value:s.seconds});
-}
-// Shows the saved settings on the panel, even if this alert is switched off.
-async function testRule(k) {
-    const s=ruleState[k]; if(!s) return;
-    const a=alertRules.find(x=>x.key===k);
-    const message=s.text.trim()||fallbackText(a), c=hexToRgb(s.color);
-    const r=await callService('script','panel_show_alert',{message,color:[c.r,c.g,c.b],seconds:s.seconds}).catch(()=>null);
+
+// Shows this alert's current settings on the panel, even if it's switched off.
+async function testRule(i) {
+    const a=alertRules[i];
+    const message=a.input.message||a.name.toUpperCase(), c=a.input.color||[255,0,0], seconds=a.input.seconds??20;
+    const r=await callService('script','panel_show_alert',{message,color:c,seconds}).catch(()=>null);
     if(!r||!r.ok){alertStatus('Test failed.');return;}
-    lastAlert={text:message,color:c};
-    alertStatus(`Testing ${esc(a.name)}: “${esc(message)}” for ${s.seconds}s.`);
+    lastAlert={text:message,color:{r:c[0],g:c[1],b:c[2]}};
+    alertStatus(`Testing ${esc(a.name)}: “${esc(message)}” for ${seconds}s.`);
     setTimeout(sync,600);
-}
-
-// ── Add / delete ───────────────────────────────────────────────────────────────
-let newAlertSecs=20;
-function toggleAddForm(show) {
-    document.getElementById('addAlertForm').hidden=!show;
-    document.getElementById('addAlertBtn').hidden=show;
-    if(show){ addStatus(''); document.getElementById('newName').focus(); }
-}
-function adjustNewSecs(d){newAlertSecs=Math.max(5,Math.min(600,newAlertSecs+d));document.getElementById('newSecsVal').innerText=newAlertSecs;}
-function addStatus(t){document.getElementById('addStatus').innerHTML=t||'&nbsp;';}
-
-async function createAlert() {
-    const name=document.getElementById('newName').value.trim();
-    const sensor=document.getElementById('newSensor').value.trim();
-    const text=document.getElementById('newText').value.trim();
-    const color=document.getElementById('newColor').value.toUpperCase();
-    const key=slugify(name);
-    if(!key){addStatus('Give it a name, e.g. Garage door.');return;}
-    if(!sensorNames[sensor]){addStatus('Pick a sensor from the list (start typing to search).');return;}
-    if(alertRules.some(a=>a.key===key)){addStatus(`There's already an alert called “${esc(name)}”.`);return;}
-    const ids=ruleIds(key);
-    addStatus('Creating…');
-    let ws;
-    try {
-        ws=await haWs();
-        // HA builds each helper's id from its name; check it came out as panel_alert_<key>_…
-        const made=[
-            ['input_boolean',await ws.call('input_boolean/create',{name:`Panel alert ${name} enabled`,icon:'mdi:alert-box'})],
-            ['input_text',   await ws.call('input_text/create',{name:`Panel alert ${name} text`,max:100})],
-            ['input_text',   await ws.call('input_text/create',{name:`Panel alert ${name} color`,max:7,icon:'mdi:palette'})],
-            ['input_number', await ws.call('input_number/create',{name:`Panel alert ${name} seconds`,min:5,max:600,step:5,mode:'box',unit_of_measurement:'s',icon:'mdi:timer-outline'})],
-        ];
-        const want=[ids.enabled,ids.text,ids.color,ids.seconds];
-        made.forEach(([dom,r],i)=>{ if(`${dom}.${r.id}`!==want[i]) throw new Error(`HA named a helper ${dom}.${r.id} instead of ${want[i]}; delete it in HA and try a different name`); });
-        await Promise.all([
-            callService('input_boolean','turn_on',{entity_id:ids.enabled}),
-            callService('input_text','set_value',{entity_id:ids.text,value:text}),
-            callService('input_text','set_value',{entity_id:ids.color,value:color}),
-            callService('input_number','set_value',{entity_id:ids.seconds,value:newAlertSecs}),
-        ]);
-        await haRest('POST',`/api/config/automation/config/panel_alert_${key}`,automationConfig(key,name,sensor));
-        ['newName','newSensor','newText'].forEach(id=>document.getElementById(id).value='');
-        toggleAddForm(false);
-        alertStatus(`Created “${esc(name)}”. It fires when ${esc(sensorNames[sensor])} turns on.`);
-        await discoverAlertRules();
-    } catch(e) {
-        addStatus(`Couldn't create it: ${esc(e.message)}`);
-    } finally { ws?.close(); }
-}
-
-async function deleteRule(k) {
-    const a=alertRules.find(x=>x.key===k);
-    if(!confirm(`Delete the “${a.name}” alert?\n\nThis removes its automation and its 4 settings from Home Assistant.`)) return;
-    let ws;
-    try {
-        await haRest('DELETE',`/api/config/automation/config/panel_alert_${k}`).catch(e=>{ if(!/404/.test(e.message)) throw e; });
-        ws=await haWs();
-        await ws.call('input_boolean/delete',{input_boolean_id:`panel_alert_${k}_enabled`});
-        await ws.call('input_text/delete',{input_text_id:`panel_alert_${k}_text`});
-        await ws.call('input_text/delete',{input_text_id:`panel_alert_${k}_color`});
-        await ws.call('input_number/delete',{input_number_id:`panel_alert_${k}_seconds`});
-        alertStatus(`Deleted “${esc(a.name)}”.`);
-    } catch(e) {
-        alertStatus(`Couldn't fully delete “${esc(a.name)}”: ${esc(e.message)}`);
-    } finally { ws?.close(); }
-    discoverAlertRules();
 }
 
 // Panel / Alerts tabs. The URL hash keeps the tab, so .../led-panel.html#alerts can be bookmarked.
