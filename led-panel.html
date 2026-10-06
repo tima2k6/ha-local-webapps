@@ -138,7 +138,8 @@
         /* Pop-up alerts */
         .tabs { max-width: 360px; margin-bottom: 16px; }
         .tab-pane[hidden] { display: none; }
-        .alert-send { display: grid; grid-template-columns: minmax(0, 1fr) auto 118px auto auto; gap: 10px; align-items: center; }
+        .alert-send { display: grid; grid-template-columns: minmax(0, 1fr) auto 104px 118px auto auto; gap: 10px; align-items: center; }
+        .icon-select { background: var(--bg); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 7px 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; min-width: 0; }
         .alert-send .color-custom { margin-left: 0; }
         .alert-send .btn-primary { padding: 10px 18px; }
         .edit-link { font-size: 12px; font-weight: 700; color: #93c5fd; text-decoration: none; text-align: center; border: 1px solid var(--line); border-radius: 9px; padding: 6px 0; }
@@ -146,7 +147,7 @@
         .add-hint { display: flex; align-items: center; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
         .add-hint .btn { text-decoration: none; }
         .add-hint .hint { flex: 1; min-width: 220px; }
-        .alert-rule { display: grid; grid-template-columns: 170px 42px minmax(0, 1fr) 34px 118px 58px 50px; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+        .alert-rule { display: grid; grid-template-columns: 170px 42px minmax(0, 1fr) 34px 104px 118px 58px 50px; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
         .alert-rule:first-child { border-top: 0; }
         .alert-rule.off .text-input, .alert-rule.off .stepper, .alert-rule.off input[type=color] { opacity: .45; }
         .alert-rule input[type=color] { width: 34px; height: 34px; border: 0; background: none; cursor: pointer; }
@@ -429,7 +430,7 @@
 
     <!-- Pop-up alerts: interrupt any screen for a few seconds -->
     <div class="card tab-pane" data-tab="alerts">
-        <div class="card-head"><h2>Pop-up Alert</h2><span class="hint">Interrupts any screen · flashing border · dark panel stays dark</span></div>
+        <div class="card-head"><h2>Pop-up Alert</h2><span class="hint">Interrupts any screen · icon in your color · dark panel stays dark</span></div>
         <h3 style="margin-top:0;">Send now</h3>
         <div class="alert-send">
             <input type="text" id="alertText" class="text-input" maxlength="100" placeholder="e.g. DINNER'S READY" onkeydown="if(event.key==='Enter')sendAlertNow()">
@@ -441,6 +442,7 @@
                 <button class="color-btn" style="background:#fff;"    onclick="alertColor('#ffffff')" title="White"></button>
                 <label class="color-custom" title="Custom color"><input type="color" id="alertColorPicker" value="#ff0000"></label>
             </div>
+            <select class="icon-select" id="alertIcon" aria-label="Icon"></select>
             <div class="stepper"><button onclick="adjustAlertSecs(-5)">−</button><span><span class="stepper-val" id="alertSecsVal">20</span><span class="stepper-unit">s</span></span><button onclick="adjustAlertSecs(5)">+</button></div>
             <button class="btn btn-primary" onclick="sendAlertNow()">🚨 Send</button>
             <button class="btn btn-ghost-danger" onclick="clearAlert()">Clear</button>
@@ -793,12 +795,24 @@ function draw() {
 
 // The panel doesn't report alert text, so this shows the last alert sent from
 // this page; alerts from HA automations (doorbell etc.) just read ALERT.
+// Mirrors the panel's card: tinted header with the time, shrinking accent rule,
+// icon in the alert color (an emoji stands in here), text in white.
 function renderAlert(ctx) {
-    const a=lastAlert||{text:'ALERT',color:{r:255,g:0,b:0}};
-    renderMessage(ctx,a.text,a.color,'none','medium');
-    ctx.strokeStyle=`rgb(${a.color.r},${a.color.g},${a.color.b})`;
-    ctx.lineWidth=2;
-    ctx.strokeRect(1,1,126,62);
+    const a=lastAlert||{text:'ALERT',color:{r:255,g:0,b:0},icon:'none'};
+    const {r,g,b}=a.color, col=`rgb(${r},${g},${b})`;
+    ctx.fillStyle=`rgb(${r*.22|0},${g*.22|0},${b*.22|0})`;ctx.fillRect(0,0,128,9);
+    const at=new Date(a.at||Date.now()).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    ctx.fillStyle='#fff';ctx.font='7px monospace';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(`ALERT  ${at}`,64,1);
+    const frac=a.at&&a.secs?Math.max(0,1-(Date.now()-a.at)/(a.secs*1000)):1;
+    ctx.fillStyle='#282828';ctx.fillRect(0,9,128,1);ctx.fillStyle=col;ctx.fillRect(0,9,Math.round(128*frac),1);
+    const emoji=(ALERT_ICONS.find(i=>i[0]===a.icon)||[])[2];
+    if(emoji){ctx.font='20px sans-serif';ctx.textBaseline='middle';ctx.fillText(emoji,14,38);}
+    const x0=emoji?28:3, w=emoji?98:122;
+    ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';ctx.textBaseline='middle';
+    const words=a.text.split(/\s+/), lines=[]; let cur='';
+    for(const wd of words){const t=cur?cur+' '+wd:wd; if(ctx.measureText(t).width<=w||!cur) cur=t; else {lines.push(cur);cur=wd;}}
+    if(cur) lines.push(cur);
+    lines.slice(0,4).forEach((l,i,arr)=>ctx.fillText(l,x0+w/2,38+(i-(arr.length-1)/2)*13));
 }
 
 function renderIdle(ctx) {
@@ -1434,6 +1448,11 @@ async function setTimerMode(mode) {
 // Goes through script.panel_show_alert, the same entry point the HA automations use.
 let alertSecs=20;
 let lastAlert=null;   // last alert sent from this page, so the preview can draw it
+// Icons the panel can draw beside an alert (same list as the blueprint and script)
+const ALERT_ICONS=[['none','No icon',''],['bell','Bell','🔔'],['door','Door','🚪'],['gate','Gate','🚧'],
+    ['shed','Shed','🛖'],['garage','Garage','🏠'],['package','Package','📦'],['water','Water','💧']];
+const iconOptions=sel=>ALERT_ICONS.map(([v,l])=>`<option value="${v}"${v===sel?' selected':''}>${l}</option>`).join('');
+document.getElementById('alertIcon').innerHTML=iconOptions('none');
 function alertColor(h){document.getElementById('alertColorPicker').value=h;}
 function adjustAlertSecs(d){alertSecs=Math.max(5,Math.min(600,alertSecs+d));document.getElementById('alertSecsVal').innerText=alertSecs;}
 function alertStatus(t){document.getElementById('alertStatus').innerHTML=t||'&nbsp;';}
@@ -1442,9 +1461,10 @@ async function sendAlertNow() {
     const message=document.getElementById('alertText').value.trim();
     if(!message){alertStatus('Type a message first.');return;}
     const c=hexToRgb(document.getElementById('alertColorPicker').value);
-    const r=await callService('script','panel_show_alert',{message,color:[c.r,c.g,c.b],seconds:alertSecs}).catch(()=>null);
+    const icon=document.getElementById('alertIcon').value;
+    const r=await callService('script','panel_show_alert',{message,color:[c.r,c.g,c.b],icon,seconds:alertSecs}).catch(()=>null);
     if(!r||!r.ok){alertStatus(`Send failed${r?` (HA said ${r.status})`:''}.`);return;}
-    lastAlert={text:message,color:c};
+    lastAlert={text:message,color:c,icon,at:Date.now(),secs:alertSecs};
     alertStatus(`Sent “${message}” for ${alertSecs}s.`);
     setTimeout(sync,600);
 }
@@ -1535,6 +1555,7 @@ function buildAlertRules() {
                    onchange="saveRuleInput(${i},{message:this.value.trim()})" onkeydown="if(event.key==='Enter')this.blur()">
             <input type="color" id="rule-${i}-color" title="Color" value="${rgbToHex(a.input.color)}"
                    onchange="const c=hexToRgb(this.value);saveRuleInput(${i},{color:[c.r,c.g,c.b]})">
+            <select class="icon-select" id="rule-${i}-icon" aria-label="Icon" onchange="saveRuleInput(${i},{icon:this.value})">${iconOptions(a.input.icon||'none')}</select>
             <div class="stepper"><button onclick="adjustRuleSecs(${i},-5)">−</button><span><span class="stepper-val" id="rule-${i}-secs">${a.input.seconds??20}</span><span class="stepper-unit">s</span></span><button onclick="adjustRuleSecs(${i},5)">+</button></div>
             <button class="mode-btn" onclick="testRule(${i})">Test</button>
             <a class="edit-link" href="${HA_URL}/config/automation/edit/${encodeURIComponent(a.id)}" target="_blank" rel="noopener" title="Change what sets it off, rename or delete it in HA">Edit</a>
@@ -1582,10 +1603,10 @@ function adjustRuleSecs(i,d) {
 // Shows this alert's current settings on the panel, even if it's switched off.
 async function testRule(i) {
     const a=alertRules[i];
-    const message=a.input.message||a.name.toUpperCase(), c=a.input.color||[255,0,0], seconds=a.input.seconds??20;
-    const r=await callService('script','panel_show_alert',{message,color:c,seconds}).catch(()=>null);
+    const message=a.input.message||a.name.toUpperCase(), c=a.input.color||[255,0,0], seconds=a.input.seconds??20, icon=a.input.icon||'none';
+    const r=await callService('script','panel_show_alert',{message,color:c,icon,seconds}).catch(()=>null);
     if(!r||!r.ok){alertStatus('Test failed.');return;}
-    lastAlert={text:message,color:{r:c[0],g:c[1],b:c[2]}};
+    lastAlert={text:message,color:{r:c[0],g:c[1],b:c[2]},icon,at:Date.now(),secs:seconds};
     alertStatus(`Testing ${esc(a.name)}: “${esc(message)}” for ${seconds}s.`);
     setTimeout(sync,600);
 }
@@ -1609,7 +1630,7 @@ function toggleSync(on) {
 }
 
 // HA syncs every 2.5s; the timer preview and corner chip tick every second in between
-setInterval(()=>{if(!draft.active&&(hs.mode==='timer'||(hs.timer&&['Rotation','Corner'].includes(hs.timerMode))))draw();},1000);
+setInterval(()=>{if(!draft.active&&(hs.mode==='timer'||hs.mode==='alert'||(hs.timer&&['Rotation','Corner'].includes(hs.timerMode))))draw();},1000);
 
 showTab(location.hash==='#alerts'?'alerts':'panel');
 toggleSync(true);
