@@ -30,6 +30,7 @@
         textarea:focus { border-color: #3b82f6; outline: none; background: #0f172a; }
         .image-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 24px; }
         .option-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+        .target-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
         .color-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
         .mode-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
         .opt-btn { background: #1e293b; border: 2px solid #334155; color: #cbd5e1; border-radius: 16px; padding: 14px 10px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 13px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
@@ -88,6 +89,10 @@
         <!-- LEFT: Message Designer -->
         <div class="card">
             <h2>Message Designer</h2>
+            <div class="target-grid">
+                <div class="opt-btn selected" id="target-1" onclick="selectTarget(1)">💬 MESSAGE 1</div>
+                <div class="opt-btn" id="target-2" onclick="selectTarget(2)">💬 MESSAGE 2</div>
+            </div>
             <div class="live-readout">
                 <button style="background:transparent;color:#3b82f6;border:1px solid #3b82f6;padding:8px 16px;font-size:12px;font-weight:800;border-radius:10px;float:right;cursor:pointer;" onclick="loadFromHardware()">LOAD CURRENT</button>
                 <span class="live-label">ACTIVE ON PANEL:</span>
@@ -153,12 +158,13 @@
                 <button class="opt-btn override-active" id="mode-Auto"         onclick="setOverride('Auto')">🔄 AUTO</button>
                 <button class="opt-btn" id="mode-Idle"         onclick="setOverride('Idle')">🕒 CLOCK</button>
                 <button class="opt-btn" id="mode-Message"      onclick="setOverride('Message')">💬 MSG</button>
+                <button class="opt-btn" id="mode-Message2"     onclick="setOverride('Message2')">💬 MSG 2</button>
                 <button class="opt-btn" id="mode-Notification" onclick="setOverride('Notification')">⚠️ ALERTS</button>
                 <button class="opt-btn" id="mode-Zags"         onclick="setOverride('Zags')">🏀 ZAGS</button>
                 <button class="opt-btn" id="mode-Mariners"     onclick="setOverride('Mariners')">⚾ M'S</button>
                 <button class="opt-btn" id="mode-Seahawks"     onclick="setOverride('Seahawks')">🏈 HAWKS</button>
                 <button class="opt-btn" id="mode-Sounders"     onclick="setOverride('Sounders')">⚽ SOUNDERS</button>
-                <button class="opt-btn span-2" id="mode-Kraken"  onclick="setOverride('Kraken')">🏒 KRAKEN</button>
+                <button class="opt-btn" id="mode-Kraken"       onclick="setOverride('Kraken')">🏒 KRAKEN</button>
                 <button class="opt-btn span-2" id="mode-Bedtime" onclick="setOverride('Bedtime')">🌙 SLEEP</button>
             </div>
 
@@ -202,6 +208,14 @@
                     <button onclick="adjustDuration('message',-5,'durMsgVal','durMsg')">▼</button>
                     <div class="stepper-val-container"><span class="stepper-val" id="durMsgVal">30</span><span class="stepper-unit">s</span></div>
                     <button onclick="adjustDuration('message',5,'durMsgVal','durMsg')">▲</button>
+                </div>
+            </div>
+            <div class="stepper-row">
+                <span class="stepper-label">Message 2 Time</span>
+                <div class="stepper">
+                    <button onclick="adjustDuration('message2',-5,'durMsg2Val','durMsg2')">▼</button>
+                    <div class="stepper-val-container"><span class="stepper-val" id="durMsg2Val">30</span><span class="stepper-unit">s</span></div>
+                    <button onclick="adjustDuration('message2',5,'durMsg2Val','durMsg2')">▲</button>
                 </div>
             </div>
             <div class="stepper-row">
@@ -258,7 +272,7 @@
         </div>
     </div>
 </div>
-<script src="js/ha-config.js"></script>
+<script src="js/ha-config.js?v=20261005"></script>
 <script>
 
 // Sounders crest — the same 32×32 the panel draws (img_sounders in images.h)
@@ -299,8 +313,17 @@ const HA = {
     msg_image:  'input_select.panel_message_image',
     msg_size:   'input_select.panel_message_size',
 
+    // Message 2 (secondary message screen, message2/* topics)
+    msg2_input: 'input_text.panel_message_2_input',
+    msg2_red:   'input_number.panel_message_2_red',
+    msg2_green: 'input_number.panel_message_2_green',
+    msg2_blue:  'input_number.panel_message_2_blue',
+    msg2_image: 'input_select.panel_message_2_image',
+    msg2_size:  'input_select.panel_message_2_size',
+
     // Durations
     dur_message:  'input_number.panel_duration_message',
+    dur_message2: 'input_number.panel_duration_message_2',
     dur_zags:     'input_number.panel_duration_zags',
     dur_idle:     'input_number.panel_duration_idle',
     dur_bedtime:  'input_number.panel_duration_bedtime',
@@ -325,7 +348,8 @@ let hs = {
     text:'', color:{r:255,g:255,b:255}, image:'none', size:'medium',
     mode:'idle', power:'on', override:'Auto', isFrozen:false,
     zagsOn:false, marinersOn:false, seahawksOn:false, soundersOn:false, krakenOn:false,
-    durMsg:30, durZags:30, durIdle:10, durBed:30, durMariners:30, durSeahawks:30, durSounders:30, durKraken:30,
+    msg2:{text:'', color:{r:255,g:255,b:255}, image:'none', size:'medium'},
+    durMsg:30, durMsg2:30, durZags:30, durIdle:10, durBed:30, durMariners:30, durSeahawks:30, durSounders:30, durKraken:30,
     weather:{temp:0,condition:''},
     zags:{teamScore:0,oppScore:0,opponent:'TBD'},
     seahawks:{state:'',teamScore:0,oppScore:0,oppAbbr:'',oppName:'',quarter:0,clock:'',
@@ -339,6 +363,16 @@ let hs = {
     marinersTarget:null
 };
 let draft = {text:'',color:{r:255,g:255,b:255},image:'none',size:'medium',active:false};
+
+// Which message screen the designer pushes to: 1 = main, 2 = secondary.
+let msgTarget = 1;
+const MSG_SLOTS = {
+    1: {topic:'house/panel/message',  input:HA.msg_input,  red:HA.msg_red,  green:HA.msg_green,  blue:HA.msg_blue,  image:HA.msg_image,  size:HA.msg_size},
+    2: {topic:'house/panel/message2', input:HA.msg2_input, red:HA.msg2_red, green:HA.msg2_green, blue:HA.msg2_blue, image:HA.msg2_image, size:HA.msg2_size},
+};
+function liveMsg(n) {
+    return n===2 ? hs.msg2 : {text:hs.text, color:hs.color, image:hs.image, size:hs.size};
+}
 
 // ── HA helpers ─────────────────────────────────────────────────────────────────
 async function fetchHA(eid) {
@@ -385,6 +419,11 @@ async function sync() {
             fetchHA(HA.dur_mariners),fetchHA(HA.dur_seahawks),fetchHA(HA.dur_sounders),fetchHA(HA.dur_kraken),
             fetchHA(HA.mariners_day)
         ]);
+        const [msg2,r2,g2,b2,img2,sz2,dM2] = await Promise.all([
+            fetchHA(HA.msg2_input),fetchHA(HA.msg2_red),fetchHA(HA.msg2_green),
+            fetchHA(HA.msg2_blue),fetchHA(HA.msg2_image),fetchHA(HA.msg2_size),
+            fetchHA(HA.dur_message2)
+        ]);
 
         hs.mode        = (mode?.state||'idle').toLowerCase();
         hs.power       = pwr?.state==='on'?'on':'off';
@@ -392,6 +431,10 @@ async function sync() {
         hs.color       = {r:parseInt(r?.state)||255,g:parseInt(g?.state)||255,b:parseInt(b?.state)||255};
         hs.image       = img?.state||'none';
         hs.size        = sz?.state||'medium';
+        hs.msg2        = {text:msg2?.state||'',
+                          color:{r:parseInt(r2?.state)||255,g:parseInt(g2?.state)||255,b:parseInt(b2?.state)||255},
+                          image:img2?.state||'none', size:sz2?.state||'medium'};
+        hs.durMsg2     = parseFloat(dM2?.state)||30;
         hs.override    = ov?.state||'Auto';
         hs.isFrozen    = frz?.state==='on';
         hs.zagsOn      = zagsScr?.state==='on';
@@ -472,7 +515,7 @@ async function sync() {
             hs.marinersTarget=new Date(marinersDay.state.replace(' ','T')).getTime();
 
         // Update UI
-        document.getElementById('liveTextDisplay').innerText=hs.text||'(Default Screens)';
+        document.getElementById('liveTextDisplay').innerText=liveMsg(msgTarget).text||'(Default Screens)';
         document.getElementById('syncDot').classList.add('on');
         document.getElementById('syncText').innerText='Connected';
         document.getElementById('pwrOnBtn').style.opacity =hs.power==='on' ?'1':'0.4';
@@ -497,6 +540,7 @@ async function sync() {
         }
 
         document.getElementById('durMsgVal').innerText      =hs.durMsg;
+        document.getElementById('durMsg2Val').innerText     =hs.durMsg2;
         document.getElementById('durZagsVal').innerText     =hs.durZags;
         document.getElementById('durIdleVal').innerText     =hs.durIdle;
         document.getElementById('durBedVal').innerText      =hs.durBed;
@@ -506,10 +550,11 @@ async function sync() {
         document.getElementById('durKrakenVal').innerText   =hs.durKraken;
 
         if(!draft.active){
+            const live=liveMsg(msgTarget);
             document.querySelectorAll('.image-grid .opt-btn').forEach(e=>e.classList.remove('selected'));
-            document.getElementById(`img-${hs.image}`)?.classList.add('selected');
+            document.getElementById(`img-${live.image}`)?.classList.add('selected');
             document.querySelectorAll('.option-grid .opt-btn').forEach(e=>e.classList.remove('selected'));
-            document.getElementById(`size-${hs.size}`)?.classList.add('selected');
+            document.getElementById(`size-${live.size}`)?.classList.add('selected');
         }
         draw();
     } catch(e) {
@@ -538,6 +583,7 @@ function draw() {
     else if(!draft.active&&hs.mode==='seahawks') renderSeahawks(ctx);
     else if(!draft.active&&hs.mode==='sounders') renderSounders(ctx);
     else if(!draft.active&&hs.mode==='kraken')   renderKraken(ctx);
+    else if(!draft.active&&hs.mode==='message2') renderMessage(ctx,hs.msg2.text,hs.msg2.color,hs.msg2.image,hs.msg2.size);
     else renderMessage(ctx,txt,col,img,sz);
 }
 
@@ -933,36 +979,38 @@ function selectImage(n){document.querySelectorAll('.image-grid .opt-btn').forEac
 function selectSize(n){document.querySelectorAll('.option-grid .opt-btn').forEach(e=>e.classList.remove('selected'));document.getElementById(`size-${n}`)?.classList.add('selected');draft.size=n;draft.active=true;draw();}
 function updatePreview(){draft.active=true;draft.text=document.getElementById('msgInput').value;draft.color=hexToRgb(document.getElementById('colorPicker').value);document.getElementById('rV').innerText=draft.color.r;document.getElementById('gV').innerText=draft.color.g;document.getElementById('bV').innerText=draft.color.b;draw();}
 function draftColor(r,g,b){const h='#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);document.getElementById('colorPicker').value=h;updatePreview();}
-function loadFromHardware(){document.getElementById('msgInput').value=hs.text;const h='#'+((1<<24)+(hs.color.r<<16)+(hs.color.g<<8)+hs.color.b).toString(16).slice(1);document.getElementById('colorPicker').value=h;selectImage(hs.image);selectSize(hs.size);updatePreview();}
+function loadFromHardware(){const m=liveMsg(msgTarget);document.getElementById('msgInput').value=m.text;const h='#'+((1<<24)+(m.color.r<<16)+(m.color.g<<8)+m.color.b).toString(16).slice(1);document.getElementById('colorPicker').value=h;selectImage(m.image);selectSize(m.size);updatePreview();}
+function selectTarget(n){msgTarget=n;document.querySelectorAll('.target-grid .opt-btn').forEach(e=>e.classList.remove('selected'));document.getElementById(`target-${n}`)?.classList.add('selected');sync();}
 function hexToRgb(h){return{r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)};}
 
 async function sendToPanel() {
     draft.active=false;
+    const s=MSG_SLOTS[msgTarget];
     // Publish colors and appearance first via MQTT directly, then text last
     // This ensures color arrives before text triggers a render
     await Promise.all([
-        mqttPublish('house/panel/message/red',   draft.color.r, true),
-        mqttPublish('house/panel/message/green', draft.color.g, true),
-        mqttPublish('house/panel/message/blue',  draft.color.b, true),
-        mqttPublish('house/panel/message/size',  draft.size,    true),
-        mqttPublish('house/panel/message/image', draft.image,   true),
+        mqttPublish(`${s.topic}/red`,   draft.color.r, true),
+        mqttPublish(`${s.topic}/green`, draft.color.g, true),
+        mqttPublish(`${s.topic}/blue`,  draft.color.b, true),
+        mqttPublish(`${s.topic}/size`,  draft.size,    true),
+        mqttPublish(`${s.topic}/image`, draft.image,   true),
         // Also update HA helpers so they stay in sync
-        callService('input_number','set_value',{entity_id:HA.msg_red,  value:draft.color.r}),
-        callService('input_number','set_value',{entity_id:HA.msg_green,value:draft.color.g}),
-        callService('input_number','set_value',{entity_id:HA.msg_blue, value:draft.color.b}),
-        callService('input_select','select_option',{entity_id:HA.msg_image,option:draft.image}),
-        callService('input_select','select_option',{entity_id:HA.msg_size,option:draft.size})
+        callService('input_number','set_value',{entity_id:s.red,  value:draft.color.r}),
+        callService('input_number','set_value',{entity_id:s.green,value:draft.color.g}),
+        callService('input_number','set_value',{entity_id:s.blue, value:draft.color.b}),
+        callService('input_select','select_option',{entity_id:s.image,option:draft.image}),
+        callService('input_select','select_option',{entity_id:s.size,option:draft.size})
     ]);
     // Send text last so panel renders with correct colors already set
-    await mqttPublish('house/panel/message/text', draft.text, true);
-    await callService('input_text','set_value',{entity_id:HA.msg_input,value:draft.text});
+    await mqttPublish(`${s.topic}/text`, draft.text, true);
+    await callService('input_text','set_value',{entity_id:s.input,value:draft.text});
     sync();
 }
 
 async function clearPanel() {
     draft.active=false;
     document.getElementById('msgInput').value='';
-    await callService('input_text','set_value',{entity_id:HA.msg_input,value:''});
+    await callService('input_text','set_value',{entity_id:MSG_SLOTS[msgTarget].input,value:''});
     sync();
 }
 
@@ -1013,7 +1061,7 @@ async function changeBrightness(v) {
 function adjustDuration(type,delta,valId,stateProp) {
     let v=hs[stateProp]+delta;v=Math.max(5,Math.min(120,v));hs[stateProp]=v;
     document.getElementById(valId).innerText=v;
-    const m={message:HA.dur_message,zags:HA.dur_zags,idle:HA.dur_idle,bedtime:HA.dur_bedtime,mariners:HA.dur_mariners,seahawks:HA.dur_seahawks,sounders:HA.dur_sounders,kraken:HA.dur_kraken};
+    const m={message:HA.dur_message,message2:HA.dur_message2,zags:HA.dur_zags,idle:HA.dur_idle,bedtime:HA.dur_bedtime,mariners:HA.dur_mariners,seahawks:HA.dur_seahawks,sounders:HA.dur_sounders,kraken:HA.dur_kraken};
     callService('input_number','set_value',{entity_id:m[type],value:v});
 }
 

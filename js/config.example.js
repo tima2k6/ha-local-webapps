@@ -1,7 +1,7 @@
 export const config = {
-    haUrl: 'http://YOUR_HA_IP:8123',
+    haUrl: HA_URL,                 // from js/ha-config.js (the only file holding the HA token)
     weatherApiKey: 'YOUR_OPENWEATHERMAP_API_KEY',
-    longLivedAccessToken: 'YOUR_HA_LONG_LIVED_TOKEN',
+    longLivedAccessToken: HA_TOKEN,
     weatherLocation: {
         lat: 'YOUR_LATITUDE',
         lon: 'YOUR_LONGITUDE'
