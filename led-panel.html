@@ -3,273 +3,354 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LED Panel Mirror & Controller</title>
+    <title>LED Panel Control</title>
     <link rel="icon" type="image/png" href="led-icon.png">
     <link rel="apple-touch-icon" href="led-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="LED Panel">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
+        :root {
+            --bg: #0b1120; --surface: #131c2e; --surface-2: #1a2438; --line: #26324a;
+            --text: #e8edf5; --muted: #8b98ae; --faint: #5b6780;
+            --accent: #3b82f6; --ok: #22c55e; --warn: #f59e0b; --danger: #ef4444;
+            --radius: 14px;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; line-height: 1.5; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .header { background: #1e293b; padding: 28px; border-radius: 24px; margin-bottom: 24px; border: 1px solid #334155; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
-        .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
-        .card { background: #1e293b; padding: 28px; border-radius: 24px; border: 1px solid #334155; height: fit-content; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .matrix-container { background: #000; padding: 45px 25px; border-radius: 20px; border: 4px solid #334155; display: flex; flex-direction: column; align-items: center; position: relative; }
-        #panelCanvas { background: #000; width: 100%; max-width: 512px; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; border: 1px solid #222; border-radius: 4px; }
-        #modeBadge { position: absolute; top: 18px; left: 18px; background: #3b82f6; padding: 6px 14px; border-radius: 10px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-        .dot { width: 12px; height: 12px; border-radius: 50%; background: #ef4444; display: inline-block; margin-right: 8px; }
-        .dot.on { background: #22c55e; box-shadow: 0 0 12px #22c55e; }
-        .grid { display: grid; grid-template-columns: 1fr 420px; gap: 24px; }
-        h2 { font-size: 16px; color: #94a3b8; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
-        h3 { font-size: 12px; color: #64748b; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
-        .live-readout { background: #0f172a; padding: 16px; border-radius: 16px; border-left: 5px solid #8b5cf6; margin-bottom: 24px; font-size: 14px; }
-        .live-label { font-size: 10px; color: #64748b; font-weight: 800; display: block; margin-bottom: 4px; }
-        textarea { width: 100%; height: 110px; background: #1e293b; border: 2px solid #334155; color: white; padding: 16px; border-radius: 16px; margin: 12px 0; font-family: monospace; resize: none; font-size: 16px; }
-        textarea:focus { border-color: #3b82f6; outline: none; background: #0f172a; }
-        .image-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 24px; }
-        .option-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
-        .target-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-        .color-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
-        .mode-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
-        .opt-btn { background: #1e293b; border: 2px solid #334155; color: #cbd5e1; border-radius: 16px; padding: 14px 10px; cursor: pointer; text-align: center; transition: all 0.2s; font-size: 13px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
-        .opt-btn:hover { border-color: #475569; background: #26334d; }
-        .opt-btn.selected { border-color: #22c55e; background: rgba(34,197,94,0.15); color: white; border-width: 3px; }
-        .image-emoji { font-size: 30px; line-height: 1; }
-        .color-btn { height: 52px; border-radius: 14px; border: 2px solid #334155; cursor: pointer; transition: transform 0.1s; }
-        .color-btn:active { transform: scale(0.92); }
-        .btn-main { width: 100%; padding: 18px; border: none; border-radius: 16px; font-weight: 800; cursor: pointer; margin-top: 12px; transition: all 0.3s; font-size: 15px; text-transform: uppercase; }
-        .btn-blue { background: #3b82f6; color: white; box-shadow: 0 4px 14px 0 rgba(59,130,246,0.4); }
-        .override-active { border-color: #eab308 !important; background: rgba(234,179,8,0.2) !important; color: #facc15 !important; border-width: 3px !important; }
-        .freeze-active { border-color: #06b6d4 !important; background: rgba(6,182,212,0.2) !important; color: #67e8f9 !important; border-width: 3px !important; }
-        .screen-active { border-color: #22c55e !important; background: rgba(34,197,94,0.15) !important; color: #86efac !important; border-width: 3px !important; }
-        .hardware-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
-        .btn-reboot { grid-column: span 2; background: #450a0a; color: #f87171; border: 1px solid #7f1d1d; }
-        .stepper-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #0f172a; padding: 8px 16px; border-radius: 16px; }
-        .stepper-label { font-size: 13px; color: #cbd5e1; font-weight: 700; margin: 0; }
-        .stepper { display: flex; align-items: center; background: #1e293b; border-radius: 10px; border: 1px solid #334155; }
-        .stepper button { background: transparent; color: #3b82f6; border: none; padding: 8px 16px; font-size: 14px; font-weight: 900; cursor: pointer; border-radius: 8px; }
-        .stepper button:hover { background: #26334d; }
-        .stepper-val-container { width: 50px; text-align: center; }
-        .stepper-val { font-family: monospace; font-size: 15px; font-weight: bold; color: white; }
-        .stepper-unit { color: #64748b; font-size: 12px; font-weight: bold; margin-left: 2px; }
-        .screens-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-        .span-2 { grid-column: span 2; }
-        @media (max-width: 768px) {
-            .grid { grid-template-columns: 1fr; }
-            .image-grid { grid-template-columns: repeat(3, 1fr); }
-            .opt-btn { font-size: 11px; padding: 10px 4px; }
-            .mode-grid { grid-template-columns: repeat(2, 1fr); }
-            .mode-grid .span-2 { grid-column: span 1; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px 16px 40px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+        .container { max-width: 1180px; margin: 0 auto; }
+        button { font: inherit; color: inherit; }
+
+        /* ── Top bar ─────────────────────────────────────────────── */
+        .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .brand img { width: 34px; height: 34px; border-radius: 9px; }
+        .brand h1 { font-size: 19px; font-weight: 750; letter-spacing: .2px; }
+        .brand small { display: block; font-size: 12px; color: var(--muted); }
+        .sync-pill { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 650; cursor: pointer; user-select: none; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); flex: none; }
+        .dot.on { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+        .sync-pill input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+        /* ── Cards ───────────────────────────────────────────────── */
+        .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+        .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+        h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.4px; font-weight: 750; }
+        h3 { font-size: 11px; color: var(--faint); margin: 18px 0 10px; text-transform: uppercase; letter-spacing: 1.1px; font-weight: 700; }
+        .hint { font-size: 12px; color: var(--faint); }
+
+        /* ── Hero: live preview + quick controls ─────────────────── */
+        .hero { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; margin-bottom: 16px; }
+        .bezel { background: #000; border-radius: var(--radius); border: 1px solid var(--line); padding: 18px; display: flex; align-items: center; justify-content: center; position: relative; min-height: 220px; }
+        #panelCanvas { width: 100%; max-width: 640px; aspect-ratio: 2 / 1; image-rendering: pixelated; border-radius: 4px; box-shadow: 0 0 0 1px #1d2433; }
+        #modeBadge { position: absolute; top: 12px; left: 12px; background: #8b5cf6; padding: 4px 10px; border-radius: 7px; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; }
+        .quick { display: flex; flex-direction: column; gap: 14px; }
+        .now { background: var(--surface-2); border-radius: 11px; padding: 12px 14px; }
+        .now .label { font-size: 10.5px; color: var(--faint); font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+        .now .value { font-size: 20px; font-weight: 750; margin-top: 2px; text-transform: capitalize; }
+        .now .sub { font-size: 12px; color: var(--muted); }
+        .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--bg); border: 1px solid var(--line); border-radius: 11px; padding: 3px; gap: 3px; }
+        .seg button { background: transparent; border: 0; border-radius: 8px; padding: 9px 6px; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; transition: background .15s, color .15s; }
+        .seg button:hover { color: var(--text); }
+        .seg button.active { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+        .seg button.active.is-on { color: #86efac; }
+        .seg button.active.is-off { color: #fca5a5; }
+        .bri-row { display: flex; justify-content: space-between; font-size: 13px; font-weight: 650; color: var(--muted); margin-bottom: 6px; }
+        .bri-row b { color: var(--text); }
+        input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+        .bri-scale { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--faint); margin-top: 2px; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); padding: 10px 14px; font-size: 13px; font-weight: 700; cursor: pointer; transition: border-color .15s, background .15s; }
+        .btn:hover { border-color: #3a4866; }
+        .btn.frozen { border-color: #06b6d4; background: rgba(6,182,212,.14); color: #67e8f9; }
+        .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+        /* ── Main two-column area ────────────────────────────────── */
+        .main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 16px; align-items: start; }
+
+        /* Message designer */
+        .target-grid { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 14px; }
+        .target-grid .opt-btn { padding: 10px; font-size: 13px; }
+        .live-readout { display: flex; align-items: center; gap: 12px; background: var(--bg); border: 1px solid var(--line); border-left: 4px solid #8b5cf6; padding: 10px 12px; border-radius: 10px; }
+        .live-readout .txt { flex: 1; min-width: 0; }
+        .live-label { font-size: 10px; color: var(--faint); font-weight: 800; letter-spacing: .8px; display: block; }
+        #liveTextDisplay { color: #cbd5e1; font-size: 14px; overflow-wrap: anywhere; }
+        .link-btn { background: transparent; color: #93c5fd; border: 1px solid #2c4a7a; padding: 6px 12px; font-size: 11.5px; font-weight: 800; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+        textarea { width: 100%; height: 88px; background: var(--bg); border: 1px solid var(--line); color: var(--text); padding: 12px 14px; border-radius: 10px; font-family: ui-monospace, Consolas, monospace; resize: vertical; font-size: 15px; }
+        textarea:focus { border-color: var(--accent); outline: none; }
+        .color-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .color-btn { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; transition: transform .1s; }
+        .color-btn:hover { transform: scale(1.1); }
+        .color-custom { display: flex; align-items: center; gap: 8px; margin-left: auto; font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--muted); }
+        .color-custom input { width: 34px; height: 34px; border: 0; background: none; cursor: pointer; }
+        .color-custom span span { color: var(--text); }
+        .opt-btn { background: var(--surface-2); border: 1px solid var(--line); color: #cbd5e1; border-radius: 10px; padding: 9px 6px; cursor: pointer; text-align: center; transition: border-color .15s, background .15s; font-size: 12.5px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+        .opt-btn:hover { border-color: #3a4866; }
+        .opt-btn.selected { border-color: var(--ok); background: rgba(34,197,94,.13); color: #fff; box-shadow: inset 0 0 0 1px var(--ok); }
+        .option-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .image-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+        .image-grid .opt-btn { padding: 7px 2px; font-size: 8.5px; letter-spacing: .3px; }
+        .image-emoji { font-size: 22px; line-height: 1; }
+        .image-grid img { width: 22px; height: 22px; image-rendering: pixelated; }
+        .x-icon { font-size: 16px; color: var(--faint); line-height: 22px; }
+        .designer-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 18px; }
+        .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; padding: 13px; font-size: 14px; }
+        .btn-primary:hover { background: #2f6fd8; border-color: #2f6fd8; }
+        .btn-ghost-danger { color: #fca5a5; }
+
+        /* Screens list */
+        .auto-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface-2); border-radius: 11px; padding: 10px 12px; margin-bottom: 12px; }
+        .auto-bar .txt { font-size: 13px; color: var(--muted); }
+        .auto-bar .txt b { color: var(--text); }
+        .screens { display: flex; flex-direction: column; }
+        .screen-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) 70px 118px 58px; align-items: center; gap: 12px; padding: 9px 4px; border-top: 1px solid var(--line); }
+        .screen-row:first-child { border-top: 0; }
+        .screen-row .swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--c, var(--muted)); }
+        .screen-name { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .screen-name small { display: block; font-size: 11.5px; font-weight: 500; color: var(--faint); overflow: hidden; text-overflow: ellipsis; }
+        .screen-row.showing { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 14%, transparent), transparent 70%); border-radius: 8px; }
+        .switch { justify-self: center; width: 42px; height: 24px; border-radius: 999px; background: #2a3550; border: 0; position: relative; cursor: pointer; transition: background .15s; }
+        .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #c3cad8; transition: transform .15s; }
+        .switch.on { background: var(--ok); }
+        .switch.on::after { transform: translateX(18px); background: #fff; }
+        .chip { justify-self: center; font-size: 10.5px; font-weight: 750; letter-spacing: .3px; color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; white-space: nowrap; }
+        .chip.on { color: #86efac; border-color: #1f5a37; }
+        .stepper { display: flex; align-items: center; justify-content: space-between; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; }
+        .stepper button { background: transparent; color: #93c5fd; border: 0; width: 32px; height: 30px; font-size: 13px; font-weight: 900; cursor: pointer; border-radius: 8px; }
+        .stepper button:hover { background: var(--surface-2); }
+        .stepper-val { font-family: ui-monospace, Consolas, monospace; font-size: 14px; font-weight: 700; }
+        .stepper-unit { color: var(--faint); font-size: 11px; margin-left: 1px; }
+        .note-cell { font-size: 11px; color: var(--faint); text-align: center; }
+        .mode-btn { background: transparent; border: 1px solid var(--line); border-radius: 9px; padding: 6px 0; font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer; transition: all .15s; }
+        .mode-btn:hover { color: var(--text); border-color: #3a4866; }
+        .mode-btn.active { background: var(--warn); border-color: var(--warn); color: #1a1205; }
+        .col-heads { display: grid; grid-template-columns: 10px minmax(0, 1fr) 70px 118px 58px; gap: 12px; padding: 0 4px 6px; font-size: 10px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: var(--faint); }
+        .col-heads span { text-align: center; }
+        .col-heads span:nth-child(2) { text-align: left; }
+
+        .footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+        .btn-reboot { color: #fca5a5; border-color: #5a1d1d; background: transparent; }
+        .btn-reboot:hover { background: rgba(239,68,68,.1); border-color: #7f1d1d; }
+
+        @media (max-width: 900px) {
+            .hero, .main { grid-template-columns: 1fr; }
+            .quick { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+            .quick .now { grid-column: span 2; }
+        }
+        @media (max-width: 560px) {
+            body { padding: 14px 12px 32px; }
+            .card { padding: 16px; }
+            .quick { display: flex; align-items: stretch; }
+            .bezel { padding: 10px; min-height: 0; }
+            .image-grid { grid-template-columns: repeat(4, 1fr); }
+            .col-heads, .card-head .hint { display: none; }
+            .screen-row { grid-template-columns: 10px minmax(0, 1fr) auto; grid-template-areas: "sw name tog" ". dur show"; row-gap: 8px; }
+            .screen-row .swatch { grid-area: sw; }
+            .screen-row .screen-name { grid-area: name; }
+            .screen-row .switch, .screen-row .chip { grid-area: tog; justify-self: end; }
+            .screen-row .stepper, .screen-row .note-cell { grid-area: dur; justify-self: start; width: 118px; }
+            .screen-row .mode-btn { grid-area: show; width: 70px; justify-self: end; }
         }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="header">
-        <div class="status-row">
-            <div>
-                <h1 style="font-size: 22px; font-weight: 800;">Panel Control Center</h1>
-                <span id="syncText" style="font-size: 13px; color: #94a3b8;">Initializing...</span>
-            </div>
-            <div style="background: #0f172a; padding: 12px 20px; border-radius: 30px; border: 1px solid #334155; display: flex; align-items: center;">
-                <span class="dot" id="syncDot"></span>
-                <input type="checkbox" id="liveSync" onchange="toggleSync(this.checked)" checked style="width:20px;height:20px;cursor:pointer;">
-                <label for="liveSync" style="font-size:14px;cursor:pointer;font-weight:700;margin-left:10px;">LIVE MIRROR</label>
-            </div>
+    <div class="topbar">
+        <div class="brand">
+            <img src="led-icon.png" alt="">
+            <div><h1>LED Panel</h1><small id="syncText">Initializing...</small></div>
         </div>
-        <div class="matrix-container">
+        <label class="sync-pill" for="liveSync">
+            <span class="dot" id="syncDot"></span>
+            <input type="checkbox" id="liveSync" onchange="toggleSync(this.checked)" checked>
+            Live mirror
+        </label>
+    </div>
+
+    <!-- Live preview + everyday controls -->
+    <div class="hero">
+        <div class="bezel">
             <div id="modeBadge">PREVIEW</div>
             <canvas id="panelCanvas" width="128" height="64"></canvas>
         </div>
+        <div class="card quick">
+            <div class="now">
+                <div class="label">Now showing</div>
+                <div class="value" id="nowShowing">—</div>
+                <div class="sub" id="nowSub">Auto rotation</div>
+            </div>
+            <div>
+                <h3 style="margin-top:0;">Power</h3>
+                <div class="seg">
+                    <button id="pwrOnBtn"  onclick="setPower(true)">On</button>
+                    <button id="pwrOffBtn" onclick="setPower(false)">Off</button>
+                </div>
+            </div>
+            <div>
+                <div class="bri-row"><span>Brightness</span><b><span id="briVal">20</span>%</b></div>
+                <input type="range" id="briSlider" min="0" max="100" value="20" oninput="document.getElementById('briVal').innerText=this.value;" onchange="changeBrightness(this.value)">
+                <div class="bri-scale"><span>0 = dark</span><span>100</span></div>
+            </div>
+            <div class="btn-row">
+                <button class="btn" id="btnFreeze" onclick="toggleFreeze()">⏸ Freeze</button>
+                <button class="btn" onclick="skipScreen()">⏭ Skip</button>
+            </div>
+        </div>
     </div>
 
-    <div class="grid">
+    <div class="main">
         <!-- LEFT: Message Designer -->
         <div class="card">
-            <h2>Message Designer</h2>
-            <div class="target-grid">
-                <div class="opt-btn selected" id="target-1" onclick="selectTarget(1)">💬 MESSAGE 1</div>
-                <div class="opt-btn" id="target-2" onclick="selectTarget(2)">💬 MESSAGE 2</div>
+            <div class="card-head"><h2>Message Designer</h2><span class="hint">Two independent message screens</span></div>
+            <div class="seg target-grid">
+                <button class="active" id="target-1" onclick="selectTarget(1)">💬 Message 1</button>
+                <button id="target-2" onclick="selectTarget(2)">💬 Message 2</button>
             </div>
             <div class="live-readout">
-                <button style="background:transparent;color:#3b82f6;border:1px solid #3b82f6;padding:8px 16px;font-size:12px;font-weight:800;border-radius:10px;float:right;cursor:pointer;" onclick="loadFromHardware()">LOAD CURRENT</button>
-                <span class="live-label">ACTIVE ON PANEL:</span>
-                <span id="liveTextDisplay" style="color:#cbd5e1;">Syncing...</span>
+                <div class="txt">
+                    <span class="live-label">ON PANEL NOW</span>
+                    <span id="liveTextDisplay">Syncing...</span>
+                </div>
+                <button class="link-btn" onclick="loadFromHardware()">Load current</button>
             </div>
 
-            <h3>1. Type Message</h3>
-            <textarea id="msgInput" oninput="updatePreview()" placeholder="Type message..."></textarea>
+            <h3>Message</h3>
+            <textarea id="msgInput" oninput="updatePreview()" placeholder="Type a message…"></textarea>
 
-            <h3 style="margin-top:12px;">2. Pick Color</h3>
-            <div class="color-grid">
-                <button class="color-btn" style="background:#fff;"     onclick="draftColor(255,255,255)"></button>
-                <button class="color-btn" style="background:#ef4444;"  onclick="draftColor(255,0,0)"></button>
-                <button class="color-btn" style="background:#22c55e;"  onclick="draftColor(0,255,0)"></button>
-                <button class="color-btn" style="background:#3b82f6;"  onclick="draftColor(0,150,255)"></button>
-                <button class="color-btn" style="background:#eab308;"  onclick="draftColor(255,255,0)"></button>
-                <button class="color-btn" style="background:#f97316;"  onclick="draftColor(255,140,0)"></button>
-                <button class="color-btn" style="background:#a855f7;"  onclick="draftColor(200,0,255)"></button>
-                <button class="color-btn" style="background:#ec4899;"  onclick="draftColor(255,105,180)"></button>
-            </div>
-            <div style="display:flex;align-items:center;gap:20px;background:#0f172a;padding:15px;border-radius:16px;margin-bottom:24px;">
-                <input type="color" id="colorPicker" value="#ffffff" oninput="updatePreview()" style="border:none;width:50px;height:50px;cursor:pointer;background:none;">
-                <div style="font-family:monospace;font-size:14px;font-weight:700;flex-grow:1;color:#94a3b8;">RGB: <span id="rV" style="color:white;">255</span>, <span id="gV" style="color:white;">255</span>, <span id="bV" style="color:white;">255</span></div>
+            <h3>Color</h3>
+            <div class="color-row">
+                <button class="color-btn" style="background:#fff;"    onclick="draftColor(255,255,255)" title="White"></button>
+                <button class="color-btn" style="background:#ef4444;" onclick="draftColor(255,0,0)"     title="Red"></button>
+                <button class="color-btn" style="background:#22c55e;" onclick="draftColor(0,255,0)"     title="Green"></button>
+                <button class="color-btn" style="background:#3b82f6;" onclick="draftColor(0,150,255)"   title="Blue"></button>
+                <button class="color-btn" style="background:#eab308;" onclick="draftColor(255,255,0)"   title="Yellow"></button>
+                <button class="color-btn" style="background:#f97316;" onclick="draftColor(255,140,0)"   title="Orange"></button>
+                <button class="color-btn" style="background:#a855f7;" onclick="draftColor(200,0,255)"   title="Purple"></button>
+                <button class="color-btn" style="background:#ec4899;" onclick="draftColor(255,105,180)" title="Pink"></button>
+                <label class="color-custom" title="Custom color">
+                    <input type="color" id="colorPicker" value="#ffffff" oninput="updatePreview()">
+                    <span><span id="rV">255</span>,<span id="gV">255</span>,<span id="bV">255</span></span>
+                </label>
             </div>
 
-            <h3>3. Text Scale</h3>
+            <h3>Text size</h3>
             <div class="option-grid">
-                <div class="opt-btn" id="size-small"  onclick="selectSize('small')">SMALL</div>
-                <div class="opt-btn selected" id="size-medium" onclick="selectSize('medium')">MEDIUM</div>
-                <div class="opt-btn" id="size-large"  onclick="selectSize('large')">LARGE</div>
+                <div class="opt-btn" id="size-small"  onclick="selectSize('small')">Small</div>
+                <div class="opt-btn selected" id="size-medium" onclick="selectSize('medium')">Medium</div>
+                <div class="opt-btn" id="size-large"  onclick="selectSize('large')">Large</div>
             </div>
 
-            <h3>4. Select Icon</h3>
+            <h3>Icon</h3>
             <div class="image-grid">
-                <div class="opt-btn selected" id="img-none"        onclick="selectImage('none')"><div style="font-size:20px;color:#64748b;">✕</div><div style="font-size:9px;">NONE</div></div>
-                <div class="opt-btn" id="img-heart"       onclick="selectImage('heart')"><div class="image-emoji">❤️</div><div style="font-size:9px;">HEART</div></div>
-                <div class="opt-btn" id="img-seahawks"    onclick="selectImage('seahawks')"><div class="image-emoji">🏈</div><div style="font-size:9px;">HAWKS</div></div>
-                <div class="opt-btn" id="img-mariners"    onclick="selectImage('mariners')"><div class="image-emoji">⚾</div><div style="font-size:9px;">M'S</div></div>
-                <div class="opt-btn" id="img-cheers"      onclick="selectImage('cheers')"><div class="image-emoji">🥂</div><div style="font-size:9px;">CHEERS</div></div>
-                <div class="opt-btn" id="img-bordercollie" onclick="selectImage('bordercollie')"><div class="image-emoji">🐶</div><div style="font-size:9px;">COLLIE</div></div>
-                <div class="opt-btn" id="img-sun"         onclick="selectImage('sun')"><div class="image-emoji">☀️</div><div style="font-size:9px;">SUN</div></div>
-                <div class="opt-btn" id="img-fire"        onclick="selectImage('fire')"><div class="image-emoji">🔥</div><div style="font-size:9px;">FIRE</div></div>
-                <div class="opt-btn" id="img-soccerball"       onclick="selectImage('soccerball')"><div class="image-emoji">⚽</div><div style="font-size:9px;">SOCCER</div></div>
-                <div class="opt-btn" id="img-sounders"         onclick="selectImage('sounders')"><img src="" class="sounders-logo" alt="" style="width:30px;height:30px;image-rendering:pixelated;"><div style="font-size:9px;">SOUNDERS</div></div>
-                <div class="opt-btn" id="img-kraken"           onclick="selectImage('kraken')"><img src="" class="kraken-logo" alt="" style="width:30px;height:30px;image-rendering:pixelated;"><div style="font-size:9px;">KRAKEN</div></div>
-                <div class="opt-btn" id="img-mealtime"       onclick="selectImage('mealtime')"><div class="image-emoji">🍽️</div><div style="font-size:9px;">MEALTIME</div></div>
-                <div class="opt-btn" id="img-gonzaga"       onclick="selectImage('gonzaga')"><div class="image-emoji">🐶</div><div style="font-size:9px;">GONZAGA</div></div>
-                <div class="opt-btn" id="img-house"       onclick="selectImage('house')"><div class="image-emoji">🏠</div><div style="font-size:9px;">HOUSE</div></div>
-                <div class="opt-btn" id="img-snow"       onclick="selectImage('snow')"><div class="image-emoji">❄️</div><div style="font-size:9px;">SNOW</div></div>
-                <div class="opt-btn" id="img-nighttime"       onclick="selectImage('nighttime')"><div class="image-emoji">🌙</div><div style="font-size:9px;">NIGHTTIME</div></div>
+                <div class="opt-btn selected" id="img-none" onclick="selectImage('none')"><div class="x-icon">✕</div>NONE</div>
+                <div class="opt-btn" id="img-heart"        onclick="selectImage('heart')"><div class="image-emoji">❤️</div>HEART</div>
+                <div class="opt-btn" id="img-seahawks"     onclick="selectImage('seahawks')"><div class="image-emoji">🏈</div>HAWKS</div>
+                <div class="opt-btn" id="img-mariners"     onclick="selectImage('mariners')"><div class="image-emoji">⚾</div>M'S</div>
+                <div class="opt-btn" id="img-sounders"     onclick="selectImage('sounders')"><img src="" class="sounders-logo" alt="">SOUNDERS</div>
+                <div class="opt-btn" id="img-kraken"       onclick="selectImage('kraken')"><img src="" class="kraken-logo" alt="">KRAKEN</div>
+                <div class="opt-btn" id="img-gonzaga"      onclick="selectImage('gonzaga')"><div class="image-emoji">🐶</div>ZAGS</div>
+                <div class="opt-btn" id="img-soccerball"   onclick="selectImage('soccerball')"><div class="image-emoji">⚽</div>SOCCER</div>
+                <div class="opt-btn" id="img-cheers"       onclick="selectImage('cheers')"><div class="image-emoji">🥂</div>CHEERS</div>
+                <div class="opt-btn" id="img-bordercollie" onclick="selectImage('bordercollie')"><div class="image-emoji">🐕</div>COLLIE</div>
+                <div class="opt-btn" id="img-sun"          onclick="selectImage('sun')"><div class="image-emoji">☀️</div>SUN</div>
+                <div class="opt-btn" id="img-fire"         onclick="selectImage('fire')"><div class="image-emoji">🔥</div>FIRE</div>
+                <div class="opt-btn" id="img-mealtime"     onclick="selectImage('mealtime')"><div class="image-emoji">🍽️</div>MEALTIME</div>
+                <div class="opt-btn" id="img-house"        onclick="selectImage('house')"><div class="image-emoji">🏠</div>HOUSE</div>
+                <div class="opt-btn" id="img-snow"         onclick="selectImage('snow')"><div class="image-emoji">❄️</div>SNOW</div>
+                <div class="opt-btn" id="img-nighttime"    onclick="selectImage('nighttime')"><div class="image-emoji">🌙</div>NIGHT</div>
             </div>
 
-            <button class="btn-main btn-blue" onclick="sendToPanel()">🚀 Push to Display</button>
-            <button class="btn-main" style="background:#334155;color:#f87171;" onclick="clearPanel()">🗑️ Clear Message</button>
+            <div class="designer-actions">
+                <button class="btn btn-primary" onclick="sendToPanel()">🚀 Push to display</button>
+                <button class="btn btn-ghost-danger" onclick="clearPanel()">Clear</button>
+            </div>
         </div>
 
-        <!-- RIGHT: Controls -->
+        <!-- RIGHT: every screen in one list -->
         <div class="card">
-            <h2>Hardware Overrides</h2>
-
-            <h3>Display Mode</h3>
-            <div class="mode-grid">
-                <button class="opt-btn override-active" id="mode-Auto"         onclick="setOverride('Auto')">🔄 AUTO</button>
-                <button class="opt-btn" id="mode-Idle"         onclick="setOverride('Idle')">🕒 CLOCK</button>
-                <button class="opt-btn" id="mode-Message"      onclick="setOverride('Message')">💬 MSG</button>
-                <button class="opt-btn" id="mode-Message2"     onclick="setOverride('Message2')">💬 MSG 2</button>
-                <button class="opt-btn" id="mode-Notification" onclick="setOverride('Notification')">⚠️ ALERTS</button>
-                <button class="opt-btn" id="mode-Zags"         onclick="setOverride('Zags')">🏀 ZAGS</button>
-                <button class="opt-btn" id="mode-Mariners"     onclick="setOverride('Mariners')">⚾ M'S</button>
-                <button class="opt-btn" id="mode-Seahawks"     onclick="setOverride('Seahawks')">🏈 HAWKS</button>
-                <button class="opt-btn" id="mode-Sounders"     onclick="setOverride('Sounders')">⚽ SOUNDERS</button>
-                <button class="opt-btn" id="mode-Kraken"       onclick="setOverride('Kraken')">🏒 KRAKEN</button>
-                <button class="opt-btn span-2" id="mode-Bedtime" onclick="setOverride('Bedtime')">🌙 SLEEP</button>
+            <div class="card-head"><h2>Screens</h2><span class="hint">Rotation · time on screen · show now</span></div>
+            <div class="auto-bar">
+                <span class="txt" id="autoText"><b>Auto rotation</b> — cycling through active screens</span>
+                <button class="mode-btn active" id="mode-Auto" style="padding:6px 14px;" onclick="setOverride('Auto')">Auto</button>
             </div>
-
-            <h3>Active Screens</h3>
-            <div class="screens-grid">
-                <button class="opt-btn" id="btnZags"     onclick="toggleScreen('zags')">🏀 ZAGS</button>
-                <button class="opt-btn" id="btnMariners" onclick="toggleScreen('mariners')">⚾ MARINERS</button>
-                <button class="opt-btn" id="btnSeahawks" onclick="toggleScreen('seahawks')">🏈 SEAHAWKS</button>
-                <button class="opt-btn" id="btnSounders" onclick="toggleScreen('sounders')">⚽ SOUNDERS</button>
-                <button class="opt-btn span-2" id="btnKraken" onclick="toggleScreen('kraken')">🏒 KRAKEN</button>
-            </div>
-
-            <h3>Playback Control</h3>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:28px;">
-                <button class="opt-btn" id="btnFreeze" onclick="toggleFreeze()">⏸ FREEZE</button>
-                <button class="opt-btn" onclick="skipScreen()">⏭ SKIP</button>
-            </div>
-
-            <hr style="border:none;border-top:2px solid #0f172a;margin-bottom:24px;">
-
-            <h3>Display Tuning</h3>
-            <div class="stepper-row">
-                <span class="stepper-label">Clock Time</span>
-                <div class="stepper">
-                    <button onclick="adjustDuration('idle',-5,'durIdleVal','durIdle')">▼</button>
-                    <div class="stepper-val-container"><span class="stepper-val" id="durIdleVal">10</span><span class="stepper-unit">s</span></div>
-                    <button onclick="adjustDuration('idle',5,'durIdleVal','durIdle')">▲</button>
+            <div class="col-heads"><span></span><span>Screen</span><span>On</span><span>Time</span><span>Pin</span></div>
+            <div class="screens">
+                <div class="screen-row" data-mode="idle" style="--c:#94a3b8">
+                    <span class="swatch"></span>
+                    <div class="screen-name">Clock<small>Time, date &amp; weather</small></div>
+                    <span class="chip on">Always</span>
+                    <div class="stepper"><button onclick="adjustDuration('idle',-5,'durIdleVal','durIdle')">−</button><span><span class="stepper-val" id="durIdleVal">10</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('idle',5,'durIdleVal','durIdle')">+</button></div>
+                    <button class="mode-btn" id="mode-Idle" onclick="setOverride('Idle')">Show</button>
                 </div>
-            </div>
-            <div class="stepper-row">
-                <span class="stepper-label">Bedtime Screen</span>
-                <div class="stepper">
-                    <button onclick="adjustDuration('bedtime',-5,'durBedVal','durBed')">▼</button>
-                    <div class="stepper-val-container"><span class="stepper-val" id="durBedVal">30</span><span class="stepper-unit">s</span></div>
-                    <button onclick="adjustDuration('bedtime',5,'durBedVal','durBed')">▲</button>
+                <div class="screen-row" data-mode="message" style="--c:#60a5fa">
+                    <span class="swatch"></span>
+                    <div class="screen-name">Message 1<small id="msg1Sub">—</small></div>
+                    <span class="chip" id="msg1Chip">Empty</span>
+                    <div class="stepper"><button onclick="adjustDuration('message',-5,'durMsgVal','durMsg')">−</button><span><span class="stepper-val" id="durMsgVal">30</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('message',5,'durMsgVal','durMsg')">+</button></div>
+                    <button class="mode-btn" id="mode-Message" onclick="setOverride('Message')">Show</button>
                 </div>
-            </div>
-            <div class="stepper-row">
-                <span class="stepper-label">Message Time</span>
-                <div class="stepper">
-                    <button onclick="adjustDuration('message',-5,'durMsgVal','durMsg')">▼</button>
-                    <div class="stepper-val-container"><span class="stepper-val" id="durMsgVal">30</span><span class="stepper-unit">s</span></div>
-                    <button onclick="adjustDuration('message',5,'durMsgVal','durMsg')">▲</button>
+                <div class="screen-row" data-mode="message2" style="--c:#a78bfa">
+                    <span class="swatch"></span>
+                    <div class="screen-name">Message 2<small id="msg2Sub">—</small></div>
+                    <span class="chip" id="msg2Chip">Empty</span>
+                    <div class="stepper"><button onclick="adjustDuration('message2',-5,'durMsg2Val','durMsg2')">−</button><span><span class="stepper-val" id="durMsg2Val">30</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('message2',5,'durMsg2Val','durMsg2')">+</button></div>
+                    <button class="mode-btn" id="mode-Message2" onclick="setOverride('Message2')">Show</button>
                 </div>
-            </div>
-            <div class="stepper-row">
-                <span class="stepper-label">Message 2 Time</span>
-                <div class="stepper">
-                    <button onclick="adjustDuration('message2',-5,'durMsg2Val','durMsg2')">▼</button>
-                    <div class="stepper-val-container"><span class="stepper-val" id="durMsg2Val">30</span><span class="stepper-unit">s</span></div>
-                    <button onclick="adjustDuration('message2',5,'durMsg2Val','durMsg2')">▲</button>
+                <div class="screen-row" data-mode="notification" style="--c:#f59e0b">
+                    <span class="swatch"></span>
+                    <div class="screen-name">Alerts<small>HA notifications</small></div>
+                    <span class="chip">When sent</span>
+                    <span class="note-cell">Msg 1 time</span>
+                    <button class="mode-btn" id="mode-Notification" onclick="setOverride('Notification')">Show</button>
                 </div>
-            </div>
-            <div class="stepper-row">
-                <span class="stepper-label">Mariners Time</span>
-                <div class="stepper">
-                    <button onclick="adjustDuration('mariners',-5,'durMarinersVal','durMariners')">▼</button>
-                    <div class="stepper-val-container"><span class="stepper-val" id="durMarinersVal">30</span><span class="stepper-unit">s</span></div>
-                    <button onclick="adjustDuration('mariners',5,'durMarinersVal','durMariners')">▲</button>
+                <div class="screen-row" data-mode="zags" style="--c:#c8102e">
+                    <span class="swatch"></span>
+                    <div class="screen-name">Gonzaga<small>Basketball</small></div>
+                    <button class="switch" id="btnZags" onclick="toggleScreen('zags')" aria-label="Zags in rotation"></button>
+                    <div class="stepper"><button onclick="adjustDuration('zags',-5,'durZagsVal','durZags')">−</button><span><span class="stepper-val" id="durZagsVal">30</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('zags',5,'durZagsVal','durZags')">+</button></div>
+                    <button class="mode-btn" id="mode-Zags" onclick="setOverride('Zags')">Show</button>
                 </div>
-            </div>
-            <div class="stepper-row">
-                <span class="stepper-label">Seahawks Time</span>
-                <div class="stepper">
-                    <button onclick="adjustDuration('seahawks',-5,'durSeahawksVal','durSeahawks')">▼</button>
-                    <div class="stepper-val-container"><span class="stepper-val" id="durSeahawksVal">30</span><span class="stepper-unit">s</span></div>
-                    <button onclick="adjustDuration('seahawks',5,'durSeahawksVal','durSeahawks')">▲</button>
+                <div class="screen-row" data-mode="mariners" style="--c:#14b8a6">
+                    <span class="swatch"></span>
+                    <div class="screen-name">Mariners<small>Baseball</small></div>
+                    <button class="switch" id="btnMariners" onclick="toggleScreen('mariners')" aria-label="Mariners in rotation"></button>
+                    <div class="stepper"><button onclick="adjustDuration('mariners',-5,'durMarinersVal','durMariners')">−</button><span><span class="stepper-val" id="durMarinersVal">30</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('mariners',5,'durMarinersVal','durMariners')">+</button></div>
+                    <button class="mode-btn" id="mode-Mariners" onclick="setOverride('Mariners')">Show</button>
                 </div>
-            </div>
-            <div class="stepper-row">
-                <span class="stepper-label">Sounders Time</span>
-                <div class="stepper">
-                    <button onclick="adjustDuration('sounders',-5,'durSoundersVal','durSounders')">▼</button>
-                    <div class="stepper-val-container"><span class="stepper-val" id="durSoundersVal">30</span><span class="stepper-unit">s</span></div>
-                    <button onclick="adjustDuration('sounders',5,'durSoundersVal','durSounders')">▲</button>
+                <div class="screen-row" data-mode="seahawks" style="--c:#69be28">
+                    <span class="swatch"></span>
+                    <div class="screen-name">Seahawks<small>Football</small></div>
+                    <button class="switch" id="btnSeahawks" onclick="toggleScreen('seahawks')" aria-label="Seahawks in rotation"></button>
+                    <div class="stepper"><button onclick="adjustDuration('seahawks',-5,'durSeahawksVal','durSeahawks')">−</button><span><span class="stepper-val" id="durSeahawksVal">30</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('seahawks',5,'durSeahawksVal','durSeahawks')">+</button></div>
+                    <button class="mode-btn" id="mode-Seahawks" onclick="setOverride('Seahawks')">Show</button>
                 </div>
-            </div>
-            <div class="stepper-row">
-                <span class="stepper-label">Kraken Time</span>
-                <div class="stepper">
-                    <button onclick="adjustDuration('kraken',-5,'durKrakenVal','durKraken')">▼</button>
-                    <div class="stepper-val-container"><span class="stepper-val" id="durKrakenVal">30</span><span class="stepper-unit">s</span></div>
-                    <button onclick="adjustDuration('kraken',5,'durKrakenVal','durKraken')">▲</button>
+                <div class="screen-row" data-mode="sounders" style="--c:#38bdf8">
+                    <span class="swatch"></span>
+                    <div class="screen-name">Sounders<small>Soccer</small></div>
+                    <button class="switch" id="btnSounders" onclick="toggleScreen('sounders')" aria-label="Sounders in rotation"></button>
+                    <div class="stepper"><button onclick="adjustDuration('sounders',-5,'durSoundersVal','durSounders')">−</button><span><span class="stepper-val" id="durSoundersVal">30</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('sounders',5,'durSoundersVal','durSounders')">+</button></div>
+                    <button class="mode-btn" id="mode-Sounders" onclick="setOverride('Sounders')">Show</button>
                 </div>
-            </div>
-            <div class="stepper-row" style="margin-bottom:24px;">
-                <span class="stepper-label">Zags Time</span>
-                <div class="stepper">
-                    <button onclick="adjustDuration('zags',-5,'durZagsVal','durZags')">▼</button>
-                    <div class="stepper-val-container"><span class="stepper-val" id="durZagsVal">30</span><span class="stepper-unit">s</span></div>
-                    <button onclick="adjustDuration('zags',5,'durZagsVal','durZags')">▲</button>
+                <div class="screen-row" data-mode="kraken" style="--c:#99d9d9">
+                    <span class="swatch"></span>
+                    <div class="screen-name">Kraken<small>Hockey</small></div>
+                    <button class="switch" id="btnKraken" onclick="toggleScreen('kraken')" aria-label="Kraken in rotation"></button>
+                    <div class="stepper"><button onclick="adjustDuration('kraken',-5,'durKrakenVal','durKraken')">−</button><span><span class="stepper-val" id="durKrakenVal">30</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('kraken',5,'durKrakenVal','durKraken')">+</button></div>
+                    <button class="mode-btn" id="mode-Kraken" onclick="setOverride('Kraken')">Show</button>
                 </div>
-            </div>
-
-            <div style="margin-bottom:24px;">
-                <label style="font-size:13px;color:#cbd5e1;font-weight:700;display:block;margin-bottom:12px;">Brightness: <span id="briVal" style="color:#3b82f6;">20</span>%</label>
-                <input type="range" id="briSlider" min="0" max="100" value="20" oninput="document.getElementById('briVal').innerText=this.value;" onchange="changeBrightness(this.value)" style="width:100%;cursor:pointer;">
-            </div>
-
-            <div class="hardware-controls">
-                <button class="btn-main" id="pwrOnBtn"  onclick="setPower(true)"  style="margin-top:0;background:#064e3b;color:#6ee7b7;">ON</button>
-                <button class="btn-main" id="pwrOffBtn" onclick="setPower(false)" style="margin-top:0;background:#450a0a;color:#f87171;">OFF</button>
-                <button class="btn-main btn-reboot" onclick="rebootESP()">⚡ REBOOT ESP32</button>
+                <div class="screen-row" data-mode="bedtime" style="--c:#8b5cf6">
+                    <span class="swatch"></span>
+                    <div class="screen-name">Bedtime<small>Toddler routine</small></div>
+                    <span class="chip">Routine</span>
+                    <div class="stepper"><button onclick="adjustDuration('bedtime',-5,'durBedVal','durBed')">−</button><span><span class="stepper-val" id="durBedVal">30</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('bedtime',5,'durBedVal','durBed')">+</button></div>
+                    <button class="mode-btn" id="mode-Bedtime" onclick="setOverride('Bedtime')">Show</button>
+                </div>
             </div>
         </div>
+    </div>
+
+    <div class="footer">
+        <span class="hint">Changes go to Home Assistant, which relays them to the panel over MQTT.</span>
+        <button class="btn btn-reboot" onclick="rebootESP()">⚡ Reboot panel</button>
     </div>
 </div>
 <script src="js/ha-config.js?v=20261005"></script>
@@ -515,24 +596,11 @@ async function sync() {
             hs.marinersTarget=new Date(marinersDay.state.replace(' ','T')).getTime();
 
         // Update UI
-        document.getElementById('liveTextDisplay').innerText=liveMsg(msgTarget).text||'(Default Screens)';
+        hs.bri = parseFloat(bri?.state);
+        document.getElementById('liveTextDisplay').innerText=liveMsg(msgTarget).text||'(nothing set)';
         document.getElementById('syncDot').classList.add('on');
-        document.getElementById('syncText').innerText='Connected';
-        document.getElementById('pwrOnBtn').style.opacity =hs.power==='on' ?'1':'0.4';
-        document.getElementById('pwrOffBtn').style.opacity=hs.power==='off'?'1':'0.4';
-
-        document.querySelectorAll('.mode-grid .opt-btn').forEach(b=>b.classList.remove('override-active'));
-        document.getElementById(`mode-${hs.override}`)?.classList.add('override-active');
-
-        const fb=document.getElementById('btnFreeze');
-        fb.classList.toggle('freeze-active',hs.isFrozen);
-        fb.innerText=hs.isFrozen?'▶️ UNFREEZE':'⏸ FREEZE';
-
-        document.getElementById('btnZags').classList.toggle('screen-active',hs.zagsOn);
-        document.getElementById('btnMariners').classList.toggle('screen-active',hs.marinersOn);
-        document.getElementById('btnSeahawks').classList.toggle('screen-active',hs.seahawksOn);
-        document.getElementById('btnSounders').classList.toggle('screen-active',hs.soundersOn);
-        document.getElementById('btnKraken').classList.toggle('screen-active',hs.krakenOn);
+        document.getElementById('syncText').innerText='Connected to Home Assistant';
+        paintControls();
 
         if(document.activeElement!==document.getElementById('briSlider')){
             document.getElementById('briSlider').value=bri?.state||20;
@@ -980,7 +1048,44 @@ function selectSize(n){document.querySelectorAll('.option-grid .opt-btn').forEac
 function updatePreview(){draft.active=true;draft.text=document.getElementById('msgInput').value;draft.color=hexToRgb(document.getElementById('colorPicker').value);document.getElementById('rV').innerText=draft.color.r;document.getElementById('gV').innerText=draft.color.g;document.getElementById('bV').innerText=draft.color.b;draw();}
 function draftColor(r,g,b){const h='#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);document.getElementById('colorPicker').value=h;updatePreview();}
 function loadFromHardware(){const m=liveMsg(msgTarget);document.getElementById('msgInput').value=m.text;const h='#'+((1<<24)+(m.color.r<<16)+(m.color.g<<8)+m.color.b).toString(16).slice(1);document.getElementById('colorPicker').value=h;selectImage(m.image);selectSize(m.size);updatePreview();}
-function selectTarget(n){msgTarget=n;document.querySelectorAll('.target-grid .opt-btn').forEach(e=>e.classList.remove('selected'));document.getElementById(`target-${n}`)?.classList.add('selected');sync();}
+function selectTarget(n){msgTarget=n;document.querySelectorAll('.target-grid button').forEach(e=>e.classList.remove('active'));document.getElementById(`target-${n}`)?.classList.add('active');sync();}
+
+// Reflect hs (panel + HA state) in the controls. Called after every sync and
+// optimistically after a tap, so the UI never waits for the next poll.
+const SCREEN_NAMES={idle:'Clock',message:'Message 1',message2:'Message 2',notification:'Alert',zags:'Gonzaga',
+    mariners:'Mariners',seahawks:'Seahawks',sounders:'Sounders',kraken:'Kraken',bedtime:'Bedtime'};
+function paintControls() {
+    const on=hs.power==='on';
+    document.getElementById('pwrOnBtn').className =on?'active is-on':'';
+    document.getElementById('pwrOffBtn').className=on?'':'active is-off';
+
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById(`mode-${hs.override}`)?.classList.add('active');
+    const pinned=hs.override!=='Auto';
+    const pinnedName=SCREEN_NAMES[hs.override.toLowerCase()]||hs.override;
+    document.getElementById('autoText').innerHTML=pinned
+        ? `<b>Pinned to ${pinnedName}</b> — press Auto to resume rotation`
+        : `<b>Auto rotation</b> — cycling through active screens`;
+
+    const fb=document.getElementById('btnFreeze');
+    fb.classList.toggle('frozen',hs.isFrozen);
+    fb.textContent=hs.isFrozen?'▶ Unfreeze':'⏸ Freeze';
+
+    const sw={btnZags:hs.zagsOn,btnMariners:hs.marinersOn,btnSeahawks:hs.seahawksOn,btnSounders:hs.soundersOn,btnKraken:hs.krakenOn};
+    for(const [id,v] of Object.entries(sw)){const el=document.getElementById(id);el.classList.toggle('on',v);el.setAttribute('aria-pressed',v);}
+
+    [[1,hs.text],[2,hs.msg2.text]].forEach(([n,t])=>{
+        const chip=document.getElementById(`msg${n}Chip`);
+        chip.textContent=t?'Active':'Empty'; chip.classList.toggle('on',!!t);
+        document.getElementById(`msg${n}Sub`).textContent=t||'Nothing set';
+    });
+
+    const dark=on&&hs.bri===0;
+    document.getElementById('nowShowing').textContent=!on?'Panel off':dark?'Dark':(SCREEN_NAMES[hs.mode]||hs.mode);
+    document.getElementById('nowSub').textContent=dark?`Brightness 0 · ${SCREEN_NAMES[hs.mode]||hs.mode} underneath`
+        :pinned?`Pinned to ${pinnedName}`:(hs.isFrozen?'Rotation frozen':'Auto rotation');
+    document.querySelectorAll('.screen-row').forEach(r=>r.classList.toggle('showing',on&&r.dataset.mode===hs.mode));
+}
 function hexToRgb(h){return{r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)};}
 
 async function sendToPanel() {
@@ -1018,8 +1123,7 @@ async function clearPanel() {
 async function setOverride(mode) {
     hs.override=mode;
     if(mode!=='Auto') hs.mode=mode.toLowerCase();
-    document.querySelectorAll('.mode-grid .opt-btn').forEach(b=>b.classList.remove('override-active'));
-    document.getElementById(`mode-${mode}`)?.classList.add('override-active');
+    paintControls();
     draw();
     await callService('input_select','select_option',{entity_id:HA.override,option:mode});
     setTimeout(sync,600);
@@ -1042,7 +1146,7 @@ async function toggleScreen(screen) {
     if(!entity) return;
     const turningOn=!states[screen];
     hs[screen+'On']=turningOn;
-    document.getElementById('btn'+screen[0].toUpperCase()+screen.slice(1))?.classList.toggle('screen-active',turningOn);
+    paintControls();
     // The panel jumps straight to a screen that was just switched on
     if(turningOn && hs.override==='Auto'){ hs.mode=screen; draw(); }
     await callService('input_boolean',turningOn?'turn_on':'turn_off',{entity_id:entity});
