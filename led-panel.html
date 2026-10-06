@@ -103,6 +103,9 @@
         .auto-bar .txt { font-size: 13px; color: var(--muted); }
         .auto-bar .txt b { color: var(--text); }
         .screens { display: flex; flex-direction: column; }
+        .stack { display: grid; gap: 16px; align-content: start; }
+        .fx-row { display: grid; grid-template-columns: minmax(0, 1fr) 42px; align-items: center; gap: 12px; padding: 9px 4px; border-top: 1px solid var(--line); }
+        .fx-row .screen-name { white-space: normal; }
         .screen-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) 70px 118px 58px; align-items: center; gap: 12px; padding: 9px 4px; border-top: 1px solid var(--line); }
         .screen-row:first-child { border-top: 0; }
         .screen-row .swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--c, var(--muted)); }
@@ -294,7 +297,8 @@
             </div>
         </div>
 
-        <!-- RIGHT: every screen in one list -->
+        <!-- RIGHT: every screen in one list, effect switches under it -->
+        <div class="stack">
         <div class="card">
             <div class="card-head"><h2>Screens</h2><span class="hint">Rotation · time on screen · show now</span></div>
             <div class="auto-bar">
@@ -374,6 +378,32 @@
                     <button class="mode-btn" id="mode-Bedtime" onclick="setOverride('Bedtime')">Show</button>
                 </div>
             </div>
+        </div>
+
+        <!-- Effects: quiet a flourish without removing it -->
+        <div class="card">
+            <div class="card-head"><h2>Effects</h2><span class="hint">Quiet a flourish without removing it</span></div>
+            <div class="fx-row">
+                <div class="screen-name">Score celebrations<small>TOUCHDOWN / FIELD GOAL / GOAL! takeover when our team scores</small></div>
+                <button class="switch" id="fx-celebrations" onclick="toggleFx('celebrations')" aria-label="Score celebrations"></button>
+            </div>
+            <div class="fx-row">
+                <div class="screen-name">Weather animation<small>Moving weather icons on the clock · off holds them still</small></div>
+                <button class="switch" id="fx-weather_animation" onclick="toggleFx('weather_animation')" aria-label="Weather animation"></button>
+            </div>
+            <div class="fx-row">
+                <div class="screen-name">High / low cycling<small>Clock fades between condition and today's high/low · off shows the condition</small></div>
+                <button class="switch" id="fx-high_low" onclick="toggleFx('high_low')" aria-label="High and low cycling"></button>
+            </div>
+            <div class="fx-row">
+                <div class="screen-name">Message corner glow<small>Pulsing corners on messages · off keeps them steady</small></div>
+                <button class="switch" id="fx-message_glow" onclick="toggleFx('message_glow')" aria-label="Message corner glow"></button>
+            </div>
+            <div class="fx-row">
+                <div class="screen-name">Alert border flash<small>Flashing border on pop-up alerts · off keeps it steady</small></div>
+                <button class="switch" id="fx-alert_flash" onclick="toggleFx('alert_flash')" aria-label="Alert border flash"></button>
+            </div>
+        </div>
         </div>
     </div>
 
@@ -470,6 +500,15 @@ const HA = {
     dur_seahawks: 'input_number.panel_duration_seahawks',
     dur_sounders: 'input_number.panel_duration_sounders',
     dur_kraken:   'input_number.panel_duration_kraken',
+
+    // Effect switches → house/panel/fx/* via the "Panel MQTT — Effects" automation
+    fx: {
+        celebrations:      'input_boolean.panel_fx_celebrations',
+        weather_animation: 'input_boolean.panel_fx_weather_animation',
+        high_low:          'input_boolean.panel_fx_high_low_cycle',
+        message_glow:      'input_boolean.panel_fx_message_glow',
+        alert_flash:       'input_boolean.panel_fx_alert_flash',
+    },
 
     // Data
     zags_data:     'sensor.zags',
@@ -574,6 +613,10 @@ async function sync() {
                           color:{r:parseInt(r2?.state)||255,g:parseInt(g2?.state)||255,b:parseInt(b2?.state)||255},
                           image:img2?.state||'none', size:sz2?.state||'medium'};
         hs.durMsg2     = parseFloat(dM2?.state)||30;
+
+        const fxKeys=Object.keys(HA.fx);
+        const fxStates=await Promise.all(fxKeys.map(k=>fetchHA(HA.fx[k])));
+        hs.fx=Object.fromEntries(fxKeys.map((k,i)=>[k,fxStates[i]?.state!=='off']));
         hs.override    = ov?.state||'Auto';
         hs.isFrozen    = frz?.state==='on';
         hs.zagsOn      = zagsScr?.state==='on';
@@ -1143,6 +1186,7 @@ function paintControls() {
 
     const sw={btnZags:hs.zagsOn,btnMariners:hs.marinersOn,btnSeahawks:hs.seahawksOn,btnSounders:hs.soundersOn,btnKraken:hs.krakenOn};
     for(const [id,v] of Object.entries(sw)){const el=document.getElementById(id);el.classList.toggle('on',v);el.setAttribute('aria-pressed',v);}
+    for(const [k,v] of Object.entries(hs.fx||{})){const el=document.getElementById(`fx-${k}`);if(el){el.classList.toggle('on',v);el.setAttribute('aria-pressed',v);}}
 
     [[1,hs.text],[2,hs.msg2.text]].forEach(([n,t])=>{
         const chip=document.getElementById(`msg${n}Chip`);
@@ -1219,6 +1263,17 @@ async function toggleScreen(screen) {
     paintControls();
     // The panel jumps straight to a screen that was just switched on
     if(turningOn && hs.override==='Auto'){ hs.mode=screen; draw(); }
+    await callService('input_boolean',turningOn?'turn_on':'turn_off',{entity_id:entity});
+    setTimeout(sync,600);
+}
+
+async function toggleFx(key) {
+    const entity=HA.fx[key];
+    if(!entity) return;
+    hs.fx=hs.fx||{};
+    const turningOn=!hs.fx[key];
+    hs.fx[key]=turningOn;
+    paintControls();
     await callService('input_boolean',turningOn?'turn_on':'turn_off',{entity_id:entity});
     setTimeout(sync,600);
 }

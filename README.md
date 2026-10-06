@@ -52,6 +52,7 @@ A full control panel and live mirror for the 128×64 HUB75 LED matrix scoreboard
 - Freeze/unfreeze cycle, skip screen
 - Per-screen duration steppers (Clock, Bedtime, Message, Mariners, Zags) — 5–120 second range
 - Brightness slider
+- Effects card: switch off score celebrations, weather icon animation, high/low cycling, message corner glow or the alert border flash without removing them
 - Panel power on/off
 - ESP32 reboot button
 - Syncs all state from HA helpers and MQTT sensors on load and every 2.5 seconds
@@ -68,6 +69,7 @@ A full control panel and live mirror for the 128×64 HUB75 LED matrix scoreboard
 - `input_number.panel_duration_message/zags/idle/bedtime/mariners`
 - `sensor.zags`, `weather.forecast_home`, `sensor.weather_temperature`
 - `input_datetime.mariners_opening_day`
+- `input_boolean.panel_fx_celebrations|weather_animation|high_low_cycle|message_glow|alert_flash` — Effects card; the HA automation "Panel MQTT — Effects" relays them to `house/panel/fx/*`
 
 **MQTT Topics Published:**
 - `house/panel/message/red|green|blue|size|image|text`
