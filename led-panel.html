@@ -129,7 +129,8 @@
         .col-heads span:nth-child(2) { text-align: left; }
 
         /* Pop-up alerts */
-        .alerts-card { margin-top: 16px; }
+        .tabs { max-width: 360px; margin-bottom: 16px; }
+        .tab-pane[hidden] { display: none; }
         .alert-send { display: grid; grid-template-columns: minmax(0, 1fr) auto 118px auto auto; gap: 10px; align-items: center; }
         .alert-send .color-custom { margin-left: 0; }
         .alert-send .btn-primary { padding: 10px 18px; }
@@ -215,7 +216,12 @@
         </div>
     </div>
 
-    <div class="main">
+    <div class="seg tabs">
+        <button id="tab-panel"  onclick="showTab('panel')">🖥 Panel</button>
+        <button id="tab-alerts" onclick="showTab('alerts')">🚨 Alerts</button>
+    </div>
+
+    <div class="main tab-pane" data-tab="panel">
         <!-- LEFT: Message Designer -->
         <div class="card">
             <div class="card-head"><h2>Message Designer</h2><span class="hint">Two independent message screens</span></div>
@@ -367,7 +373,7 @@
     </div>
 
     <!-- Pop-up alerts: interrupt any screen for a few seconds -->
-    <div class="card alerts-card">
+    <div class="card tab-pane" data-tab="alerts">
         <div class="card-head"><h2>Pop-up Alert</h2><span class="hint">Interrupts any screen · flashing border · dark panel stays dark</span></div>
         <h3 style="margin-top:0;">Send now</h3>
         <div class="alert-send">
@@ -667,7 +673,7 @@ async function sync() {
             document.getElementById(`size-${live.size}`)?.classList.add('selected');
         }
         draw();
-        syncAlertRules();
+        if(!document.querySelector('.tab-pane[data-tab="alerts"]').hidden) syncAlertRules();
     } catch(e) {
         document.getElementById('syncDot').classList.remove('on');
         document.getElementById('syncText').innerText='Syncing...';
@@ -1251,7 +1257,10 @@ async function clearAlert() {
 // Automatic alerts: each HA automation reads these four helpers when it fires.
 // To add one: create panel_alert_<key>_{enabled,text,color,seconds} in HA, add a line here.
 const ALERT_RULES = [
-    {key:'doorbell', name:'🔔 Doorbell', fallback:'DOORBELL'},
+    {key:'doorbell',   name:'🔔 Doorbell',      fallback:'DOORBELL'},
+    {key:'gate',       name:'🚪 Backyard gate', fallback:'BACKYARD GATE OPEN'},
+    {key:'bike_shed',  name:'🚲 Bike shed',     fallback:'BIKE SHED OPEN'},
+    {key:'metal_shed', name:'🏚️ Metal shed',    fallback:'METAL SHED OPEN'},
 ];
 const ruleIds=k=>({enabled:`input_boolean.panel_alert_${k}_enabled`,text:`input_text.panel_alert_${k}_text`,
                    color:`input_text.panel_alert_${k}_color`,seconds:`input_number.panel_alert_${k}_seconds`});
@@ -1318,6 +1327,15 @@ async function testRule(k) {
     setTimeout(sync,600);
 }
 
+// Panel / Alerts tabs. The URL hash keeps the tab, so .../led-panel.html#alerts can be bookmarked.
+function showTab(t) {
+    if(t!=='alerts') t='panel';
+    document.querySelectorAll('.tab-pane').forEach(p=>p.hidden=p.dataset.tab!==t);
+    document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.id===`tab-${t}`));
+    history.replaceState(null,'',t==='alerts'?'#alerts':location.pathname+location.search);
+    if(t==='alerts') syncAlertRules();
+}
+
 async function rebootESP() {
     if(confirm('Reboot ESP32?')) await mqttPublish('house/panel/reboot','1');
 }
@@ -1328,6 +1346,7 @@ function toggleSync(on) {
 }
 
 buildAlertRules();
+showTab(location.hash==='#alerts'?'alerts':'panel');
 toggleSync(true);
 draw();
 </script>
