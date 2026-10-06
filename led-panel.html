@@ -803,46 +803,76 @@ function renderZags(ctx) {
     ctx.fillStyle='#fff';ctx.font='14px monospace';ctx.fillText(hs.zags.teamScore,52,44);
 }
 
-// Same reading of sensor.alexa_pup_next_timer as the HA automation: state is
-// the finish time, sorted_active[0] the next timer (a list, or JSON of one).
+// Same reading of sensor.alexa_pup_next_timer as the HA automation: the state
+// is the first finish time, later ones come from sorted_active's triggerTime
+// (a list, or JSON of one; entries may be [id, timer] pairs).
 function parseAlexaTimer(e) {
-    const ends=Date.parse(e?.state);
-    if(isNaN(ends)) return null;
+    const first=Date.parse(e?.state);
+    if(isNaN(first)) return null;
     let act=e.attributes?.sorted_active;
     if(typeof act==='string'){try{act=JSON.parse(act);}catch{act=[];}}
-    let t=(act||[])[0]||{};
-    if(Array.isArray(t)) t=t[1]||{};
-    return {ends, total:Math.round((t.originalDurationInMillis||0)/1000),
-            count:parseInt(e.attributes?.total_active)||1, label:t.timerLabel||''};
+    const list=[];
+    for(let t of act||[]){
+        if(Array.isArray(t)) t=t[1]||{};
+        if((t.status||'ON')!=='ON') continue;
+        const ends=list.length?t.triggerTime:first;
+        if(ends) list.push({ends, total:Math.round((t.originalDurationInMillis||0)/1000), label:t.timerLabel||''});
+    }
+    if(!list.length) list.push({ends:first,total:0,label:''});
+    return {list:list.slice(0,3), count:Math.max(parseInt(e.attributes?.total_active)||0,list.length)};
 }
 
-// Alexa timer — mirrors the firmware card: header bar with the label, a
-// stopwatch whose wedge shrinks with the time left, countdown and finish time
+// Alexa timer — mirrors the firmware: one timer fills the card, two or more
+// share it as rows. A finished timer stays 15s, as on the panel.
 function renderTimer(ctx) {
-    const t=hs.timer;
-    if(!t){renderIdle(ctx);return;}
-    const rem=Math.ceil((t.ends-Date.now())/1000), done=rem<=0;
+    const T=hs.timer;
+    const vis=(T?.list||[]).filter(t=>Date.now()<t.ends+15000);
+    if(!vis.length){renderIdle(ctx);return;}
     const CYAN='#00bee6', GOLD='#ffc428', GREY='#969696';
-    let title=(t.label||'TIMER').toUpperCase().substring(0,t.count>1?15:20);
-    ctx.fillStyle='#002634';ctx.fillRect(0,0,128,9);
-    ctx.fillStyle=done?GOLD:CYAN;ctx.fillRect(0,9,128,1);
-    ctx.textAlign='center';ctx.textBaseline='top';ctx.font='bold 7px monospace';
-    ctx.fillStyle=done?GOLD:'#fff';ctx.fillText(title,64,1);
-    if(t.count>1){ctx.textAlign='right';ctx.fillStyle=GOLD;ctx.fillText(`+${t.count-1}`,126,1);}
+    const total=Math.max(T.count-(T.list.length-vis.length),vis.length);
+    const remOf=t=>Math.ceil((t.ends-Date.now())/1000);
+    const fmt=rem=>{rem=Math.max(rem,0);const h=Math.floor(rem/3600),m=Math.floor(rem/60)%60,s=rem%60;
+        return h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`;};
+    const at=t=>new Date(t.ends).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    const header=(text,done,more)=>{
+        ctx.fillStyle='#002634';ctx.fillRect(0,0,128,9);
+        ctx.fillStyle=done?GOLD:CYAN;ctx.fillRect(0,9,128,1);
+        ctx.textAlign='center';ctx.textBaseline='top';ctx.font='bold 7px monospace';
+        ctx.fillStyle=done?GOLD:'#fff';ctx.fillText(text.toUpperCase().substring(0,more>0?15:20),64,1);
+        if(more>0){ctx.textAlign='right';ctx.fillStyle=GOLD;ctx.fillText(`+${more}`,126,1);}
+    };
+    const watch=(cx,cy,r,t)=>{
+        const rem=remOf(t), done=rem<=0;
+        const frac=done?1:Math.min(1,rem/Math.max(t.total,rem));
+        const ring=done?GOLD:GREY, fill=done||rem<=10?GOLD:CYAN, cw=Math.floor(r/5), bs=r>=12?3:2;
+        ctx.fillStyle=ring;ctx.fillRect(cx-cw,cy-r-4,2*cw+1,2);ctx.fillRect(cx-1,cy-r-2,3,2);
+        ctx.fillRect(cx+Math.floor(r*0.7),cy-Math.floor(r*0.7)-bs+1,bs,bs);
+        ctx.strokeStyle=ring;ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx+0.5,cy+0.5,r,0,2*Math.PI);ctx.stroke();
+        ctx.fillStyle=fill;ctx.beginPath();ctx.moveTo(cx+0.5,cy+0.5);
+        ctx.arc(cx+0.5,cy+0.5,r-2,-Math.PI/2,-Math.PI/2+frac*2*Math.PI);ctx.closePath();ctx.fill();
+    };
 
-    const total=Math.max(t.total,rem), frac=done?1:Math.min(1,rem/total);
-    const ring=done?GOLD:GREY, fill=done||rem<=10?GOLD:CYAN, cx=22, cy=38, r=15;
-    ctx.fillStyle=ring;ctx.fillRect(cx-3,cy-r-4,7,2);ctx.fillRect(cx-1,cy-r-2,3,2);ctx.fillRect(cx+10,cy-12,3,3);
-    ctx.strokeStyle=ring;ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx+0.5,cy+0.5,r,0,2*Math.PI);ctx.stroke();
-    if(frac>0){ctx.fillStyle=fill;ctx.beginPath();ctx.moveTo(cx+0.5,cy+0.5);
-        ctx.arc(cx+0.5,cy+0.5,r-2,-Math.PI/2,-Math.PI/2+frac*2*Math.PI);ctx.closePath();ctx.fill();}
-
-    const at=new Date(t.ends).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-    const h=Math.floor(Math.max(rem,0)/3600), m=Math.floor(Math.max(rem,0)/60)%60, s=Math.max(rem,0)%60;
-    const txt=h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`;
-    ctx.textAlign='left';ctx.font='7px monospace';ctx.fillStyle=GREY;ctx.fillText(done?'FINISHED':'REMAINING',46,16);
-    ctx.fillStyle='#fff';ctx.font=`bold ${h?16:20}px sans-serif`;ctx.textBaseline='alphabetic';ctx.fillText(txt,45,41);
-    ctx.textBaseline='top';ctx.font='7px monospace';ctx.fillStyle=done?GOLD:GREY;ctx.fillText(done?`at ${at}`:`ends ${at}`,46,49);
+    if(vis.length===1){
+        const t=vis[0], rem=remOf(t), done=rem<=0, txt=fmt(rem);
+        header(t.label||'TIMER',done,total-1);
+        watch(22,38,15,t);
+        ctx.textAlign='left';ctx.textBaseline='top';ctx.font='7px monospace';
+        ctx.fillStyle=GREY;ctx.fillText(done?'FINISHED':'REMAINING',46,16);
+        ctx.fillStyle='#fff';ctx.font=`bold ${txt.length>5?16:20}px sans-serif`;ctx.textBaseline='alphabetic';ctx.fillText(txt,45,41);
+        ctx.textBaseline='top';ctx.font='7px monospace';ctx.fillStyle=done?GOLD:GREY;ctx.fillText(done?`at ${at(t)}`:`ends ${at(t)}`,46,49);
+        return;
+    }
+    header(`${total} TIMERS`,remOf(vis[0])<=0,total-2);
+    vis.slice(0,2).forEach((t,i)=>{
+        const y=i?38:11, rem=remOf(t), done=rem<=0;
+        watch(12,y+14,9,t);
+        ctx.textAlign='right';ctx.textBaseline='alphabetic';ctx.fillStyle='#fff';ctx.font='bold 14px sans-serif';
+        ctx.fillText(fmt(rem),126,y+20);
+        ctx.textAlign='left';ctx.textBaseline='top';ctx.font='7px monospace';
+        ctx.fillStyle=done?GOLD:'#fff';ctx.fillText((t.label||`TIMER ${i+1}`).toUpperCase().substring(0,8),26,y+5);
+        ctx.fillStyle=done?GOLD:GREY;ctx.fillText(done?'DONE':at(t),26,y+15);
+    });
+    ctx.fillStyle='#282828';ctx.fillRect(4,37,120,1);
 }
 
 function renderBedtime(ctx) {
