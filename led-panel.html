@@ -816,32 +816,33 @@ function parseAlexaTimer(e) {
             count:parseInt(e.attributes?.total_active)||1, label:t.timerLabel||''};
 }
 
-// Alexa timer — mirrors the firmware: header, big countdown, finish time, bar
+// Alexa timer — mirrors the firmware card: header bar with the label, a
+// stopwatch whose wedge shrinks with the time left, countdown and finish time
 function renderTimer(ctx) {
     const t=hs.timer;
     if(!t){renderIdle(ctx);return;}
-    const rem=Math.ceil((t.ends-Date.now())/1000);
-    ctx.fillStyle='#00232d';ctx.fillRect(0,0,128,10);
-    ctx.textAlign='center';ctx.textBaseline='top';ctx.font='bold 7px monospace';ctx.fillStyle='#78dce6';
-    ctx.fillText((t.label?`${t.label} timer`:'TIMER').toUpperCase().substring(0,t.count>1?15:20),64,2);
-    if(t.count>1){ctx.textAlign='right';ctx.fillStyle='#ffc83c';ctx.fillText(`+${t.count-1}`,126,2);ctx.textAlign='center';}
+    const rem=Math.ceil((t.ends-Date.now())/1000), done=rem<=0;
+    const CYAN='#00bee6', GOLD='#ffc428', GREY='#969696';
+    let title=(t.label||'TIMER').toUpperCase().substring(0,t.count>1?15:20);
+    ctx.fillStyle='#002634';ctx.fillRect(0,0,128,9);
+    ctx.fillStyle=done?GOLD:CYAN;ctx.fillRect(0,9,128,1);
+    ctx.textAlign='center';ctx.textBaseline='top';ctx.font='bold 7px monospace';
+    ctx.fillStyle=done?GOLD:'#fff';ctx.fillText(title,64,1);
+    if(t.count>1){ctx.textAlign='right';ctx.fillStyle=GOLD;ctx.fillText(`+${t.count-1}`,126,1);}
+
+    const total=Math.max(t.total,rem), frac=done?1:Math.min(1,rem/total);
+    const ring=done?GOLD:GREY, fill=done||rem<=10?GOLD:CYAN, cx=22, cy=38, r=15;
+    ctx.fillStyle=ring;ctx.fillRect(cx-3,cy-r-4,7,2);ctx.fillRect(cx-1,cy-r-2,3,2);ctx.fillRect(cx+10,cy-12,3,3);
+    ctx.strokeStyle=ring;ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx+0.5,cy+0.5,r,0,2*Math.PI);ctx.stroke();
+    if(frac>0){ctx.fillStyle=fill;ctx.beginPath();ctx.moveTo(cx+0.5,cy+0.5);
+        ctx.arc(cx+0.5,cy+0.5,r-2,-Math.PI/2,-Math.PI/2+frac*2*Math.PI);ctx.closePath();ctx.fill();}
+
     const at=new Date(t.ends).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-    if(rem<=0){
-        const flash=Math.floor(Date.now()/400)%2===0;
-        ctx.fillStyle=flash?'#ff2814':'#fff';ctx.font='bold 16px sans-serif';ctx.textBaseline='middle';
-        ctx.fillText("TIME'S UP",64,30);
-        ctx.fillStyle='#d7d7d7';ctx.font='7px monospace';ctx.fillText(`rang at ${at}`,64,48);
-        if(flash||hs.fx?.alert_flash===false){ctx.strokeStyle='#ff2814';ctx.lineWidth=2;ctx.strokeRect(1,1,126,62);}
-        return;
-    }
-    const total=Math.max(t.total,rem), frac=Math.min(1,rem/total);
-    const col=rem<=10?'#ff2814':frac>0.5?'#50ff50':frac>0.25?'#ffa000':'#ff3c00';
-    const h=Math.floor(rem/3600), m=Math.floor(rem/60)%60, s=rem%60;
+    const h=Math.floor(Math.max(rem,0)/3600), m=Math.floor(Math.max(rem,0)/60)%60, s=Math.max(rem,0)%60;
     const txt=h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`;
-    ctx.fillStyle=col;ctx.font=`bold ${h?22:30}px monospace`;ctx.textBaseline='middle';ctx.fillText(txt,64,29);
-    ctx.fillStyle='#d7d7d7';ctx.font='7px monospace';ctx.textBaseline='top';ctx.fillText(`ends ${at}`,64,48);
-    ctx.fillStyle='#121212';ctx.fillRect(0,60,128,4);
-    ctx.fillStyle=col;ctx.fillRect(0,60,Math.round(128*frac),4);
+    ctx.textAlign='left';ctx.font='7px monospace';ctx.fillStyle=GREY;ctx.fillText(done?'FINISHED':'REMAINING',46,16);
+    ctx.fillStyle='#fff';ctx.font=`bold ${h?16:20}px sans-serif`;ctx.textBaseline='alphabetic';ctx.fillText(txt,45,41);
+    ctx.textBaseline='top';ctx.font='7px monospace';ctx.fillStyle=done?GOLD:GREY;ctx.fillText(done?`at ${at}`:`ends ${at}`,46,49);
 }
 
 function renderBedtime(ctx) {
