@@ -56,6 +56,10 @@
         .seg button.active { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
         .seg button.active.is-on { color: #86efac; }
         .seg button.active.is-off { color: #fca5a5; }
+        .seg.four { grid-template-columns: repeat(4, 1fr); }
+        .timer-dur { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+        .timer-dur[hidden] { display: none; }
+        .timer-dur .stepper { width: 118px; }
         .bri-row { display: flex; justify-content: space-between; font-size: 13px; font-weight: 650; color: var(--muted); margin-bottom: 6px; }
         .bri-row b { color: var(--text); }
         input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
@@ -404,6 +408,22 @@
                 <button class="switch" id="fx-alert_flash" onclick="toggleFx('alert_flash')" aria-label="Alert border flash"></button>
             </div>
         </div>
+
+        <!-- Alexa timer: how much of the panel a running timer gets -->
+        <div class="card">
+            <div class="card-head"><h2>Alexa timer</h2><span class="hint">Timers on Pup</span></div>
+            <div class="seg four" role="group" aria-label="Timer priority">
+                <button id="tmode-Takeover" onclick="setTimerMode('Takeover')">Takeover</button>
+                <button id="tmode-Rotation" onclick="setTimerMode('Rotation')">Rotation</button>
+                <button id="tmode-Corner"   onclick="setTimerMode('Corner')">Corner</button>
+                <button id="tmode-Off"      onclick="setTimerMode('Off')">Off</button>
+            </div>
+            <div class="sub" id="timerModeSub" style="margin-top:8px;font-size:12px;color:var(--faint);"></div>
+            <div class="timer-dur" id="timerDurRow" hidden>
+                <div class="screen-name">Time on screen<small>Its turn in the rotation</small></div>
+                <div class="stepper"><button onclick="adjustDuration('timer',-5,'durTimerVal','durTimer')">−</button><span><span class="stepper-val" id="durTimerVal">20</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('timer',5,'durTimerVal','durTimer')">+</button></div>
+            </div>
+        </div>
         </div>
     </div>
 
@@ -520,6 +540,9 @@ const HA = {
     mariners_day:  'input_datetime.mariners_opening_day',
     // Alexa timer: "Panel MQTT — Alexa timer" feeds the panel from the same sensor
     alexa_timer:   'sensor.alexa_pup_next_timer',
+    // How the panel treats a running timer ("Panel MQTT — Timer settings")
+    timer_mode:    'input_select.panel_timer_mode',
+    dur_timer:     'input_number.panel_duration_timer',
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -529,7 +552,8 @@ let hs = {
     mode:'idle', power:'on', override:'Auto', isFrozen:false,
     zagsOn:false, marinersOn:false, seahawksOn:false, soundersOn:false, krakenOn:false,
     msg2:{text:'', color:{r:255,g:255,b:255}, image:'none', size:'medium'},
-    durMsg:30, durMsg2:30, durZags:30, durIdle:10, durBed:30, durMariners:30, durSeahawks:30, durSounders:30, durKraken:30,
+    durMsg:30, durMsg2:30, durZags:30, durIdle:10, durBed:30, durMariners:30, durSeahawks:30, durSounders:30, durKraken:30, durTimer:20,
+    timerMode:'Takeover',
     weather:{temp:0,condition:''},
     zags:{teamScore:0,oppScore:0,opponent:'TBD'},
     seahawks:{state:'',teamScore:0,oppScore:0,oppAbbr:'',oppName:'',quarter:0,clock:'',
@@ -599,12 +623,15 @@ async function sync() {
             fetchHA(HA.dur_mariners),fetchHA(HA.dur_seahawks),fetchHA(HA.dur_sounders),fetchHA(HA.dur_kraken),
             fetchHA(HA.mariners_day)
         ]);
-        const [msg2,r2,g2,b2,img2,sz2,dM2,tmr] = await Promise.all([
+        const [msg2,r2,g2,b2,img2,sz2,dM2,tmr,tMode,dT] = await Promise.all([
             fetchHA(HA.msg2_input),fetchHA(HA.msg2_red),fetchHA(HA.msg2_green),
             fetchHA(HA.msg2_blue),fetchHA(HA.msg2_image),fetchHA(HA.msg2_size),
-            fetchHA(HA.dur_message2),fetchHA(HA.alexa_timer)
+            fetchHA(HA.dur_message2),fetchHA(HA.alexa_timer),
+            fetchHA(HA.timer_mode),fetchHA(HA.dur_timer)
         ]);
         hs.timer=parseAlexaTimer(tmr);
+        hs.timerMode=tMode?.state||'Takeover';
+        hs.durTimer=parseFloat(dT?.state)||20;
 
         hs.mode        = (mode?.state||'idle').toLowerCase();
         hs.power       = pwr?.state==='on'?'on':'off';
@@ -713,6 +740,7 @@ async function sync() {
 
         document.getElementById('durMsgVal').innerText      =hs.durMsg;
         document.getElementById('durMsg2Val').innerText     =hs.durMsg2;
+        document.getElementById('durTimerVal').innerText    =hs.durTimer;
         document.getElementById('durZagsVal').innerText     =hs.durZags;
         document.getElementById('durIdleVal').innerText     =hs.durIdle;
         document.getElementById('durBedVal').innerText      =hs.durBed;
@@ -760,6 +788,7 @@ function draw() {
     else if(!draft.active&&hs.mode==='alert')    renderAlert(ctx);
     else if(!draft.active&&hs.mode==='timer')    renderTimer(ctx);
     else renderMessage(ctx,txt,col,img,sz);
+    if(!draft.active&&hs.mode!=='timer'&&hs.mode!=='alert'&&['Rotation','Corner'].includes(hs.timerMode)) renderTimerChip(ctx);
 }
 
 // The panel doesn't report alert text, so this shows the last alert sent from
@@ -873,6 +902,19 @@ function renderTimer(ctx) {
         ctx.fillStyle=done?GOLD:GREY;ctx.fillText(done?'DONE':at(t),26,y+15);
     });
     ctx.fillStyle='#282828';ctx.fillRect(4,37,120,1);
+}
+
+// Corner chip, as the panel draws it over other screens in rotation/corner mode
+function renderTimerChip(ctx) {
+    const t=(hs.timer?.list||[]).find(t=>Date.now()<t.ends+15000);
+    if(!t) return;
+    const rem=Math.ceil((t.ends-Date.now())/1000), done=rem<=0;
+    const txt=done?'DONE':(rem>=3600?`${Math.floor(rem/3600)}:${String(Math.floor(rem/60)%60).padStart(2,'0')}:${String(rem%60).padStart(2,'0')}`:`${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`);
+    const w=txt.length*6+5, frac=done?1:Math.min(1,rem/Math.max(t.total,rem)), accent=done||rem<=10?'#ffc428':'#00bee6';
+    ctx.fillStyle='#002634';ctx.fillRect(0,0,w,10);
+    ctx.fillStyle='#282828';ctx.fillRect(0,9,w,1);
+    ctx.fillStyle=accent;ctx.fillRect(0,9,Math.round(w*frac),1);
+    ctx.textAlign='left';ctx.textBaseline='top';ctx.font='7px monospace';ctx.fillStyle=done?'#ffc428':'#fff';ctx.fillText(txt,3,1);
 }
 
 function renderBedtime(ctx) {
@@ -1249,6 +1291,11 @@ function paintControls() {
     document.getElementById('pwrOnBtn').className =on?'active is-on':'';
     document.getElementById('pwrOffBtn').className=on?'':'active is-off';
 
+    const tm=hs.timerMode||'Takeover';
+    document.querySelectorAll('[id^="tmode-"]').forEach(b=>b.classList.toggle('active',b.id===`tmode-${tm}`));
+    document.getElementById('timerModeSub').textContent=TIMER_MODE_NOTES[tm]||'';
+    document.getElementById('timerDurRow').hidden=(tm!=='Rotation');
+
     document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
     document.getElementById(`mode-${hs.override}`)?.classList.add('active');
     const pinned=hs.override!=='Auto';
@@ -1367,8 +1414,20 @@ async function changeBrightness(v) {
 function adjustDuration(type,delta,valId,stateProp) {
     let v=hs[stateProp]+delta;v=Math.max(5,Math.min(120,v));hs[stateProp]=v;
     document.getElementById(valId).innerText=v;
-    const m={message:HA.dur_message,message2:HA.dur_message2,zags:HA.dur_zags,idle:HA.dur_idle,bedtime:HA.dur_bedtime,mariners:HA.dur_mariners,seahawks:HA.dur_seahawks,sounders:HA.dur_sounders,kraken:HA.dur_kraken};
+    const m={message:HA.dur_message,message2:HA.dur_message2,zags:HA.dur_zags,idle:HA.dur_idle,bedtime:HA.dur_bedtime,mariners:HA.dur_mariners,seahawks:HA.dur_seahawks,sounders:HA.dur_sounders,kraken:HA.dur_kraken,timer:HA.dur_timer};
     callService('input_number','set_value',{entity_id:m[type],value:v});
+}
+
+const TIMER_MODE_NOTES={
+    Takeover:'On screen the whole time a timer runs. Only pop-up alerts and score celebrations go over it.',
+    Rotation:'A screen in the rotation. Jumps in when a timer starts and when it finishes; a small countdown sits in the corner of the other screens.',
+    Corner:'Never takes over: a small countdown in the top-left corner of every screen.',
+    Off:'The panel ignores Alexa timers.'};
+async function setTimerMode(mode) {
+    hs.timerMode=mode;
+    paintControls();
+    await callService('input_select','select_option',{entity_id:HA.timer_mode,option:mode});
+    setTimeout(sync,600);
 }
 
 // ── Pop-up alerts ──────────────────────────────────────────────────────────────
@@ -1549,8 +1608,8 @@ function toggleSync(on) {
     else{clearInterval(syncInterval);document.getElementById('syncDot').classList.remove('on');}
 }
 
-// HA syncs every 2.5s; the timer preview ticks every second in between
-setInterval(()=>{if(hs.mode==='timer'&&!draft.active)draw();},1000);
+// HA syncs every 2.5s; the timer preview and corner chip tick every second in between
+setInterval(()=>{if(!draft.active&&(hs.mode==='timer'||(hs.timer&&['Rotation','Corner'].includes(hs.timerMode))))draw();},1000);
 
 showTab(location.hash==='#alerts'?'alerts':'panel');
 toggleSync(true);
