@@ -518,6 +518,8 @@ const HA = {
     weather_cond:  'weather.forecast_home',
     weather_temp:  'sensor.weather_temperature',
     mariners_day:  'input_datetime.mariners_opening_day',
+    // Alexa timer: "Panel MQTT — Alexa timer" feeds the panel from the same sensor
+    alexa_timer:   'sensor.alexa_pup_next_timer',
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -597,11 +599,12 @@ async function sync() {
             fetchHA(HA.dur_mariners),fetchHA(HA.dur_seahawks),fetchHA(HA.dur_sounders),fetchHA(HA.dur_kraken),
             fetchHA(HA.mariners_day)
         ]);
-        const [msg2,r2,g2,b2,img2,sz2,dM2] = await Promise.all([
+        const [msg2,r2,g2,b2,img2,sz2,dM2,tmr] = await Promise.all([
             fetchHA(HA.msg2_input),fetchHA(HA.msg2_red),fetchHA(HA.msg2_green),
             fetchHA(HA.msg2_blue),fetchHA(HA.msg2_image),fetchHA(HA.msg2_size),
-            fetchHA(HA.dur_message2)
+            fetchHA(HA.dur_message2),fetchHA(HA.alexa_timer)
         ]);
+        hs.timer=parseAlexaTimer(tmr);
 
         hs.mode        = (mode?.state||'idle').toLowerCase();
         hs.power       = pwr?.state==='on'?'on':'off';
@@ -755,6 +758,7 @@ function draw() {
     else if(!draft.active&&hs.mode==='kraken')   renderKraken(ctx);
     else if(!draft.active&&hs.mode==='message2') renderMessage(ctx,hs.msg2.text,hs.msg2.color,hs.msg2.image,hs.msg2.size);
     else if(!draft.active&&hs.mode==='alert')    renderAlert(ctx);
+    else if(!draft.active&&hs.mode==='timer')    renderTimer(ctx);
     else renderMessage(ctx,txt,col,img,sz);
 }
 
@@ -797,6 +801,47 @@ function renderZags(ctx) {
     ctx.fillText(hs.zags.oppScore,52,18);
     ctx.fillStyle='#aaa';ctx.font='8px monospace';ctx.fillText('ZAGS',52,36);
     ctx.fillStyle='#fff';ctx.font='14px monospace';ctx.fillText(hs.zags.teamScore,52,44);
+}
+
+// Same reading of sensor.alexa_pup_next_timer as the HA automation: state is
+// the finish time, sorted_active[0] the next timer (a list, or JSON of one).
+function parseAlexaTimer(e) {
+    const ends=Date.parse(e?.state);
+    if(isNaN(ends)) return null;
+    let act=e.attributes?.sorted_active;
+    if(typeof act==='string'){try{act=JSON.parse(act);}catch{act=[];}}
+    let t=(act||[])[0]||{};
+    if(Array.isArray(t)) t=t[1]||{};
+    return {ends, total:Math.round((t.originalDurationInMillis||0)/1000),
+            count:parseInt(e.attributes?.total_active)||1, label:t.timerLabel||''};
+}
+
+// Alexa timer — mirrors the firmware: header, big countdown, finish time, bar
+function renderTimer(ctx) {
+    const t=hs.timer;
+    if(!t){renderIdle(ctx);return;}
+    const rem=Math.ceil((t.ends-Date.now())/1000);
+    ctx.fillStyle='#00232d';ctx.fillRect(0,0,128,10);
+    ctx.textAlign='center';ctx.textBaseline='top';ctx.font='bold 7px monospace';ctx.fillStyle='#78dce6';
+    ctx.fillText((t.label?`${t.label} timer`:'TIMER').toUpperCase().substring(0,t.count>1?15:20),64,2);
+    if(t.count>1){ctx.textAlign='right';ctx.fillStyle='#ffc83c';ctx.fillText(`+${t.count-1}`,126,2);ctx.textAlign='center';}
+    const at=new Date(t.ends).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    if(rem<=0){
+        const flash=Math.floor(Date.now()/400)%2===0;
+        ctx.fillStyle=flash?'#ff2814':'#fff';ctx.font='bold 16px sans-serif';ctx.textBaseline='middle';
+        ctx.fillText("TIME'S UP",64,30);
+        ctx.fillStyle='#d7d7d7';ctx.font='7px monospace';ctx.fillText(`rang at ${at}`,64,48);
+        if(flash||hs.fx?.alert_flash===false){ctx.strokeStyle='#ff2814';ctx.lineWidth=2;ctx.strokeRect(1,1,126,62);}
+        return;
+    }
+    const total=Math.max(t.total,rem), frac=Math.min(1,rem/total);
+    const col=rem<=10?'#ff2814':frac>0.5?'#50ff50':frac>0.25?'#ffa000':'#ff3c00';
+    const h=Math.floor(rem/3600), m=Math.floor(rem/60)%60, s=rem%60;
+    const txt=h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`;
+    ctx.fillStyle=col;ctx.font=`bold ${h?22:30}px monospace`;ctx.textBaseline='middle';ctx.fillText(txt,64,29);
+    ctx.fillStyle='#d7d7d7';ctx.font='7px monospace';ctx.textBaseline='top';ctx.fillText(`ends ${at}`,64,48);
+    ctx.fillStyle='#121212';ctx.fillRect(0,60,128,4);
+    ctx.fillStyle=col;ctx.fillRect(0,60,Math.round(128*frac),4);
 }
 
 function renderBedtime(ctx) {
@@ -1166,7 +1211,8 @@ function selectTarget(n){msgTarget=n;document.querySelectorAll('.target-grid but
 // Reflect hs (panel + HA state) in the controls. Called after every sync and
 // optimistically after a tap, so the UI never waits for the next poll.
 const SCREEN_NAMES={idle:'Clock',message:'Message 1',message2:'Message 2',notification:'Alert',zags:'Gonzaga',
-    mariners:'Mariners',seahawks:'Seahawks',sounders:'Sounders',kraken:'Kraken',bedtime:'Bedtime',alert:'Pop-up alert'};
+    mariners:'Mariners',seahawks:'Seahawks',sounders:'Sounders',kraken:'Kraken',bedtime:'Bedtime',alert:'Pop-up alert',
+    timer:'Alexa timer',celebration:'Score celebration'};
 function paintControls() {
     const on=hs.power==='on';
     document.getElementById('pwrOnBtn').className =on?'active is-on':'';
@@ -1471,6 +1517,9 @@ function toggleSync(on) {
     if(on){sync();syncInterval=setInterval(sync,2500);}
     else{clearInterval(syncInterval);document.getElementById('syncDot').classList.remove('on');}
 }
+
+// HA syncs every 2.5s; the timer preview ticks every second in between
+setInterval(()=>{if(hs.mode==='timer'&&!draft.active)draw();},1000);
 
 showTab(location.hash==='#alerts'?'alerts':'panel');
 toggleSync(true);
