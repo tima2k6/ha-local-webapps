@@ -133,6 +133,11 @@
         .alert-send { display: grid; grid-template-columns: minmax(0, 1fr) auto 118px auto auto; gap: 10px; align-items: center; }
         .alert-send .color-custom { margin-left: 0; }
         .alert-send .btn-primary { padding: 10px 18px; }
+        .alert-rule { display: grid; grid-template-columns: 150px 42px minmax(0, 1fr) 34px 118px 64px; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+        .alert-rule:first-child { border-top: 0; }
+        .alert-rule.off .text-input, .alert-rule.off .stepper, .alert-rule.off input[type=color] { opacity: .45; }
+        .alert-rule input[type=color] { width: 34px; height: 34px; border: 0; background: none; cursor: pointer; }
+        .alert-rule .switch { justify-self: start; }
         .text-input { width: 100%; background: var(--bg); border: 1px solid var(--line); color: var(--text); padding: 10px 14px; border-radius: 10px; font-family: ui-monospace, Consolas, monospace; font-size: 15px; }
         .text-input:focus { border-color: var(--accent); outline: none; }
 
@@ -144,6 +149,8 @@
             .hero, .main { grid-template-columns: 1fr; }
             .alert-send { grid-template-columns: 1fr 1fr; }
             .alert-send .text-input, .alert-send .color-row { grid-column: span 2; }
+            .alert-rule { grid-template-columns: minmax(0, 1fr) auto auto; }
+            .alert-rule .text-input { grid-column: span 3; }
             .quick { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
             .quick .now { grid-column: span 2; }
         }
@@ -378,6 +385,9 @@
             <button class="btn btn-ghost-danger" onclick="clearAlert()">Clear</button>
         </div>
         <div class="hint" id="alertStatus" style="margin-top:8px;">&nbsp;</div>
+
+        <h3>Automatic</h3>
+        <div class="alert-rules" id="alertRules"></div>
     </div>
 
     <div class="footer">
@@ -657,6 +667,7 @@ async function sync() {
             document.getElementById(`size-${live.size}`)?.classList.add('selected');
         }
         draw();
+        syncAlertRules();
     } catch(e) {
         document.getElementById('syncDot').classList.remove('on');
         document.getElementById('syncText').innerText='Syncing...';
@@ -1237,6 +1248,76 @@ async function clearAlert() {
     setTimeout(sync,600);
 }
 
+// Automatic alerts: each HA automation reads these four helpers when it fires.
+// To add one: create panel_alert_<key>_{enabled,text,color,seconds} in HA, add a line here.
+const ALERT_RULES = [
+    {key:'doorbell', name:'🔔 Doorbell', fallback:'DOORBELL'},
+];
+const ruleIds=k=>({enabled:`input_boolean.panel_alert_${k}_enabled`,text:`input_text.panel_alert_${k}_text`,
+                   color:`input_text.panel_alert_${k}_color`,seconds:`input_number.panel_alert_${k}_seconds`});
+const ruleState={};
+
+function buildAlertRules() {
+    document.getElementById('alertRules').innerHTML=ALERT_RULES.map(a=>`
+        <div class="alert-rule" id="rule-${a.key}">
+            <div class="screen-name">${a.name}</div>
+            <button class="switch" id="rule-${a.key}-on" onclick="toggleRule('${a.key}')" aria-label="${a.name} alert on"></button>
+            <input type="text" class="text-input" id="rule-${a.key}-text" maxlength="100" placeholder="${a.fallback}"
+                   onchange="saveRuleText('${a.key}')" onkeydown="if(event.key==='Enter')this.blur()">
+            <input type="color" id="rule-${a.key}-color" title="Color" onchange="saveRuleColor('${a.key}')">
+            <div class="stepper"><button onclick="adjustRuleSecs('${a.key}',-5)">−</button><span><span class="stepper-val" id="rule-${a.key}-secs">20</span><span class="stepper-unit">s</span></span><button onclick="adjustRuleSecs('${a.key}',5)">+</button></div>
+            <button class="mode-btn" onclick="testRule('${a.key}')">Test</button>
+        </div>`).join('');
+}
+
+// Refreshes from HA, but never overwrites a field you're in the middle of editing.
+async function syncAlertRules() {
+    for(const a of ALERT_RULES){
+        const ids=ruleIds(a.key);
+        const [en,tx,co,se]=await Promise.all([fetchHA(ids.enabled),fetchHA(ids.text),fetchHA(ids.color),fetchHA(ids.seconds)]);
+        const s={enabled:en.state==='on',text:tx.state||'',color:/^#[0-9a-f]{6}$/i.test(co.state)?co.state.toLowerCase():'#ff0000',
+                 seconds:parseInt(se.state)||20};
+        ruleState[a.key]=s;
+        const el=id=>document.getElementById(`rule-${a.key}-${id}`);
+        el('on').classList.toggle('on',s.enabled);
+        document.getElementById(`rule-${a.key}`).classList.toggle('off',!s.enabled);
+        if(document.activeElement!==el('text')) el('text').value=s.text;
+        if(document.activeElement!==el('color')) el('color').value=s.color;
+        el('secs').innerText=s.seconds;
+    }
+}
+
+async function toggleRule(k) {
+    const on=!ruleState[k]?.enabled;
+    await callService('input_boolean',on?'turn_on':'turn_off',{entity_id:ruleIds(k).enabled});
+    syncAlertRules();
+}
+async function saveRuleText(k) {
+    await callService('input_text','set_value',{entity_id:ruleIds(k).text,value:document.getElementById(`rule-${k}-text`).value.trim()});
+    syncAlertRules();
+}
+async function saveRuleColor(k) {
+    await callService('input_text','set_value',{entity_id:ruleIds(k).color,value:document.getElementById(`rule-${k}-color`).value.toUpperCase()});
+    syncAlertRules();
+}
+async function adjustRuleSecs(k,d) {
+    const s=ruleState[k]; if(!s) return;
+    s.seconds=Math.max(5,Math.min(600,s.seconds+d));
+    document.getElementById(`rule-${k}-secs`).innerText=s.seconds;
+    await callService('input_number','set_value',{entity_id:ruleIds(k).seconds,value:s.seconds});
+}
+// Shows the saved settings on the panel, even if this alert is switched off.
+async function testRule(k) {
+    const s=ruleState[k]; if(!s) return;
+    const a=ALERT_RULES.find(x=>x.key===k);
+    const message=s.text.trim()||a.fallback, c=hexToRgb(s.color);
+    const r=await callService('script','panel_show_alert',{message,color:[c.r,c.g,c.b],seconds:s.seconds}).catch(()=>null);
+    if(!r||!r.ok){alertStatus('Test failed.');return;}
+    lastAlert={text:message,color:c};
+    alertStatus(`Testing ${a.name}: “${message}” for ${s.seconds}s.`);
+    setTimeout(sync,600);
+}
+
 async function rebootESP() {
     if(confirm('Reboot ESP32?')) await mqttPublish('house/panel/reboot','1');
 }
@@ -1246,6 +1327,7 @@ function toggleSync(on) {
     else{clearInterval(syncInterval);document.getElementById('syncDot').classList.remove('on');}
 }
 
+buildAlertRules();
 toggleSync(true);
 draw();
 </script>
