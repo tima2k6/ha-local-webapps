@@ -335,7 +335,7 @@
                 </div>
                 <div class="screen-row" data-mode="notification" style="--c:#f59e0b">
                     <span class="swatch"></span>
-                    <div class="screen-name">Alerts<small>HA notifications</small></div>
+                    <div class="screen-name">Notifications<small>Welcome home &amp; HA notices</small></div>
                     <span class="chip">When sent</span>
                     <span class="note-cell">Msg 1 time</span>
                     <button class="mode-btn" id="mode-Notification" onclick="setOverride('Notification')">Show</button>
@@ -542,6 +542,11 @@ const HA = {
     mariners_day:  'input_datetime.mariners_opening_day',
     // Alexa timer: "Panel MQTT — Alexa timer" feeds the panel from the same sensor
     alexa_timer:   'sensor.alexa_pup_next_timer',
+    // Notification screen (welcome home): text, color
+    notif_text:    'input_text.panel_notification',
+    notif_red:     'input_number.panel_notification_red',
+    notif_green:   'input_number.panel_notification_green',
+    notif_blue:    'input_number.panel_notification_blue',
     // How the panel treats a running timer ("Panel MQTT — Timer settings")
     timer_mode:    'input_select.panel_timer_mode',
     dur_timer:     'input_number.panel_duration_timer',
@@ -625,12 +630,14 @@ async function sync() {
             fetchHA(HA.dur_mariners),fetchHA(HA.dur_seahawks),fetchHA(HA.dur_sounders),fetchHA(HA.dur_kraken),
             fetchHA(HA.mariners_day)
         ]);
-        const [msg2,r2,g2,b2,img2,sz2,dM2,tmr,tMode,dT] = await Promise.all([
+        const [msg2,r2,g2,b2,img2,sz2,dM2,tmr,tMode,dT,nT,nR,nG,nB] = await Promise.all([
             fetchHA(HA.msg2_input),fetchHA(HA.msg2_red),fetchHA(HA.msg2_green),
             fetchHA(HA.msg2_blue),fetchHA(HA.msg2_image),fetchHA(HA.msg2_size),
             fetchHA(HA.dur_message2),fetchHA(HA.alexa_timer),
-            fetchHA(HA.timer_mode),fetchHA(HA.dur_timer)
+            fetchHA(HA.timer_mode),fetchHA(HA.dur_timer),
+            fetchHA(HA.notif_text),fetchHA(HA.notif_red),fetchHA(HA.notif_green),fetchHA(HA.notif_blue)
         ]);
+        hs.notif={text:nT?.state||'',color:{r:parseInt(nR?.state)||0,g:parseInt(nG?.state)||0,b:parseInt(nB?.state)||0}};
         hs.timer=parseAlexaTimer(tmr);
         hs.timerMode=tMode?.state||'Takeover';
         hs.durTimer=parseFloat(dT?.state)||20;
@@ -789,6 +796,7 @@ function draw() {
     else if(!draft.active&&hs.mode==='message2') renderMessage(ctx,hs.msg2.text,hs.msg2.color,hs.msg2.image,hs.msg2.size);
     else if(!draft.active&&hs.mode==='alert')    renderAlert(ctx);
     else if(!draft.active&&hs.mode==='timer')    renderTimer(ctx);
+    else if(!draft.active&&hs.mode==='notification') renderNotification(ctx);
     else renderMessage(ctx,txt,col,img,sz);
     if(!draft.active&&hs.mode!=='timer'&&hs.mode!=='alert'&&['Rotation','Corner'].includes(hs.timerMode)) renderTimerChip(ctx);
 }
@@ -929,6 +937,33 @@ function renderTimerChip(ctx) {
     ctx.fillStyle='#282828';ctx.fillRect(0,9,w,1);
     ctx.fillStyle=accent;ctx.fillRect(0,9,Math.round(w*frac),1);
     ctx.textAlign='left';ctx.textBaseline='top';ctx.font='7px monospace';ctx.fillStyle=done?'#ffc428':'#fff';ctx.fillText(txt,3,1);
+}
+
+// Notification card, as the panel draws it: "Welcome home Tim!|Hide the snacks!"
+// is the welcome card (house, big name, fun line, weather); anything else is
+// "Header|Body" or "Body" under HEADS UP.
+function renderNotification(ctx) {
+    const n=hs.notif||{text:'',color:{r:0,g:200,b:90}};
+    const parts=n.text.split('|').map(p=>p.trim());
+    const welcome=/^welcome home/i.test(parts[0]||'');
+    const {r,g,b}=n.color, col=`rgb(${r},${g},${b})`;
+    const head=welcome?'WELCOME HOME':(parts.length>1?parts[0]:'HEADS UP').toUpperCase();
+    const big=(welcome?parts[0].slice(12).replace(/[!.]+$/,''):(parts.length>1?parts[1]:parts[0])).trim().toUpperCase();
+    ctx.fillStyle=`rgb(${r*.22|0},${g*.22|0},${b*.22|0})`;ctx.fillRect(0,0,128,9);
+    ctx.fillStyle=col;ctx.fillRect(0,9,128,1);
+    ctx.fillStyle='#fff';ctx.font='7px monospace';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(head,64,1);
+    const x0=welcome?28:3, w=welcome?98:122, cx=x0+w/2;
+    if(welcome){ctx.font='20px sans-serif';ctx.textBaseline='middle';ctx.fillText('🏠',14,34);}
+    ctx.fillStyle='#fff';ctx.font=`bold ${welcome&&big.length<=7?16:12}px sans-serif`;ctx.textBaseline='middle';
+    const words=big.split(/\s+/), lines=[]; let cur='';
+    for(const wd of words){const t=cur?cur+' '+wd:wd; if(ctx.measureText(t).width<=w||!cur) cur=t; else {lines.push(cur);cur=wd;}}
+    if(cur) lines.push(cur);
+    const fun=welcome&&parts[1]?parts[1]:'';
+    const top=welcome?(fun?24:30):34;
+    lines.slice(0,3).forEach((l,i,arr)=>ctx.fillText(l,cx,top+(i-(arr.length-1)/2)*14));
+    if(fun){ctx.font='7px monospace';ctx.fillStyle=`rgb(${r/2+110|0},${g/2+110|0},${b/2+110|0})`;ctx.fillText(fun,cx,top+lines.length*7+6);}
+    if(welcome&&hs.weather){ctx.font='7px monospace';ctx.fillStyle='#969696';
+        ctx.fillText(`${Math.round(hs.weather.temp)}° ${(hs.weather.condition||'').replace('partlycloudy','partly cloudy')}`,cx,58);}
 }
 
 function renderBedtime(ctx) {
@@ -1297,7 +1332,7 @@ function selectTarget(n){msgTarget=n;document.querySelectorAll('.target-grid but
 
 // Reflect hs (panel + HA state) in the controls. Called after every sync and
 // optimistically after a tap, so the UI never waits for the next poll.
-const SCREEN_NAMES={idle:'Clock',message:'Message 1',message2:'Message 2',notification:'Alert',zags:'Gonzaga',
+const SCREEN_NAMES={idle:'Clock',message:'Message 1',message2:'Message 2',notification:'Notification',zags:'Gonzaga',
     mariners:'Mariners',seahawks:'Seahawks',sounders:'Sounders',kraken:'Kraken',bedtime:'Bedtime',alert:'Pop-up alert',
     timer:'Alexa timer',celebration:'Score celebration'};
 function paintControls() {
