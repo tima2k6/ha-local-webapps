@@ -183,6 +183,7 @@ main { max-width: 1280px; margin: 0 auto; }
 .row .what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .row .what b { font-weight: 600; color: var(--text-hi); display: flex; align-items: center; gap: 8px; }
 .row .what span { font-size: 14px; color: var(--text-dim); }
+.row .what span:empty { display: none; }
 .row .now-tag {
     font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600;
     color: var(--accent); border: 1px solid var(--accent-border); border-radius: 999px; padding: 1px 7px;
@@ -268,7 +269,7 @@ input[type="time"] {
             <div class="status" id="house-status">
                 <div class="head"><span class="dot"></span><span id="status-head">Connecting…</span></div>
                 <div class="sub" id="status-sub"></div>
-                <button class="btn" id="resume" hidden>Resume schedule</button>
+                <button class="btn" id="resume" hidden>Back to schedule now</button>
             </div>
         </div>
         <div class="rooms" id="rooms"></div>
@@ -278,21 +279,20 @@ input[type="time"] {
         <div class="plan">
             <div class="card">
                 <h2>Schedule</h2>
-                <p class="intro">Sets the House temperature through the day. Every room follows it.</p>
+                <p class="intro">The House temperature through the day. Every room follows it.</p>
                 <div id="blocks"></div>
                 <div class="row">
-                    <div class="what"><b>Away</b><span>While the alarm is armed Away</span></div>
+                    <div class="what"><b>Away</b><span>When the alarm is set to Away</span></div>
                     <div class="ctrl"><div class="stepper" id="away-stepper"></div></div>
                 </div>
             </div>
             <div class="card">
-                <h2>Room balance</h2>
-                <p class="intro">How each room runs compared with the House temperature, all day, every block.</p>
+                <h2>Warmer or cooler rooms</h2>
+                <p class="intro">Rooms that should always run a little warmer or cooler than the house. This stays until you change it here.</p>
                 <div id="balance"></div>
                 <div class="how">
-                    <p><b>Changing a room on the Now screen</b> sets it until the next House change (a schedule block, Night, Away or someone moving House). Then it goes back to House plus its balance.</p>
-                    <p><b>Changing House by hand</b> holds until the next schedule block.</p>
-                    <p>Rooms run 65–80°. Every room is heat only; the air conditioners are put away for winter.</p>
+                    <p><b>Changes on the Now screen are temporary.</b> Turning the house or a room up or down lasts until the schedule's next step, then everything goes back to the schedule.</p>
+                    <p>Rooms can be set from 65° to 80°. All rooms are heat only for now; the air conditioners are put away for winter.</p>
                 </div>
             </div>
         </div>
@@ -501,11 +501,15 @@ function scheduleNow() {
              nextTime: hms(blockOf(next).time), away: hsm === 'armedAway' };
 }
 
-// "Evening at 6:00 PM", or "bedtime" for Sleep, which starts when the alarm is armed for Night.
-function nextChange(s) {
-    if (s.away) return 'the alarm is disarmed';
-    if (s.next === 'sleep') return 'bedtime';
-    return `${BLOCKS.find(b => b.key === s.next).name} at ${fmtTime(s.nextTime)}`;
+// When the schedule next takes over: "6:00 PM", or bedtime for Sleep (it starts when
+// the alarm is set to Night), or coming home when Away.
+function backAt(s) {
+    if (s.away) return 'when you’re home';
+    return s.next === 'sleep' ? 'at bedtime' : `at ${fmtTime(s.nextTime)}`;
+}
+function until(s) {
+    if (s.away) return 'until you’re home';
+    return s.next === 'sleep' ? 'until bedtime' : `until ${fmtTime(s.nextTime)}`;
 }
 
 // ---------- build the static parts once (re-rendering never replaces a button mid-tap) ----------
@@ -570,11 +574,11 @@ function render() {
     const nextName = BLOCKS.find(b => b.key === s.next).name;
     let head, sub, cls = '';
     if (s.away) {
-        cls = 'away'; head = 'Away setback';
-        sub = 'Nobody home. The schedule picks up again when the alarm is disarmed.';
+        cls = 'away'; head = 'Away';
+        sub = 'Nobody home, so the house is kept cooler. The schedule starts again when the alarm is turned off.';
     } else if (hold) {
-        cls = 'hold'; head = 'Held by hand';
-        sub = `The schedule takes over again at ${nextChange(s)}.`;
+        cls = 'hold'; head = 'Changed by hand';
+        sub = `Back to the schedule ${backAt(s)}.`;
     } else if (preheat) {
         cls = 'preheat'; head = `Warming up for ${nextName}`;
         sub = `Started early so the house is ${Math.round(s.nextTemp)}° by ${s.next === 'sleep' ? 'bedtime' : fmtTime(s.nextTime)}.`;
@@ -635,9 +639,9 @@ function render() {
         else if (!on) note.textContent = 'Off until turned back on';
         else if (pending.has(key) || (follows != null && target !== follows)) {
             note.className = 'room-note manual';
-            note.innerHTML = `Set by hand until ${nextChange(s)} · <button class="link" data-resume="${i}">Follow house</button>`;
+            note.innerHTML = `Changed by hand ${until(s)} · <button class="link" data-resume="${i}">Undo</button>`;
         } else {
-            note.textContent = off === 0 ? 'Following House' : `Following House, ${Math.abs(off)}° ${off < 0 ? 'cooler' : 'warmer'}`;
+            note.textContent = off === 0 ? 'On schedule' : `On schedule, ${Math.abs(off)}° ${off < 0 ? 'cooler' : 'warmer'} than the house`;
         }
     });
 
@@ -648,9 +652,9 @@ function render() {
         const input = row.querySelector('input');
         if (document.activeElement !== input && !pending.has(`time:${i}`)) input.value = t;
         row.querySelector('.when').innerHTML = (b.key === 'sleep'
-            ? 'When the alarm is armed for Night, or at this time if it isn’t'
-            : `From ${fmtTime(hms(b.time))}`)
-            + (!s.away && s.block === b.key ? ' <span class="now-tag">Now</span>' : '');
+            ? 'When the alarm is set to Night, or at this time if it isn’t'
+            : '')
+            + (!s.away && s.block === b.key ? '<span class="now-tag">Now</span>' : '');
         const key = `block:${i}`;
         setStepper(row.querySelector('.stepper'), shown(key, num(b.temp)), attr(b.temp, 'min') ?? 60, attr(b.temp, 'max') ?? 78, pending.has(key));
     });
@@ -668,9 +672,8 @@ function render() {
         down.disabled = off == null || off <= (attr(r.offset, 'min') ?? -5);
         up.disabled = off == null || off >= (attr(r.offset, 'max') ?? 5);
         el.classList.toggle('pending', pending.has(key));
-        const result = house == null || off == null ? '' : ` · ${clamp(Math.round(house + off), ROOM_MIN, ROOM_MAX)}° right now`;
         el.closest('.row').querySelector('.explain').textContent =
-            off == null ? '' : (off === 0 ? 'Same as House' : `${Math.abs(off)}° ${off < 0 ? 'cooler' : 'warmer'} than House`) + result;
+            off == null ? '' : off === 0 ? 'Same as the house' : `${Math.abs(off)}° ${off < 0 ? 'cooler' : 'warmer'} than the house`;
     });
 }
 

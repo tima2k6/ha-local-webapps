@@ -112,13 +112,13 @@ export const config = {
 
 ### 4. House Climate (`climate.html`)
 
-One place to run the four heated rooms. Landscape on the wall tablet, one column on a phone. Linked from the HA Home dashboard; `climate.html#schedule` opens straight to the Schedule tab.
+One place to run the four heated rooms. Landscape on the wall tablet, one column on a phone. In HA, the **Climate** button in each view's nav row opens it in a fullscreen browser_mod popup (← closes it, so you never leave the dashboard); `/lovelace/climate` is the same page as a subview. `?embed` hides the page's own title inside HA; `#schedule` opens the Schedule tab.
 
 **How the house works (and what the page shows):**
 - **House** (`input_number.house_setpoint`) is the master dial. "HVAC - House setpoint applies to all rooms" sets each room to House + its balance, clamped 65-80, whenever House changes.
-- The **schedule** (Wake / Day / Evening / Sleep) writes House. Sleep starts when HSM arms for Night, with the Sleep time as a late fallback; Away uses its own setback. Moving House by hand sets `input_boolean.climate_manual_override_active`, which holds until the next block; **Resume schedule** clears it and runs the schedule automation (conditions still checked, so it never overrides Away).
-- A **room** changed on the Now screen keeps that target until the next House change; the card says so and offers **Follow house**. The page spots this by comparing the room's target with House + balance; no extra helpers.
-- **Room balance** (the `input_number.climate_offset_*` helpers) lives on the Schedule tab: how many degrees each room runs above or below House, all the time.
+- The **schedule** (Wake / Day / Evening / Sleep) writes House. Sleep starts when HSM arms for Night, with the Sleep time as a late fallback; Away uses its own setback. Moving House by hand sets `input_boolean.climate_manual_override_active`, which holds until the next block; **Back to schedule now** clears it and runs the schedule automation (conditions still checked, so it never overrides Away).
+- A **room** changed on the Now screen keeps that target until the next House change; the card says so and offers **Undo**. The page spots this by comparing the room's target with House + balance; no extra helpers.
+- **Warmer or cooler rooms** (the `input_number.climate_offset_*` helpers) live on the Schedule tab: how many degrees each room always runs above or below House.
 - Room cards show heating (with duty %), idle, off, or paused by an open window (Versatile Thermostat window manager) or an open front/patio door (the living room door automation).
 
 **HA Entities Used:**
