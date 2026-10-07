@@ -151,7 +151,7 @@ class Agenda {
                 .sort((a, b) => new Date(a.start.dateTime || a.start.date) - new Date(b.start.dateTime || b.start.date))
                 .slice(0, MAX_EVENTS);
             this.el.innerHTML = events.length
-                ? events.map(ev => `<div class="ev-when">${esc(Agenda.when(ev))}</div><div class="ev-name">${esc(ev.summary || 'Untitled')}</div>`).join('')
+                ? events.map(ev => `<div class="ev"><div class="ev-when">${esc(Agenda.when(ev))}</div><div class="ev-name">${esc(ev.summary || 'Untitled')}</div></div>`).join('')
                 : '<div class="ev-none">Nothing in the next two weeks</div>';
         } catch (e) {
             console.error('Agenda:', e);

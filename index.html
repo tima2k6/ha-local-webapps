@@ -6,30 +6,30 @@
     <title>Home Assistant Screensaver</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300&family=Figtree:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400&family=Figtree:wght@400;500;600&display=swap">
     <style>
-        /* "Quiet Hours": pure black, warm grey text, one accent.
-           Everything is sized in --u, one design pixel of a 1280x800 layout:
-           the 16:10 Galaxy Tab A9+ (1920x1200), scaling to any screen. */
+        /* "Quiet Hours": pure black, warm grey text, one accent, sized to read
+           from across the room. Everything is sized in --u, one design pixel
+           of a 1280x800 layout: the 16:10 Galaxy Tab A9+ (1920x1200). */
         :root {
             --u: min(calc(100vw / 1280), calc(100vh / 800));
             --bg: #000000;
-            --text-hi: #e6e2da;
-            --text: #d9d6cf;
-            --text-mid: #a9a59e;
-            --text-dim: #8b8780;
-            --text-low: #7d7a74;
-            --rule: #1f1f1f;
-            --tag-border: #262626;
+            --text-hi: #f4f1ea;
+            --text: #ebe7df;
+            --text-mid: #cfcac1;
+            --text-dim: #bdb8af;
+            --text-low: #a8a39a;
+            --tag-border: #3a3a3a;
             --accent: #5fc9b4;
+            --accent-border: #2c5a51;
             --warn: #e0a64a;
-            --warn-text: #e8b25c;
-            --warn-border: #4d3a1a;
+            --warn-text: #f0bd68;
+            --warn-border: #6b5122;
             --alert: #ff6b5e;
-            --alert-text: #ff8a7a;
-            --alert-border: #5a2620;
-            --night-text: #7a766f;
-            --night-low: #6f6b65;
+            --alert-text: #ff9384;
+            --alert-border: #7a3128;
+            --night-text: #9a958c;
+            --night-low: #8f8a82;
         }
 
         html, body {
@@ -53,7 +53,7 @@
             width: calc(var(--u) * 1280);
             height: calc(var(--u) * 800);
             box-sizing: border-box;
-            padding: calc(var(--u) * 64) calc(var(--u) * 72) calc(var(--u) * 52);
+            padding: calc(var(--u) * 56) calc(var(--u) * 64) calc(var(--u) * 44);
             display: grid;
             grid-template-columns: minmax(0, 1fr);
             grid-template-rows: minmax(0, 1fr) auto;
@@ -61,34 +61,38 @@
             transition: transform 4s ease-in-out;
         }
 
-        /* Clock and the weather/agenda column share one box, so the date lines
-           up with the top of the weather and the clock's baseline with the
-           last event. text-box trims those edge lines to their letters (never
-           the agenda rows: trimming them clips their tops and descenders). */
+        /* Left: date, clock and weather. Right: the agenda. Both centered on
+           the same line. text-box trims the clock and temperature lines to
+           their letters (never the agenda rows: that clips their glyphs). */
         #top {
             align-self: center;
             display: grid;
-            grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+            grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
             column-gap: calc(var(--u) * 72);
-            align-items: stretch;
+            align-items: center;
         }
 
         .date, .time, .period, .wx-temp {
             text-box: trim-both cap alphabetic;
         }
 
-        /* ===== Clock ===== */
+        /* ===== Left column: clock + weather ===== */
+        #left {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
         #clock {
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            gap: calc(var(--u) * 28);
+            gap: calc(var(--u) * 46);
         }
 
         #clock .date {
-            font-size: calc(var(--u) * 26);
+            font-size: calc(var(--u) * 38);
             font-weight: 500;
-            letter-spacing: 0.02em;
+            letter-spacing: 0.01em;
             color: var(--text-dim);
         }
 
@@ -101,8 +105,8 @@
 
         #clock .time {
             font-family: 'Outfit', sans-serif;
-            font-weight: 200;
-            font-size: calc(var(--u) * 210);   /* "12:59 PM" still fits the column */
+            font-weight: 300;
+            font-size: calc(var(--u) * 215);   /* "12:59 PM" still fits the column */
             line-height: 1;
             letter-spacing: -0.04em;
             color: var(--text-hi);
@@ -111,43 +115,36 @@
 
         #clock .period {
             font-family: 'Outfit', sans-serif;
-            font-weight: 300;
-            font-size: calc(var(--u) * 34);
+            font-weight: 400;
+            font-size: calc(var(--u) * 36);
             line-height: 1;
             color: var(--text-low);
-        }
-
-        /* ===== Right column: weather + agenda ===== */
-        #side {
-            display: flex;
-            flex-direction: column;
-            gap: calc(var(--u) * 40);
-            min-width: 0;
         }
 
         #weather {
             display: flex;
             flex-direction: column;
-            gap: calc(var(--u) * 14);
+            gap: calc(var(--u) * 18);
+            margin-top: calc(var(--u) * 48);
         }
 
         .wx-now {
             display: flex;
             align-items: center;
-            gap: calc(var(--u) * 22);
+            gap: calc(var(--u) * 24);
         }
 
         .wx-icon svg {
             display: block;
-            width: calc(var(--u) * 64);
-            height: calc(var(--u) * 64);
+            width: calc(var(--u) * 84);
+            height: calc(var(--u) * 84);
             color: var(--accent);
         }
 
         .wx-temp {
             font-family: 'Outfit', sans-serif;
-            font-weight: 300;
-            font-size: calc(var(--u) * 96);
+            font-weight: 400;
+            font-size: calc(var(--u) * 120);
             line-height: 1;
             color: var(--text-hi);
         }
@@ -159,62 +156,62 @@
         }
 
         .wx-label {
-            font-size: calc(var(--u) * 28);
-            font-weight: 500;
+            font-size: calc(var(--u) * 40);
+            font-weight: 600;
+            color: var(--text-hi);
         }
 
         .wx-hilo {
-            font-size: calc(var(--u) * 22);
+            font-size: calc(var(--u) * 32);
+            font-weight: 500;
             color: var(--text-dim);
             white-space: pre;
         }
 
         .wx-next {
-            font-size: calc(var(--u) * 20);
-            color: var(--text-low);
+            font-size: calc(var(--u) * 28);
+            color: var(--text-dim);
         }
 
-        .rule {
-            height: 1px;
-            background: var(--rule);
+        /* ===== Right column: agenda, each time above its event ===== */
+        #side {
+            min-width: 0;
         }
 
         .agenda-head {
-            font-size: calc(var(--u) * 15);
+            font-size: calc(var(--u) * 22);
             font-weight: 600;
-            letter-spacing: 0.18em;
+            letter-spacing: 0.16em;
             text-transform: uppercase;
             color: var(--text-low);
-            margin-bottom: calc(var(--u) * 20);
+            margin-bottom: calc(var(--u) * 26);
         }
 
         #agenda {
-            display: grid;
-            grid-template-columns: calc(var(--u) * 150) minmax(0, 1fr);
-            row-gap: calc(var(--u) * 14);
-            column-gap: calc(var(--u) * 20);
-            align-items: baseline;
-            /* pulls the last row's descender space below the clock's baseline */
-            margin-bottom: calc(var(--u) * -10);
+            display: flex;
+            flex-direction: column;
+            gap: calc(var(--u) * 26);
         }
 
         .ev-when {
-            font-size: calc(var(--u) * 19);
-            line-height: 1.3;
+            font-size: calc(var(--u) * 27);
+            font-weight: 500;
+            line-height: 1.25;
             color: var(--text-dim);
         }
 
         .ev-name {
-            font-size: calc(var(--u) * 26);
-            line-height: 1.3;
+            font-size: calc(var(--u) * 42);
+            font-weight: 500;
+            line-height: 1.25;
+            color: var(--text-hi);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         .ev-none {
-            grid-column: 1 / -1;
-            font-size: calc(var(--u) * 22);
+            font-size: calc(var(--u) * 30);
             color: var(--text-low);
         }
 
@@ -225,7 +222,7 @@
             grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
             align-items: center;
             column-gap: calc(var(--u) * 24);
-            min-height: calc(var(--u) * 76);
+            min-height: calc(var(--u) * 90);
         }
 
         #tags {
@@ -234,29 +231,29 @@
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: calc(var(--u) * 14);
+            gap: calc(var(--u) * 16);
         }
 
         .tag {
             display: flex;
             align-items: center;
-            gap: calc(var(--u) * 10);
-            padding: calc(var(--u) * 12) calc(var(--u) * 24);
-            border: 1px solid var(--tag-border);
+            gap: calc(var(--u) * 12);
+            padding: calc(var(--u) * 14) calc(var(--u) * 30);
+            border: 2px solid var(--tag-border);
             border-radius: 999px;
-            font-size: calc(var(--u) * 23);
-            font-weight: 500;
+            font-size: calc(var(--u) * 30);
+            font-weight: 600;
             color: var(--text);
         }
 
         .tag .dot {
-            width: calc(var(--u) * 10);
-            height: calc(var(--u) * 10);
+            width: calc(var(--u) * 13);
+            height: calc(var(--u) * 13);
             border-radius: 50%;
-            background: #4a4844;
+            background: #6a665f;
         }
 
-        .tag.calm { border-color: #23403b; color: var(--accent); }
+        .tag.calm { border-color: var(--accent-border); color: var(--accent); }
         .tag.calm .dot { background: var(--accent); }
         .tag.warn { border-color: var(--warn-border); color: var(--warn-text); }
         .tag.warn .dot { background: var(--warn); }
@@ -268,34 +265,35 @@
             justify-self: end;
             display: flex;
             align-items: center;
-            gap: calc(var(--u) * 14);
+            gap: calc(var(--u) * 16);
         }
 
         .timer {
             display: flex;
             align-items: center;
-            gap: calc(var(--u) * 20);
-            padding: calc(var(--u) * 12) calc(var(--u) * 22);
-            border: 1px solid #23403b;
-            border-radius: calc(var(--u) * 18);
+            gap: calc(var(--u) * 22);
+            padding: calc(var(--u) * 12) calc(var(--u) * 24);
+            border: 2px solid var(--accent-border);
+            border-radius: calc(var(--u) * 20);
         }
 
         .timer-meta {
             display: flex;
             flex-direction: column;
-            gap: calc(var(--u) * 8);
-            min-width: calc(var(--u) * 170);
+            gap: calc(var(--u) * 10);
+            min-width: calc(var(--u) * 200);
         }
 
         .timer-name {
-            font-size: calc(var(--u) * 17);
+            font-size: calc(var(--u) * 24);
+            font-weight: 500;
             color: var(--text-mid);
         }
 
         .timer-bar {
-            height: calc(var(--u) * 4);
-            border-radius: 2px;
-            background: #1c1c1c;
+            height: calc(var(--u) * 6);
+            border-radius: 3px;
+            background: #262626;
             overflow: hidden;
         }
 
@@ -308,8 +306,8 @@
 
         .timer-time {
             font-family: 'Outfit', sans-serif;
-            font-weight: 300;
-            font-size: calc(var(--u) * 52);
+            font-weight: 400;
+            font-size: calc(var(--u) * 68);
             line-height: 1;
             color: var(--accent);
             font-variant-numeric: tabular-nums;
@@ -325,7 +323,7 @@
         }
 
         .timer-more {
-            font-size: calc(var(--u) * 18);
+            font-size: calc(var(--u) * 24);
             color: var(--text-low);
         }
 
@@ -337,59 +335,59 @@
         }
 
         body.night #side,
+        body.night #weather,
         body.night #clock .date {
             display: none;
         }
 
-        body.night #clock {
+        body.night #left {
             align-items: center;
-            justify-content: center;
-            gap: calc(var(--u) * 32);
+            gap: calc(var(--u) * 40);
         }
 
         body.night #clock .time {
-            font-size: calc(var(--u) * 210);
+            font-size: calc(var(--u) * 260);
             color: var(--night-text);
         }
 
         body.night #clock .period {
-            font-size: calc(var(--u) * 30);
-            color: #66625c;
+            font-size: calc(var(--u) * 40);
+            color: var(--night-low);
         }
 
         body.night #night-weather {
             display: flex;
             align-items: center;
-            gap: calc(var(--u) * 14);
-            font-size: calc(var(--u) * 26);
+            gap: calc(var(--u) * 16);
+            font-size: calc(var(--u) * 40);
+            font-weight: 500;
             color: var(--night-low);
             white-space: pre;
         }
 
         body.night #night-weather svg {
-            width: calc(var(--u) * 30);
-            height: calc(var(--u) * 30);
+            width: calc(var(--u) * 46);
+            height: calc(var(--u) * 46);
         }
     </style>
 </head>
 <body>
     <div id="screen">
         <div id="top">
-            <div id="clock">
-                <div class="date"></div>
-                <div class="face">
-                    <div class="time"></div>
-                    <div class="period"></div>
+            <div id="left">
+                <div id="clock">
+                    <div class="date"></div>
+                    <div class="face">
+                        <div class="time"></div>
+                        <div class="period"></div>
+                    </div>
                 </div>
+                <div id="weather"></div>
                 <div id="night-weather"></div>
             </div>
             <div id="side">
-                <div id="weather"></div>
-                <div class="rule"></div>
-                <div>
-                    <div class="agenda-head">Next up</div>
-                    <div id="agenda"></div>
-                </div>
+                <div class="agenda-head">Next up</div>
+                <div id="agenda"></div>
             </div>
         </div>
         <div id="status">
@@ -401,7 +399,7 @@
     <script src="js/ha-config.js?v=20261005"></script>
     <script type="module">
         import { config } from './js/config.js?v=20261005';
-        import { startScreensaver } from './js/screensaver.js?v=4';
+        import { startScreensaver } from './js/screensaver.js?v=5';
 
         document.addEventListener('DOMContentLoaded', () => startScreensaver(config));
     </script>
