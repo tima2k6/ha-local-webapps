@@ -1,7 +1,7 @@
 // screensaver.js — the "Quiet Hours" screensaver (preview.html).
 // Black OLED-friendly layout: thin clock, met.no weather, the next three
 // family-calendar events and static status tags instead of a scrolling ticker.
-// After sunset only a dim clock, the temperature and any alerts stay up.
+// After sunset the clock dims and the weather/agenda column goes; tags stay.
 // The ticker's and timers' HA logic is reused by subclassing them; only their
 // rendering changes.
 
@@ -165,8 +165,8 @@ class Agenda {
 }
 
 // ===== Status tags: the ticker's sensors, rendered as static tags =====
-// tone: calm (accent dot), warn (amber), alert (red).
-// Calm tags hide at night; warn and alert always show.
+// tone: calm (teal), warn (amber), alert (red). Shown on the same
+// conditions as the old ticker, day and night.
 class StatusTags extends Ticker {
     constructor(haUrl, token, el) {
         super(haUrl, token, el);

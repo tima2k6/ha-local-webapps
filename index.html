@@ -63,16 +63,17 @@
 
         /* Clock and the weather/agenda column share one box, so the date lines
            up with the top of the weather and the clock's baseline with the
-           last event. text-box trims each edge line to its letters. */
+           last event. text-box trims those edge lines to their letters (never
+           the agenda rows: trimming them clips their tops and descenders). */
         #top {
             align-self: center;
             display: grid;
-            grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-            column-gap: calc(var(--u) * 80);
+            grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+            column-gap: calc(var(--u) * 72);
             align-items: stretch;
         }
 
-        .date, .time, .period, .wx-temp, .ev-when, .ev-name {
+        .date, .time, .period, .wx-temp {
             text-box: trim-both cap alphabetic;
         }
 
@@ -93,6 +94,7 @@
 
         #clock .face {
             display: flex;
+            white-space: nowrap;
             align-items: flex-start;
             gap: calc(var(--u) * 14);
         }
@@ -100,7 +102,7 @@
         #clock .time {
             font-family: 'Outfit', sans-serif;
             font-weight: 200;
-            font-size: calc(var(--u) * 270);
+            font-size: calc(var(--u) * 210);   /* "12:59 PM" still fits the column */
             line-height: 1;
             letter-spacing: -0.04em;
             color: var(--text-hi);
@@ -119,7 +121,7 @@
         #side {
             display: flex;
             flex-direction: column;
-            gap: calc(var(--u) * 36);
+            gap: calc(var(--u) * 40);
             min-width: 0;
         }
 
@@ -183,24 +185,28 @@
             letter-spacing: 0.18em;
             text-transform: uppercase;
             color: var(--text-low);
-            margin-bottom: calc(var(--u) * 18);
+            margin-bottom: calc(var(--u) * 20);
         }
 
         #agenda {
             display: grid;
             grid-template-columns: calc(var(--u) * 150) minmax(0, 1fr);
-            row-gap: calc(var(--u) * 26);
+            row-gap: calc(var(--u) * 14);
             column-gap: calc(var(--u) * 20);
             align-items: baseline;
+            /* pulls the last row's descender space below the clock's baseline */
+            margin-bottom: calc(var(--u) * -10);
         }
 
         .ev-when {
             font-size: calc(var(--u) * 19);
+            line-height: 1.3;
             color: var(--text-dim);
         }
 
         .ev-name {
             font-size: calc(var(--u) * 26);
+            line-height: 1.3;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -213,16 +219,18 @@
         }
 
         /* ===== Bottom row: status tags + timers ===== */
+        /* Tags centered; timers in the right-hand third */
         #status {
-            grid-column: 1 / -1;
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
             align-items: center;
-            justify-content: space-between;
-            gap: calc(var(--u) * 24);
+            column-gap: calc(var(--u) * 24);
             min-height: calc(var(--u) * 76);
         }
 
         #tags {
+            grid-column: 2;
+            justify-content: center;
             display: flex;
             flex-wrap: wrap;
             align-items: center;
@@ -233,27 +241,31 @@
             display: flex;
             align-items: center;
             gap: calc(var(--u) * 10);
-            padding: calc(var(--u) * 10) calc(var(--u) * 18);
+            padding: calc(var(--u) * 12) calc(var(--u) * 24);
             border: 1px solid var(--tag-border);
             border-radius: 999px;
-            font-size: calc(var(--u) * 18);
-            color: var(--text-mid);
+            font-size: calc(var(--u) * 23);
+            font-weight: 500;
+            color: var(--text);
         }
 
         .tag .dot {
-            width: calc(var(--u) * 8);
-            height: calc(var(--u) * 8);
+            width: calc(var(--u) * 10);
+            height: calc(var(--u) * 10);
             border-radius: 50%;
             background: #4a4844;
         }
 
+        .tag.calm { border-color: #23403b; color: var(--accent); }
         .tag.calm .dot { background: var(--accent); }
-        .tag.warn { border-color: var(--warn-border); color: var(--warn-text); font-weight: 500; }
+        .tag.warn { border-color: var(--warn-border); color: var(--warn-text); }
         .tag.warn .dot { background: var(--warn); }
-        .tag.alert { border-color: var(--alert-border); color: var(--alert-text); font-weight: 500; }
+        .tag.alert { border-color: var(--alert-border); color: var(--alert-text); }
         .tag.alert .dot { background: var(--alert); }
 
         #timers {
+            grid-column: 3;
+            justify-self: end;
             display: flex;
             align-items: center;
             gap: calc(var(--u) * 14);
@@ -317,7 +329,7 @@
             color: var(--text-low);
         }
 
-        /* ===== Night: dim clock + temperature, alerts and timers only ===== */
+        /* ===== Night: dim clock + temperature; tags and timers as by day ===== */
         #night-weather { display: none; }
 
         body.night #top {
@@ -325,9 +337,7 @@
         }
 
         body.night #side,
-        body.night #clock .date,
-        body.night .tag.calm,
-        body.night .tag.quiet {
+        body.night #clock .date {
             display: none;
         }
 
@@ -391,7 +401,7 @@
     <script src="js/ha-config.js?v=20261005"></script>
     <script type="module">
         import { config } from './js/config.js?v=20261005';
-        import { startScreensaver } from './js/screensaver.js?v=2';
+        import { startScreensaver } from './js/screensaver.js?v=3';
 
         document.addEventListener('DOMContentLoaded', () => startScreensaver(config));
     </script>
