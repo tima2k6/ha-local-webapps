@@ -79,21 +79,22 @@ A full control panel and live mirror for the 128×64 HUB75 LED matrix scoreboard
 
 ### 3. HA Dashboard Screensaver (`index.html`)
 
-A fullscreen kiosk/screensaver for a wall-mounted display. Black background, two-column layout — weather on the left, upcoming calendar events on the right — with a scrolling sensor ticker at the bottom. Uses custom typography (Protest Strike + Zain fonts, self-hosted) and smooth CSS fade transitions between weather and calendar states.
+A fullscreen kiosk/screensaver for a wall-mounted OLED display ("Quiet Hours" design). Pure black background, warm grey text and one teal accent so it stays calm when idle. Everything is sized from a 1280×720 layout and scales to any 16:9 screen.
 
 **Layout:**
-- Top: large clock and date display
-- Left column: current conditions + today's forecast from `weather.forecast_home` (met.no, the same source as the LED panel), weather icon, temperature, details; fades between current and forecast views
-- Right column: upcoming HA calendar events with animated fade cycling between events
-- Bottom: full-width scrolling ticker fed by HA sensor data
+- Left: date and a thin clock (hour and minute, no seconds)
+- Right: current weather plus today's high/low and tomorrow from `weather.forecast_home` (met.no, the same source as the LED panel), then the next three `calendar.family` events
+- Bottom: static status tags from the ticker's sensors (Zoey's feeding, trash and recycling, open windows and doors): grey or teal when routine, amber or red when something needs attention; running Alexa/Google Home timers on the right
+- Night (`sun.sun` below the horizon): only a dim clock, the temperature and amber/red alerts and timers stay up
+- Burn-in guard: the whole layout shifts by up to ~12 px every 3 minutes
 
 **Modules (`js/`):**
-- `clock.js` — live clock and date, updates every second
-- `weather.js` — current conditions and today's high/low from `weather.forecast_home` via the HA REST API (`weather.get_forecasts`); cycles between current and forecast on a timer
-- `calendar.js` — upcoming calendar events from HA REST API; cycles through events with fade transitions
-- `ticker.js` — horizontally scrolling ticker fed by HA sensor states
+- `screensaver.js` — the page: clock, weather, agenda, night mode and drift; renders the ticker and timers as tags
+- `ticker.js` — HA WebSocket feed of the status sensors (subclassed by `screensaver.js` for its tags)
+- `timers.js` — Alexa and Google Home timers from every speaker (subclassed by `screensaver.js` for its timer tag)
+- `clock.js`, `weather.js`, `calendar.js` — the previous screensaver's modules, no longer loaded by `index.html`
 
-**Fonts:** Self-hosted in `/fonts/` — Protest Strike (headers) and Zain Light/Bold/Extrabold (body text). Not committed to the repo due to licensing.
+**Fonts:** Outfit (clock, temperatures) and Figtree (text) from Google Fonts. The self-hosted `/fonts/` (Protest Strike, Zain) are no longer used by the screensaver.
 
 **Configuration:**
 

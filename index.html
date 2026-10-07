@@ -3,740 +3,382 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta property="og:image" content="https://hotelanddine.com/og-image.png">
-    <meta property="twitter:image" content="https://hotelanddine.com/og-image.png">
     <title>Home Assistant Screensaver</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300&family=Figtree:wght@400;500;600&display=swap">
     <style>
-        /* ===== CSS VARIABLES ===== */
+        /* "Quiet Hours": pure black for the OLED, warm grey text, one accent.
+           Everything is sized in --u, one design pixel of a 1280x720 layout,
+           so the screen scales to any 16:9 display. */
         :root {
-            /* Colors */
-            --color-background: #000000;
-            --color-text: #ffffff;
-            --color-current: #00ffd0;
-            --color-forecast: #16F529;
-            
-            /* Font Sizes */
-            --font-size-xl: min(10vw, 6rem);      /* Time display */
-            --font-size-lg: min(4.5vw, 3rem);     /* Headers, event names */
-            --font-size-md: min(4.5vw, 3rem);     /* Date display */
-            --font-size-sm: min(3.5vw, 2.5rem);     /* Details, temps, dates */
-            
-            /* Shadows */
-            --shadow-strong: 
-                2px 2px 0 #333,
-                3px 3px 0 #222,
-                4px 4px 0 #111;
-            --shadow-light: 
-                1px 1px 0 #333,
-                2px 2px 0 #222,
-                3px 3px 0 #111;
-                
-            /* Spacing */
-            --spacing-xs: 0.5vh;
-            --spacing-sm: 1vh;
-            --spacing-md: 2vh;
-            --spacing-lg: 3vh;
+            --u: min(calc(100vw / 1280), calc(100vh / 720));
+            --bg: #000000;
+            --text-hi: #e6e2da;
+            --text: #d9d6cf;
+            --text-mid: #a9a59e;
+            --text-dim: #8b8780;
+            --text-low: #7d7a74;
+            --rule: #1f1f1f;
+            --tag-border: #262626;
+            --accent: #5fc9b4;
+            --warn: #e0a64a;
+            --warn-text: #e8b25c;
+            --warn-border: #4d3a1a;
+            --alert: #ff6b5e;
+            --alert-text: #ff8a7a;
+            --alert-border: #5a2620;
+            --night-text: #7a766f;
+            --night-low: #6f6b65;
         }
 
-        /* ===== FONT FACES ===== */
-        @font-face {
-            font-family: 'Protest Strike';
-            src: url('/fonts/ProtestStrike-Regular.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-            font-display: swap;
+        html, body {
+            margin: 0;
+            height: 100%;
+            background: var(--bg);
+            overflow: hidden;
+            cursor: none;
         }
 
-        @font-face {
-            font-family: 'Zain';
-            src: url('/fonts/Zain-Light.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: 'Zain';
-            src: url('/fonts/Zain-Bold.ttf') format('truetype');
-            font-weight: bold;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        @font-face {
-            font-family: 'Zain';
-            src: url('/fonts/Zain-Extrabold.ttf') format('truetype');
-            font-weight: 800;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        /* ===== BASE STYLES ===== */
         body {
-            margin: 0;
-            padding: 0;
+            color: var(--text);
+            font-family: 'Figtree', sans-serif;
             display: flex;
-            flex-direction: column;
-            height: 100vh;
-            background: var(--color-background);
-            color: var(--color-text);
-            font-family: 'Protest Strike', sans-serif;
-            text-align: center;
-            overflow: hidden;
-        }
-
-        #container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 8vh 0;
-            overflow: hidden;
-        }
-
-        /* ===== TIME & DATE SECTION ===== */
-        #time-date-section {
-            flex: 0 0 auto;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            width: 100%;
-            margin-bottom: var(--spacing-sm);
-        }
-
-        #time-display {
-            font-size: var(--font-size-xl);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin: 0;
-            color: var(--color-text);
-            text-shadow: var(--shadow-strong);
-            -webkit-text-stroke: 1px rgba(0,0,0,0.4);
-        }
-
-        #date-display {
-            font-size: var(--font-size-md);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin: 0;
-            color: var(--color-text);
-            text-shadow: var(--shadow-strong);
-            -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
-        }
-
-        #info-section {
-            flex: 1;
-            display: flex;
-            flex-direction: row;
-            width: 100%;
-            gap: 2vh;
-        }
-
-        #weather-display {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0 1vh;
-            padding: 0 1vw;
-            max-width: 50%;
-            position: relative;
-            min-height: 200px;
-        }
-
-        #weather-display img {
-            width: min(100px, 15vw);
-            height: min(100px, 15vw);
-            
-            filter: drop-shadow(2px 2px 0 #333);
-        }
-
-        #calendar-display {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0 1vh;
-            padding: 0 2vw;
-            max-width: 50%;
-        }
-
-        /* Calendar elements */
-        #calendar-events {
-            position: relative;
-            min-height: 120px;
-            width: 100%;
-        }
-
-        .event {
-            opacity: 0;
-            transform: translateY(10px);
-            transition: opacity 3s ease-in-out, transform 3s ease-in-out;
-            width: 100%;
-            text-align: center;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 0.3rem 0;
+        }
+
+        #screen {
+            position: relative;
+            width: calc(var(--u) * 1280);
+            height: calc(var(--u) * 720);
             box-sizing: border-box;
-        }
-
-        .event.active {
-            opacity: 1;
-            transform: translateY(0);
-            z-index: 2;
-        }
-
-        .event.hidden {
-            opacity: 0;
-            transform: translateY(-10px);
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        .event-name {
-            margin-bottom: 0.5rem;
-            font-family: 'Zain', sans-serif;
-        }
-
-        .event-datetime {
-            color: #ffffff;
-            font-style: italic;
-            font-family: 'Zain', sans-serif;
-        }
-
-        /* Ticker styles */
-        #sensor-ticker {
-            height: min(3em, 10vh);
-            line-height: min(3em, 10vh);
-            
-            overflow: hidden;
-            white-space: nowrap;
-            font-size: min(4vw, 3rem);
-            color: white;
-            position: relative;
-            width: 100%;
-            font-family: 'Zain', sans-serif;
-            font-weight: 800;
-        }
-
-        #sensor-ticker .ticker-content {
-            display: inline-flex;
-            position: absolute;
-            white-space: nowrap;
-            will-change: transform;
-            left: 0;
-            transform: translate3d(0, 0, 0);
-            backface-visibility: hidden;
-        }
-
-        #sensor-ticker .ticker-text {
-            display: inline-block;
-            padding: 0 2rem;
-        }
-
-        @keyframes tickerScroll {
-            0% {
-                transform: translate3d(100vw, 0, 0);
-            }
-            100% {
-                transform: translate3d(-100%, 0, 0);
-            }
-        }
-
-        #weather-display .weather-grid {
+            padding: calc(var(--u) * 56) calc(var(--u) * 72) calc(var(--u) * 48);
             display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 1rem;
-            align-items: center;
-            width: 100%;
-            max-width: 800px;
-            padding: 0 2rem;
+            grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+            grid-template-rows: minmax(0, 1fr) auto;
+            column-gap: calc(var(--u) * 80);
+            row-gap: calc(var(--u) * 32);
+            transition: transform 4s ease-in-out;
         }
 
-        #weather-display .weather-info {
-            text-align: left;
+        /* ===== Clock ===== */
+        #clock {
             display: flex;
             flex-direction: column;
-            gap: 0.5vh;
-        }
-
-        #weather-display .temp {
-            font-size: min(3.5vw, 2.5rem);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-        }
-
-        #weather-display .details {
-            font-size: min(3.5vw,  2.5rem);
-            
-        }
-
-        #weather-display .feels-like {
-            font-size: min(3.5vw, 2.5rem);
-        
-        }
-
-        .zain-bold {
-            font-family: 'Zain', sans-serif !important;
-            font-weight: bold !important;
-        }
-
-        #weather-display .weather-column > div:first-child {
-            font-family: 'Zain', sans-serif;
-            font-weight: 800;
-            text-decoration: underline;
-            order: 1;
-        }
-
-        #weather-display .weather-column img {
-            order: 2;
-        }
-
-        #weather-display .weather-info {
-            order: 3;
-        }
-
-        /* Update the columns layout */
-        .weather-columns {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            padding: 0 2vw;
-            box-sizing: border-box;
-        }
-
-        .weather-column {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 3vh;
-        }
-
-       
-        .current-section, .forecast-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1vh;
-        }
-
-        .currently-header, .forecast-header {
-            font-family: 'Zain', sans-serif;
-            font-size: var(--font-size-lg);
-            margin: 0;
-            padding: 0;
-            margin-bottom: var(--spacing-xs);
-            color: var(--color-text);
-            text-shadow: var(--shadow-strong);
-            -webkit-text-stroke: 1px rgba(0,0,0,0.3);
-            order: 1;
-        }
-
-        .current-weather-info {
-            text-align: center;
-        }
-
-        .current-weather-icon {
-            width: min(100px, 15vw);
-            height: min(100px, 15vw);
-            filter: drop-shadow(2px 2px 0 #333);
-            order: 2;
-        }
-
-        /* Forecast Section */
-        
-
-        .forecast-weather-info {
-            text-align: center;
-        }
-
-        /* Everything else stays Bold */
-        #weather-display, 
-        #calendar-events,
-        #sensor-ticker,
-        .event-name,
-        .event-datetime,
-        .event,
-        #calendar-events .event {
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-        }
-
-        .weather-column > * {
-            width: 100%;
-            text-align: center;
-        }
-
-        .currently-header {
-            order: 1;
-        }
-
-        .current-weather-info {
-            order: 2;
-        }
-
-        .current-weather-icon {
-            order: 3;
-            width: min(100px, 15vw);
-            height: min(100px, 15vw);
-        }
-
-        .forecast-header {
-            order: 4;
-        }
-
-        .forecast-weather-info {
-            order: 5;
-        }
-
-
-        /* Weather and calendar content */
-        .current-weather-info, .forecast-weather-info {
-            text-align: center;
-            width: 100%;
-        }
-
-        /* Headers with depth */
-        #calendar-header {
-            font-family: 'Zain', sans-serif;
-            font-weight: 800;
-            text-decoration: underline;
-            font-size: var(--font-size-lg);
-            margin: 0;
-            padding: 0;
-            margin-bottom: var(--spacing-xs);
-            color: var(--color-text);
-            text-shadow: var(--shadow-strong);
-            -webkit-text-stroke: 1px rgba(0,0,0,0.3);
-        }
-
-        /* Large text with strong depth - event name */
-        .event-name {
-            font-size: var(--font-size-lg);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: var(--spacing-xs);
-            color: var(--color-text);
-            text-shadow: var(--shadow-strong);
-            -webkit-text-stroke: 1px rgba(0,0,0,0.4);
-        }
-        
-        /* Smaller text with strong depth - temperature */
-        .current-weather-info .temp {
-            font-size: var(--font-size-sm);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: var(--spacing-xs);
-            color: var(--color-text);
-            text-shadow: var(--shadow-strong);
-            -webkit-text-stroke: 1px rgba(0,0,0,0.4);
-        }
-
-        /* Calendar events with subtle depth */
-        #calendar-events {
-            font-size: var(--font-size-lg);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: var(--spacing-xs);
-            color: var(--color-text);
-            text-shadow: var(--shadow-light);
-            -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
-        }
-        
-        /* Smaller text with subtle depth for tablet display */
-        .current-weather-info .details,
-        .current-weather-info .feels-like,
-        .forecast-weather-info .details,
-        .forecast-weather-info .temp,
-        .event-datetime {
-            font-size: var(--font-size-sm);
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            margin-bottom: var(--spacing-xs);
-            color: var(--color-text);
-            text-shadow: var(--shadow-light);
-            -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
-        }
-
-        /* Event spacing */
-        .event {
-            margin-bottom: 1vh;
-        }
-
-        /* Ensure all text containers are fully opaque */
-        .current-weather-info,
-        .forecast-weather-info,
-        #calendar-events,
-        .event {
-            opacity: 1;
-        }
-
-        /* Layout for temperature elements */
-        .temp-line {
-            display: flex;
-            align-items: center;
             justify-content: center;
-            gap: 1rem;
+            gap: calc(var(--u) * 8);
         }
 
-        /* Weather transition styles */
-        .weather-section {
-            opacity: 0;
-            transform: translateY(10px);
-            transition: opacity 3s ease-in-out, transform 3s ease-in-out;
-            width: 100%;
-            text-align: center;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
+        #clock .date {
+            font-size: calc(var(--u) * 26);
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            color: var(--text-dim);
+        }
+
+        #clock .face {
+            display: flex;
+            align-items: flex-start;
+            gap: calc(var(--u) * 14);
+        }
+
+        #clock .time {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 200;
+            font-size: calc(var(--u) * 250);
+            line-height: 0.92;
+            letter-spacing: -0.04em;
+            color: var(--text-hi);
+            font-variant-numeric: tabular-nums;
+        }
+
+        #clock .period {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 300;
+            font-size: calc(var(--u) * 34);
+            color: var(--text-low);
+            margin-top: calc(var(--u) * 30);
+        }
+
+        /* ===== Right column: weather + agenda ===== */
+        #side {
             display: flex;
             flex-direction: column;
-            align-items: center;
             justify-content: center;
-            padding: 0.3rem 0;
-            box-sizing: border-box;
-            
+            gap: calc(var(--u) * 36);
+            min-width: 0;
         }
 
-        .weather-section.active {
-            opacity: 1;
-            transform: translateY(0);
-            z-index: 2;
+        #weather {
+            display: flex;
+            flex-direction: column;
+            gap: calc(var(--u) * 14);
         }
 
-        .weather-section.hidden {
-            opacity: 0;
-            transform: translateY(-10px);
-            pointer-events: none;
-            z-index: 1;
+        .wx-now {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--u) * 22);
         }
 
-        /* Weather headers */
-        .weather-header {
-            font-family: 'Zain', sans-serif;
-            font-weight: 800;
-            text-decoration: underline;
-            font-size: var(--font-size-lg);
-            margin: 0;
-            padding: 0;
-            margin-bottom: var(--spacing-xs);
-            color: var(--color-text);
-            text-shadow: var(--shadow-strong);
-            -webkit-text-stroke: 1px rgba(0,0,0,0.3);
+        .wx-icon svg {
+            display: block;
+            width: calc(var(--u) * 64);
+            height: calc(var(--u) * 64);
+            color: var(--accent);
         }
 
-        .currently-header, .forecast-header {
-            text-decoration: none;
-            
-            margin: 0;
-            padding: 0;
-            order: 1;
+        .wx-temp {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 300;
+            font-size: calc(var(--u) * 96);
+            line-height: 1;
+            color: var(--text-hi);
         }
 
-        .currently-header {
-            color: var(--color-current);
+        .wx-cond {
+            display: flex;
+            flex-direction: column;
+            gap: calc(var(--u) * 6);
         }
 
-        .forecast-header {
-            color: var(--color-forecast);
+        .wx-label {
+            font-size: calc(var(--u) * 28);
+            font-weight: 500;
         }
 
-        /* Weather content */
-        .weather-content {
-            position: relative;
-            min-height: 200px;
-            width: 100%;
-            margin-top: 0.5vh;
+        .wx-hilo {
+            font-size: calc(var(--u) * 22);
+            color: var(--text-dim);
+            white-space: pre;
         }
 
-        .current-weather-info, .forecast-weather-info {
-            width: 100%;
-            text-align: center;
-            order: 3;
+        .wx-next {
+            font-size: calc(var(--u) * 20);
+            color: var(--text-low);
         }
 
-        /* ===== ALEXA TIMERS (js/timers.js) ===== */
-        /* Top-right corner, beside the clock; only while a timer runs */
-        #timer-display {
-            position: fixed;
-            top: 3vh;
-            right: 3vw;
-            min-width: 16vw;
-            text-align: right;
-            font-family: 'Zain', sans-serif;
-            font-weight: bold;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: opacity 1.5s ease-in-out, transform 1.5s ease-in-out;
-            pointer-events: none;
-            z-index: 5;
+        .rule {
+            height: 1px;
+            background: var(--rule);
         }
 
-        #timer-display.active {
-            opacity: 1;
-            transform: translateY(0);
+        .agenda-head {
+            font-size: calc(var(--u) * 15);
+            font-weight: 600;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text-low);
+            margin-bottom: calc(var(--u) * 18);
         }
 
-        .timer-header {
-            font-size: var(--font-size-sm);
-            font-weight: 800;
-            color: var(--color-current);
-            text-shadow: var(--shadow-strong);
-            -webkit-text-stroke: 1px rgba(0,0,0,0.3);
-        }
-
-        /* Name beside the countdown, bar underneath: compact enough that three
-           timers stay above the weather and calendar columns */
-        .timer-row {
+        #agenda {
             display: grid;
-            grid-template-columns: 1fr auto;
+            grid-template-columns: calc(var(--u) * 150) minmax(0, 1fr);
+            row-gap: calc(var(--u) * 16);
+            column-gap: calc(var(--u) * 20);
             align-items: baseline;
-            column-gap: 1vw;
-            margin-top: var(--spacing-xs);
         }
 
-        .timer-row .timer-bar {
+        .ev-when {
+            font-size: calc(var(--u) * 19);
+            color: var(--text-dim);
+        }
+
+        .ev-name {
+            font-size: calc(var(--u) * 26);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ev-none {
             grid-column: 1 / -1;
+            font-size: calc(var(--u) * 22);
+            color: var(--text-low);
+        }
+
+        /* ===== Bottom row: status tags + timers ===== */
+        #status {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: calc(var(--u) * 24);
+            min-height: calc(var(--u) * 76);
+        }
+
+        #tags {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: calc(var(--u) * 14);
+        }
+
+        .tag {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--u) * 10);
+            padding: calc(var(--u) * 10) calc(var(--u) * 18);
+            border: 1px solid var(--tag-border);
+            border-radius: 999px;
+            font-size: calc(var(--u) * 18);
+            color: var(--text-mid);
+        }
+
+        .tag .dot {
+            width: calc(var(--u) * 8);
+            height: calc(var(--u) * 8);
+            border-radius: 50%;
+            background: #4a4844;
+        }
+
+        .tag.calm .dot { background: var(--accent); }
+        .tag.warn { border-color: var(--warn-border); color: var(--warn-text); font-weight: 500; }
+        .tag.warn .dot { background: var(--warn); }
+        .tag.alert { border-color: var(--alert-border); color: var(--alert-text); font-weight: 500; }
+        .tag.alert .dot { background: var(--alert); }
+
+        #timers {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--u) * 14);
+        }
+
+        .timer {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--u) * 20);
+            padding: calc(var(--u) * 12) calc(var(--u) * 22);
+            border: 1px solid #23403b;
+            border-radius: calc(var(--u) * 18);
+        }
+
+        .timer-meta {
+            display: flex;
+            flex-direction: column;
+            gap: calc(var(--u) * 8);
+            min-width: calc(var(--u) * 170);
         }
 
         .timer-name {
-            font-size: calc(var(--font-size-sm) * 0.8);
-            text-shadow: var(--shadow-light);
-            -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
-        }
-
-        .timer-device {
-            color: #b0b0b0;
-        }
-
-        .timer-time {
-            font-size: var(--font-size-lg);
-            font-weight: 800;
-            line-height: 1;
-            font-variant-numeric: tabular-nums;
-            text-shadow: var(--shadow-strong);
-            -webkit-text-stroke: 1px rgba(0,0,0,0.4);
-        }
-
-        .timer-row.ending .timer-time {
-            color: #ff5a5a;
-        }
-
-        .timer-row.done .timer-time {
-            color: var(--color-forecast);
-            animation: timerDone 1.6s ease-in-out infinite;
-        }
-
-        @keyframes timerDone {
-            50% { opacity: 0.45; }
+            font-size: calc(var(--u) * 17);
+            color: var(--text-mid);
         }
 
         .timer-bar {
-            height: max(3px, 0.5vh);
-            margin-top: var(--spacing-xs);
-            background: rgba(255,255,255,0.15);
+            height: calc(var(--u) * 4);
             border-radius: 2px;
+            background: #1c1c1c;
             overflow: hidden;
         }
 
         .timer-bar > div {
             height: 100%;
             margin-left: auto;   /* shrinks toward the right edge */
-            background: var(--color-current);
+            background: var(--accent);
             transition: width 1s linear;
         }
 
-        .timer-row.ending .timer-bar > div {
-            background: #ff5a5a;
+        .timer-time {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 300;
+            font-size: calc(var(--u) * 52);
+            line-height: 1;
+            color: var(--accent);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .timer.ending { border-color: var(--alert-border); }
+        .timer.ending .timer-time { color: var(--alert); }
+        .timer.ending .timer-bar > div { background: var(--alert); }
+        .timer.done .timer-time { animation: timerDone 1.6s ease-in-out infinite; }
+
+        @keyframes timerDone {
+            50% { opacity: 0.45; }
         }
 
         .timer-more {
-            margin-top: var(--spacing-xs);
-            font-size: calc(var(--font-size-sm) * 0.7);
-            color: #b0b0b0;
+            font-size: calc(var(--u) * 18);
+            color: var(--text-low);
+        }
+
+        /* ===== Night: dim clock + temperature, alerts and timers only ===== */
+        #night-weather { display: none; }
+
+        body.night #screen {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        body.night #side,
+        body.night #clock .date,
+        body.night .tag.calm,
+        body.night .tag.quiet {
+            display: none;
+        }
+
+        body.night #clock {
+            align-items: center;
+            gap: calc(var(--u) * 18);
+        }
+
+        body.night #clock .time {
+            font-size: calc(var(--u) * 210);
+            color: var(--night-text);
+        }
+
+        body.night #clock .period {
+            font-size: calc(var(--u) * 30);
+            color: #66625c;
+            margin-top: calc(var(--u) * 26);
+        }
+
+        body.night #night-weather {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--u) * 14);
+            font-size: calc(var(--u) * 26);
+            color: var(--night-low);
+            white-space: pre;
+        }
+
+        body.night #night-weather svg {
+            width: calc(var(--u) * 30);
+            height: calc(var(--u) * 30);
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <div id="time-date-section">
-            <div id="date-display"></div>
-            <div id="time-display"></div>
+    <div id="screen">
+        <div id="clock">
+            <div class="date"></div>
+            <div class="face">
+                <div class="time"></div>
+                <div class="period"></div>
+            </div>
+            <div id="night-weather"></div>
         </div>
-        <div id="info-section">
-            <div id="weather-display">Loading weather...</div>
-            <div id="calendar-display">
-                <div id="calendar-header">Upcoming Events</div>
-                <div id="calendar-events"></div>
+        <div id="side">
+            <div id="weather"></div>
+            <div class="rule"></div>
+            <div>
+                <div class="agenda-head">Next up</div>
+                <div id="agenda"></div>
             </div>
         </div>
+        <div id="status">
+            <div id="tags"></div>
+            <div id="timers"></div>
+        </div>
     </div>
-    <div id="sensor-ticker"><div class="ticker-content"></div></div>
-    <div id="timer-display"></div>
 
     <script src="js/ha-config.js?v=20261005"></script>
     <script type="module">
         import { config } from './js/config.js?v=20261005';
-        import { WeatherDisplay } from './js/weather.js?v=3';
-        import { CalendarDisplay } from './js/calendar.js';
-        import { Clock } from './js/clock.js';
-        import { Ticker } from './js/ticker.js?v=3';
-        import { Timers } from './js/timers.js?v=1';
+        import { startScreensaver } from './js/screensaver.js?v=1';
 
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Full config object:', config);
-            
-            // Initialize clock
-            const clock = new Clock(
-                document.getElementById('time-display'),
-                document.getElementById('date-display')
-            );
-            clock.start();
-            console.log('Clock initialized');
-
-            // Initialize weather
-            const weatherDisplay = new WeatherDisplay(
-                config.haUrl,
-                config.longLivedAccessToken,
-                document.getElementById('weather-display')
-            );
-            weatherDisplay.start();
-            console.log('Weather initialized');
-
-            // Initialize calendar
-            const calendarDisplay = new CalendarDisplay(
-                config.haUrl,
-                config.longLivedAccessToken,
-                document.getElementById('calendar-events')
-            );
-            calendarDisplay.start();
-            console.log('Calendar initialized');
-
-            // Initialize ticker
-            const ticker = new Ticker(
-                config.haUrl,
-                config.longLivedAccessToken,
-                document.getElementById('sensor-ticker')
-            );
-            ticker.start();
-            console.log('Ticker initialized');
-
-            // Alexa timers from every Echo: top-right corner, only while one runs
-            const timers = new Timers(
-                config.haUrl,
-                config.longLivedAccessToken,
-                document.getElementById('timer-display')
-            );
-            timers.start();
-            console.log('Timers initialized');
-        });
+        document.addEventListener('DOMContentLoaded', () => startScreensaver(config));
     </script>
 </body>
 </html>
