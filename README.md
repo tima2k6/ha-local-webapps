@@ -92,9 +92,8 @@ A fullscreen kiosk/screensaver for a wall-mounted OLED display ("Quiet Hours" de
 - `screensaver.js` — the page: clock, weather, agenda, night mode and drift; renders the ticker and timers as tags
 - `ticker.js` — HA WebSocket feed of the status sensors (subclassed by `screensaver.js` for its tags)
 - `timers.js` — Alexa and Google Home timers from every speaker (subclassed by `screensaver.js` for its timer tag)
-- `clock.js`, `weather.js`, `calendar.js` — the previous screensaver's modules, no longer loaded by `index.html`
 
-**Fonts:** Outfit (clock, temperatures) and Figtree (text) from Google Fonts. The self-hosted `/fonts/` (Protest Strike, Zain) are no longer used by the screensaver.
+**Fonts:** Outfit (clock, temperatures) and Figtree (text) from Google Fonts.
 
 **Configuration:**
 
@@ -103,12 +102,7 @@ Copy `js/config.example.js` to `js/config.js` and fill in your values:
 ```javascript
 export const config = {
     haUrl: 'http://YOUR_HA_IP:8123',
-    longLivedAccessToken: 'YOUR_HA_LONG_LIVED_TOKEN',
-    updateIntervals: {
-        weather: 300000,   // 5 minutes
-        calendar: 300000,
-        ticker: 300000
-    }
+    longLivedAccessToken: 'YOUR_HA_LONG_LIVED_TOKEN'
 };
 ```
 
