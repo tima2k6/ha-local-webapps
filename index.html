@@ -8,17 +8,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300&family=Figtree:wght@400;500;600&display=swap">
     <style>
-        /* "Quiet Hours": pure black, warm grey text, one accent, sized to read
+        /* "Quiet Hours": warm near-black, warm off-white text, one accent, sized to read
            from across the room with light strokes. Everything is sized in --u, one design pixel
            of a 1280x800 layout: the 16:10 Galaxy Tab A9+ (1920x1200). */
         :root {
             --u: min(calc(100vw / 1280), calc(100vh / 800));
-            --bg: #000000;
-            --text-hi: #f4f1ea;
-            --text: #ebe7df;
-            --text-mid: #cfcac1;
-            --text-dim: #bdb8af;
-            --text-low: #a8a39a;
+            /* Not pure black: the tablet's LCD backlight turns #000 a cool navy
+               on the wall. A faint brown cancels that blue so the screen reads as
+               warm charcoal beside the cream wall, and the text is paper-white. */
+            --bg: #0e0b08;
+            --text-hi: #f2eadf;
+            --text: #e8e0d4;
+            --text-mid: #ccc4b8;
+            --text-dim: #bab2a6;
+            --text-low: #a59e92;
             --tag-border: #3a3a3a;
             --accent: #5fc9b4;
             --accent-border: #2c5a51;
