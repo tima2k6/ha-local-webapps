@@ -561,6 +561,107 @@
             text-align: center;
             order: 3;
         }
+
+        /* ===== ALEXA TIMERS (js/timers.js) ===== */
+        /* Top-right corner, beside the clock; only while a timer runs */
+        #timer-display {
+            position: fixed;
+            top: 3vh;
+            right: 3vw;
+            min-width: 16vw;
+            text-align: right;
+            font-family: 'Zain', sans-serif;
+            font-weight: bold;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 1.5s ease-in-out, transform 1.5s ease-in-out;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        #timer-display.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .timer-header {
+            font-size: var(--font-size-sm);
+            font-weight: 800;
+            color: var(--color-current);
+            text-shadow: var(--shadow-strong);
+            -webkit-text-stroke: 1px rgba(0,0,0,0.3);
+        }
+
+        /* Name beside the countdown, bar underneath: compact enough that three
+           timers stay above the weather and calendar columns */
+        .timer-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: baseline;
+            column-gap: 1vw;
+            margin-top: var(--spacing-xs);
+        }
+
+        .timer-row .timer-bar {
+            grid-column: 1 / -1;
+        }
+
+        .timer-name {
+            font-size: calc(var(--font-size-sm) * 0.8);
+            text-shadow: var(--shadow-light);
+            -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
+        }
+
+        .timer-device {
+            color: #b0b0b0;
+        }
+
+        .timer-time {
+            font-size: var(--font-size-lg);
+            font-weight: 800;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            text-shadow: var(--shadow-strong);
+            -webkit-text-stroke: 1px rgba(0,0,0,0.4);
+        }
+
+        .timer-row.ending .timer-time {
+            color: #ff5a5a;
+        }
+
+        .timer-row.done .timer-time {
+            color: var(--color-forecast);
+            animation: timerDone 1.6s ease-in-out infinite;
+        }
+
+        @keyframes timerDone {
+            50% { opacity: 0.45; }
+        }
+
+        .timer-bar {
+            height: max(3px, 0.5vh);
+            margin-top: var(--spacing-xs);
+            background: rgba(255,255,255,0.15);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .timer-bar > div {
+            height: 100%;
+            margin-left: auto;   /* shrinks toward the right edge */
+            background: var(--color-current);
+            transition: width 1s linear;
+        }
+
+        .timer-row.ending .timer-bar > div {
+            background: #ff5a5a;
+        }
+
+        .timer-more {
+            margin-top: var(--spacing-xs);
+            font-size: calc(var(--font-size-sm) * 0.7);
+            color: #b0b0b0;
+        }
     </style>
 </head>
 <body>
@@ -578,6 +679,7 @@
         </div>
     </div>
     <div id="sensor-ticker"><div class="ticker-content"></div></div>
+    <div id="timer-display"></div>
 
     <script src="js/ha-config.js?v=20261005"></script>
     <script type="module">
@@ -586,6 +688,7 @@
         import { CalendarDisplay } from './js/calendar.js';
         import { Clock } from './js/clock.js';
         import { Ticker } from './js/ticker.js?v=3';
+        import { Timers } from './js/timers.js?v=1';
 
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Full config object:', config);
@@ -626,6 +729,15 @@
             );
             ticker.start();
             console.log('Ticker initialized');
+
+            // Alexa timers from every Echo: top-right corner, only while one runs
+            const timers = new Timers(
+                config.haUrl,
+                config.longLivedAccessToken,
+                document.getElementById('timer-display')
+            );
+            timers.start();
+            console.log('Timers initialized');
         });
     </script>
 </body>
