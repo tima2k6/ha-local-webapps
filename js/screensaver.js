@@ -6,7 +6,7 @@
 // rendering changes.
 
 import { Ticker } from './ticker.js?v=3';
-import { Timers } from './timers.js?v=1';
+import { Timers } from './timers.js?v=2';
 
 const WEATHER = 'weather.forecast_home';
 const CALENDAR = 'calendar.family';

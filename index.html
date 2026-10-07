@@ -227,17 +227,20 @@
         }
 
         /* ===== Bottom row: status tags + timers ===== */
-        /* Tags centered; timers in the right-hand third */
+        /* Tags then timers, centered together; a second line when they don't
+           fit on one (two timers beside two tags), never drawn over each other */
         #status {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
             align-items: center;
-            column-gap: calc(var(--u) * 24);
+            gap: calc(var(--u) * 16) calc(var(--u) * 24);
             min-height: calc(var(--u) * 90);
         }
 
+        #tags:empty, #timers:empty { display: none; }
+
         #tags {
-            grid-column: 2;
             justify-content: center;
             display: flex;
             flex-wrap: wrap;
@@ -272,8 +275,6 @@
         .tag.alert .dot { background: var(--alert); }
 
         #timers {
-            grid-column: 3;
-            justify-self: end;
             display: flex;
             align-items: center;
             gap: calc(var(--u) * 16);
@@ -292,13 +293,16 @@
             display: flex;
             flex-direction: column;
             gap: calc(var(--u) * 10);
-            min-width: calc(var(--u) * 200);
+            width: calc(var(--u) * 210);
         }
 
         .timer-name {
             font-size: calc(var(--u) * 24);
             font-weight: 400;
             color: var(--text-mid);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .timer-bar {
@@ -339,6 +343,9 @@
         }
 
         /* ===== Night: dim clock + temperature; tags and timers as by day ===== */
+        /* In a dark room the warm charcoal glows; night goes back to near-black */
+        body.night { --bg: #070504; }
+
         #night-weather { display: none; }
 
         body.night #top {
@@ -410,7 +417,7 @@
     <script src="js/ha-config.js?v=20261005"></script>
     <script type="module">
         import { config } from './js/config.js?v=20261005';
-        import { startScreensaver } from './js/screensaver.js?v=5';
+        import { startScreensaver } from './js/screensaver.js?v=6';
 
         document.addEventListener('DOMContentLoaded', () => startScreensaver(config));
     </script>
