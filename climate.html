@@ -61,6 +61,9 @@ header h1 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text-hi);
 .meta .clock { color: var(--text-mid); }
 .live { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
 .live.down { background: var(--alert); }
+/* ?embed: inside the HA popup, whose own header already says "Climate" */
+.embed header h1 { display: none; }
+.embed header { margin-bottom: 12px; }
 .tabs {
     margin-left: auto; display: flex; background: var(--card); border: 1px solid var(--line);
     border-radius: 999px; padding: 4px;
@@ -750,6 +753,7 @@ function tick() {
 }
 
 // ---------- start ----------
+if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 build();
 // climate.html#schedule opens the Schedule tab; otherwise the last tab used
 if (location.hash === '#schedule') $('tab-plan').click();
