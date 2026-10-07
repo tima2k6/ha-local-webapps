@@ -79,19 +79,24 @@
             text-box: trim-both cap alphabetic;
         }
 
-        /* ===== Left column: clock + weather, centered in the column ===== */
+        /* ===== Left column: clock + weather ===== */
+        /* Each column is a left-aligned block, and the block sits centered in
+           its half of the screen rather than hugging the left edge. */
+        #left, #side {
+            justify-self: center;
+            width: fit-content;
+            max-width: 100%;
+        }
+
         #left {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            text-align: center;
             min-width: 0;
         }
 
         #clock {
             display: flex;
             flex-direction: column;
-            align-items: center;
             gap: calc(var(--u) * 46);
         }
 
@@ -130,7 +135,6 @@
         #weather {
             display: flex;
             flex-direction: column;
-            align-items: center;
             gap: calc(var(--u) * 18);
             margin-top: calc(var(--u) * 48);
         }
@@ -159,7 +163,6 @@
         .wx-cond {
             display: flex;
             flex-direction: column;
-            text-align: left;
             gap: calc(var(--u) * 6);
         }
 
@@ -181,10 +184,9 @@
             color: var(--text-dim);
         }
 
-        /* ===== Right column: agenda, each time above its event, centered ===== */
+        /* ===== Right column: agenda, each time above its event ===== */
         #side {
             min-width: 0;
-            text-align: center;
         }
 
         .agenda-head {
