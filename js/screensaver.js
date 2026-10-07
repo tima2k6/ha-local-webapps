@@ -135,7 +135,7 @@ class Agenda {
         const diff = Math.round((day0 - today) / 86400000);
         const day = diff <= 0 ? 'Today' : diff === 1 ? 'Tomorrow'
             : diff < 6 ? start.toLocaleDateString([], { weekday: 'short' })
-            : start.toLocaleDateString([], { weekday: 'short', day: 'numeric' });
+            : `${start.toLocaleDateString([], { weekday: 'short' })} ${start.getDate()}`;
         const time = allDay ? 'All day' : start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         return `${day} · ${time}`;
     }
