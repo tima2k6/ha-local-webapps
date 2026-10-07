@@ -8,11 +8,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300&family=Figtree:wght@400;500;600&display=swap">
     <style>
-        /* "Quiet Hours": pure black for the OLED, warm grey text, one accent.
-           Everything is sized in --u, one design pixel of a 1280x720 layout,
-           so the screen scales to any 16:9 display. */
+        /* "Quiet Hours": pure black, warm grey text, one accent.
+           Everything is sized in --u, one design pixel of a 1280x800 layout:
+           the 16:10 Galaxy Tab A9+ (1920x1200), scaling to any screen. */
         :root {
-            --u: min(calc(100vw / 1280), calc(100vh / 720));
+            --u: min(calc(100vw / 1280), calc(100vh / 800));
             --bg: #000000;
             --text-hi: #e6e2da;
             --text: #d9d6cf;
@@ -51,23 +51,37 @@
         #screen {
             position: relative;
             width: calc(var(--u) * 1280);
-            height: calc(var(--u) * 720);
+            height: calc(var(--u) * 800);
             box-sizing: border-box;
-            padding: calc(var(--u) * 56) calc(var(--u) * 72) calc(var(--u) * 48);
+            padding: calc(var(--u) * 64) calc(var(--u) * 72) calc(var(--u) * 52);
             display: grid;
-            grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+            grid-template-columns: minmax(0, 1fr);
             grid-template-rows: minmax(0, 1fr) auto;
-            column-gap: calc(var(--u) * 80);
             row-gap: calc(var(--u) * 32);
             transition: transform 4s ease-in-out;
+        }
+
+        /* Clock and the weather/agenda column share one box, so the date lines
+           up with the top of the weather and the clock's baseline with the
+           last event. text-box trims each edge line to its letters. */
+        #top {
+            align-self: center;
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+            column-gap: calc(var(--u) * 80);
+            align-items: stretch;
+        }
+
+        .date, .time, .period, .wx-temp, .ev-when, .ev-name {
+            text-box: trim-both cap alphabetic;
         }
 
         /* ===== Clock ===== */
         #clock {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            gap: calc(var(--u) * 8);
+            justify-content: space-between;
+            gap: calc(var(--u) * 28);
         }
 
         #clock .date {
@@ -86,8 +100,8 @@
         #clock .time {
             font-family: 'Outfit', sans-serif;
             font-weight: 200;
-            font-size: calc(var(--u) * 250);
-            line-height: 0.92;
+            font-size: calc(var(--u) * 270);
+            line-height: 1;
             letter-spacing: -0.04em;
             color: var(--text-hi);
             font-variant-numeric: tabular-nums;
@@ -97,15 +111,14 @@
             font-family: 'Outfit', sans-serif;
             font-weight: 300;
             font-size: calc(var(--u) * 34);
+            line-height: 1;
             color: var(--text-low);
-            margin-top: calc(var(--u) * 30);
         }
 
         /* ===== Right column: weather + agenda ===== */
         #side {
             display: flex;
             flex-direction: column;
-            justify-content: center;
             gap: calc(var(--u) * 36);
             min-width: 0;
         }
@@ -176,7 +189,7 @@
         #agenda {
             display: grid;
             grid-template-columns: calc(var(--u) * 150) minmax(0, 1fr);
-            row-gap: calc(var(--u) * 16);
+            row-gap: calc(var(--u) * 26);
             column-gap: calc(var(--u) * 20);
             align-items: baseline;
         }
@@ -307,7 +320,7 @@
         /* ===== Night: dim clock + temperature, alerts and timers only ===== */
         #night-weather { display: none; }
 
-        body.night #screen {
+        body.night #top {
             grid-template-columns: minmax(0, 1fr);
         }
 
@@ -320,7 +333,8 @@
 
         body.night #clock {
             align-items: center;
-            gap: calc(var(--u) * 18);
+            justify-content: center;
+            gap: calc(var(--u) * 32);
         }
 
         body.night #clock .time {
@@ -331,7 +345,6 @@
         body.night #clock .period {
             font-size: calc(var(--u) * 30);
             color: #66625c;
-            margin-top: calc(var(--u) * 26);
         }
 
         body.night #night-weather {
@@ -351,20 +364,22 @@
 </head>
 <body>
     <div id="screen">
-        <div id="clock">
-            <div class="date"></div>
-            <div class="face">
-                <div class="time"></div>
-                <div class="period"></div>
+        <div id="top">
+            <div id="clock">
+                <div class="date"></div>
+                <div class="face">
+                    <div class="time"></div>
+                    <div class="period"></div>
+                </div>
+                <div id="night-weather"></div>
             </div>
-            <div id="night-weather"></div>
-        </div>
-        <div id="side">
-            <div id="weather"></div>
-            <div class="rule"></div>
-            <div>
-                <div class="agenda-head">Next up</div>
-                <div id="agenda"></div>
+            <div id="side">
+                <div id="weather"></div>
+                <div class="rule"></div>
+                <div>
+                    <div class="agenda-head">Next up</div>
+                    <div id="agenda"></div>
+                </div>
             </div>
         </div>
         <div id="status">
@@ -376,7 +391,7 @@
     <script src="js/ha-config.js?v=20261005"></script>
     <script type="module">
         import { config } from './js/config.js?v=20261005';
-        import { startScreensaver } from './js/screensaver.js?v=1';
+        import { startScreensaver } from './js/screensaver.js?v=2';
 
         document.addEventListener('DOMContentLoaded', () => startScreensaver(config));
     </script>

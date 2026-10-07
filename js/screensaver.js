@@ -165,8 +165,8 @@ class Agenda {
 }
 
 // ===== Status tags: the ticker's sensors, rendered as static tags =====
-// tone: calm (accent dot), quiet (grey), warn (amber), alert (red).
-// Calm and quiet tags hide at night; warn and alert always show.
+// tone: calm (accent dot), warn (amber), alert (red).
+// Calm tags hide at night; warn and alert always show.
 class StatusTags extends Ticker {
     constructor(haUrl, token, el) {
         super(haUrl, token, el);
@@ -186,11 +186,13 @@ class StatusTags extends Ticker {
         }[s.feedingState];
         if (feed) out.push(feed);
 
+        // Same schedule as the old ticker: only while the waste reminder is on
+        // and the trash hasn't been marked as out
         const g = s.garbageCollection, r = s.recyclingCollection;
-        if (g || r) {
-            const what = g && r && g === r ? `Trash & recycling ${StatusTags.pickup(g)}`
-                : [g && `Trash ${StatusTags.pickup(g)}`, r && `Recycling ${StatusTags.pickup(r)}`].filter(Boolean).join(' · ');
-            out.push(s.wasteReminder && !s.trashOut ? ['warn', `Trash night — ${what}`] : ['quiet', what]);
+        if (s.wasteReminder && !s.trashOut) {
+            const what = g && r && g === r ? `trash & recycling ${StatusTags.pickup(g)}`
+                : [g && `trash ${StatusTags.pickup(g)}`, r && `recycling ${StatusTags.pickup(r)}`].filter(Boolean).join(' · ');
+            out.push(['warn', what ? `Trash night — ${what}` : 'Trash night']);
         }
 
         const n = s.openWindowsCount, d = s.exteriorDoorCount;

@@ -79,12 +79,12 @@ A full control panel and live mirror for the 128×64 HUB75 LED matrix scoreboard
 
 ### 3. HA Dashboard Screensaver (`index.html`)
 
-A fullscreen kiosk/screensaver for a wall-mounted OLED display ("Quiet Hours" design). Pure black background, warm grey text and one teal accent so it stays calm when idle. Everything is sized from a 1280×720 layout and scales to any 16:9 screen.
+A fullscreen kiosk/screensaver for a wall-mounted OLED display ("Quiet Hours" design). Pure black background, warm grey text and one teal accent so it stays calm when idle. Everything is sized from a 1280×800 layout to fit the 16:10 Galaxy Tab A9+ (1920×1200) and scales to any screen.
 
 **Layout:**
 - Left: date and a thin clock (hour and minute, no seconds)
 - Right: current weather plus today's high/low and tomorrow from `weather.forecast_home` (met.no, the same source as the LED panel), then the next three `calendar.family` events
-- Bottom: static status tags from the ticker's sensors (Zoey's feeding, trash and recycling, open windows and doors): grey or teal when routine, amber or red when something needs attention; running Alexa/Google Home timers on the right
+- Bottom: static status tags from the ticker's sensors (Zoey's feeding, open windows and doors, and trash night on the old ticker's schedule: waste reminder on and trash not yet out): teal when routine, amber or red when something needs attention; running Alexa/Google Home timers on the right
 - Night (`sun.sun` below the horizon): only a dim clock, the temperature and amber/red alerts and timers stay up
 - Burn-in guard: the whole layout shifts by up to ~12 px every 3 minutes
 
