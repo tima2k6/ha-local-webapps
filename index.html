@@ -6,10 +6,10 @@
     <title>Home Assistant Screensaver</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400&family=Figtree:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300&family=Figtree:wght@400;500;600&display=swap">
     <style>
         /* "Quiet Hours": pure black, warm grey text, one accent, sized to read
-           from across the room. Everything is sized in --u, one design pixel
+           from across the room with light strokes. Everything is sized in --u, one design pixel
            of a 1280x800 layout: the 16:10 Galaxy Tab A9+ (1920x1200). */
         :root {
             --u: min(calc(100vw / 1280), calc(100vh / 800));
@@ -91,7 +91,7 @@
 
         #clock .date {
             font-size: calc(var(--u) * 38);
-            font-weight: 500;
+            font-weight: 400;
             letter-spacing: 0.01em;
             color: var(--text-dim);
         }
@@ -105,7 +105,7 @@
 
         #clock .time {
             font-family: 'Outfit', sans-serif;
-            font-weight: 300;
+            font-weight: 200;
             font-size: calc(var(--u) * 215);   /* "12:59 PM" still fits the column */
             line-height: 1;
             letter-spacing: -0.04em;
@@ -115,7 +115,7 @@
 
         #clock .period {
             font-family: 'Outfit', sans-serif;
-            font-weight: 400;
+            font-weight: 300;
             font-size: calc(var(--u) * 36);
             line-height: 1;
             color: var(--text-low);
@@ -143,7 +143,7 @@
 
         .wx-temp {
             font-family: 'Outfit', sans-serif;
-            font-weight: 400;
+            font-weight: 300;
             font-size: calc(var(--u) * 120);
             line-height: 1;
             color: var(--text-hi);
@@ -157,13 +157,13 @@
 
         .wx-label {
             font-size: calc(var(--u) * 40);
-            font-weight: 600;
+            font-weight: 500;
             color: var(--text-hi);
         }
 
         .wx-hilo {
             font-size: calc(var(--u) * 32);
-            font-weight: 500;
+            font-weight: 400;
             color: var(--text-dim);
             white-space: pre;
         }
@@ -180,7 +180,7 @@
 
         .agenda-head {
             font-size: calc(var(--u) * 22);
-            font-weight: 600;
+            font-weight: 500;
             letter-spacing: 0.16em;
             text-transform: uppercase;
             color: var(--text-low);
@@ -195,14 +195,14 @@
 
         .ev-when {
             font-size: calc(var(--u) * 27);
-            font-weight: 500;
+            font-weight: 400;
             line-height: 1.25;
             color: var(--text-dim);
         }
 
         .ev-name {
             font-size: calc(var(--u) * 42);
-            font-weight: 500;
+            font-weight: 400;
             line-height: 1.25;
             color: var(--text-hi);
             white-space: nowrap;
@@ -239,10 +239,10 @@
             align-items: center;
             gap: calc(var(--u) * 12);
             padding: calc(var(--u) * 14) calc(var(--u) * 30);
-            border: 2px solid var(--tag-border);
+            border: 1.5px solid var(--tag-border);
             border-radius: 999px;
             font-size: calc(var(--u) * 30);
-            font-weight: 600;
+            font-weight: 500;
             color: var(--text);
         }
 
@@ -286,7 +286,7 @@
 
         .timer-name {
             font-size: calc(var(--u) * 24);
-            font-weight: 500;
+            font-weight: 400;
             color: var(--text-mid);
         }
 
@@ -306,7 +306,7 @@
 
         .timer-time {
             font-family: 'Outfit', sans-serif;
-            font-weight: 400;
+            font-weight: 300;
             font-size: calc(var(--u) * 68);
             line-height: 1;
             color: var(--accent);
@@ -360,7 +360,7 @@
             align-items: center;
             gap: calc(var(--u) * 16);
             font-size: calc(var(--u) * 40);
-            font-weight: 500;
+            font-weight: 400;
             color: var(--night-low);
             white-space: pre;
         }
