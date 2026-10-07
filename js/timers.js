@@ -1,10 +1,15 @@
-// Alexa timers from every Echo in the house, in a corner of the screensaver.
-// Only visible while a timer runs. Each Echo has a sensor.<device>_next_timer:
-// its state is the soonest finish time, and sorted_active lists every running
-// timer on that device (triggerTime = finish, ms epoch; remainingTime goes
-// stale, so it isn't used). Same WebSocket pattern as the ticker: get_states
-// once, then follow state_changed. Counts down locally every second.
-const TIMER_SENSOR = /^sensor\..+_next_timer(_\d+)?$/;
+// Alexa and Google Home timers from every speaker in the house, in a corner of
+// the screensaver. Only visible while a timer runs.
+// Alexa: each Echo has a sensor.<device>_next_timer: its state is the soonest
+// finish time, and sorted_active lists every running timer on that device
+// (triggerTime = finish, ms epoch; remainingTime goes stale, so it isn't used).
+// Google (ha-google-home): sensor.google_home_<device>_timers, whose timers
+// attribute lists each timer (fire_time = finish, s epoch; null when paused).
+// Same WebSocket pattern as the ticker: get_states once, then follow
+// state_changed. Counts down locally every second.
+const ALEXA_SENSOR = /^sensor\..+_next_timer(_\d+)?$/;
+const GOOGLE_SENSOR = /^sensor\.google_home_.+_timers(_\d+)?$/;
+const TIMER_SENSOR = { test: id => ALEXA_SENSOR.test(id) || GOOGLE_SENSOR.test(id) };
 const DONE_SHOW_MS = 15000;   // a finished timer says "Done" this long, then goes
 const MAX_SHOWN = 3;
 
@@ -74,16 +79,46 @@ export class Timers {
         else this.sensors.delete(entityId);
     }
 
-    // "Alexa Pup Next timer" -> "Pup", "Bedroom Dot Next timer" -> "Bedroom Dot"
+    // "Alexa Pup Next timer" -> "Pup", "Bedroom Dot Next timer" -> "Bedroom Dot",
+    // "Google Home Kitchen Display Kitchen Display timers" -> "Kitchen Display"
     static deviceName(state) {
-        const name = state.attributes?.friendly_name || state.entity_id;
-        return name.replace(/^Alexa\s+/i, '').replace(/\s+Next timer$/i, '').trim();
+        const name = (state.attributes?.friendly_name || state.entity_id)
+            .replace(/^(Alexa|Google Home)\s+/i, '').replace(/\s+(Next timer|timers)$/i, '').trim();
+        const half = name.split(' ');
+        const n = half.length / 2;
+        return n >= 1 && half.slice(0, n).join(' ') === half.slice(n).join(' ')
+            ? half.slice(0, n).join(' ') : name;
+    }
+
+    // Running Google Home timers on one speaker (paused ones have no finish time)
+    static googleTimers(s, device) {
+        return (s.attributes?.timers || [])
+            .filter(t => t.fire_time && t.status !== 'paused' && t.status !== 'none')
+            .map(t => {
+                const [h, m, sec] = String(t.duration || '0:0:0').split(':').map(Number);
+                return {
+                    ends: t.fire_time * 1000,
+                    total: (h || 0) * 3600 + (m || 0) * 60 + (sec || 0),
+                    label: t.label || '',
+                    device,
+                    key: t.timer_id
+                };
+            });
     }
 
     // Every running timer across the house, soonest first
     timers() {
         const out = [], seen = new Set();
         for (const s of this.sensors.values()) {
+            if (GOOGLE_SENSOR.test(s.entity_id)) {
+                for (const t of Timers.googleTimers(s, Timers.deviceName(s))) {
+                    const key = t.key || `${t.device}@${Math.round(t.ends / 1000)}`;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    out.push(t);
+                }
+                continue;
+            }
             const first = Date.parse(s.state);
             if (isNaN(first)) continue;                   // unknown / unavailable: none running
             const device = Timers.deviceName(s);
