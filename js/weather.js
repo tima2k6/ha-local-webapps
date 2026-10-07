@@ -1,57 +1,51 @@
+// weather.js — current conditions and today's forecast from weather.forecast_home
+// (met.no) through the HA REST API, the same source as the LED panel's idle screen.
+
+// HA condition → OpenWeatherMap icon code (the icon images are the same ones the
+// screensaver always used; only the data source changed)
+const ICONS = {
+    'sunny': '01', 'clear-night': '01', 'partlycloudy': '02', 'cloudy': '04',
+    'fog': '50', 'rainy': '10', 'pouring': '09', 'lightning': '11',
+    'lightning-rainy': '11', 'snowy': '13', 'snowy-rainy': '13', 'hail': '13',
+    'windy': '03', 'windy-variant': '04', 'exceptional': '50'
+};
+
+const LABELS = {
+    'clear-night': 'Clear', 'partlycloudy': 'Partly Cloudy', 'lightning': 'Thunder',
+    'lightning-rainy': 'Thunderstorms', 'snowy-rainy': 'Sleet', 'pouring': 'Heavy Rain',
+    'rainy': 'Rain', 'snowy': 'Snow', 'windy-variant': 'Windy', 'exceptional': 'Severe Weather'
+};
+
 export class WeatherDisplay {
-    constructor(apiKey, container) {
-        this.apiKey = apiKey;
+    constructor(haUrl, token, container) {
+        this.haUrl = haUrl;
+        this.token = token;
         this.container = container;
-        this.lat = '47.7557';
-        this.lon = '-122.3415';
-        this.units = 'imperial';
+        this.entity = 'weather.forecast_home';
         this.weatherInterval = null;
     }
 
     async fetchWeather() {
         try {
-            const [currentData, forecastData] = await Promise.all([
-                this.fetchCurrent(),
+            const [current, sun, forecast] = await Promise.all([
+                this.fetchState(this.entity),
+                this.fetchState('sun.sun'),
                 this.fetchForecast()
             ]);
-            
-            if (currentData && forecastData && forecastData.length > 0) {
-                // Process current weather data
+
+            if (current && forecast) {
+                const night = sun?.state === 'below_horizon';
+
                 const currentWeather = {
-                    temp: Math.round(currentData.main.temp),
-                    feelsLike: Math.round(currentData.main.feels_like),
-                    description: this.capitalizeWords(currentData.weather[0].description),
-                    icon: `https://openweathermap.org/img/wn/${currentData.weather[0].icon}@4x.png`
+                    temp: Math.round(current.attributes.temperature),
+                    description: this.label(current.state),
+                    icon: this.iconUrl(current.state, night)
                 };
 
-                // Initialize with first forecast values instead of Infinity
-                let highTemp = forecastData[0].main.temp;
-                let lowTemp = forecastData[0].main.temp;
-                let conditions = new Set();
-                let weatherCounts = {};
-
-                forecastData.forEach(forecast => {
-                    if (forecast && forecast.main && typeof forecast.main.temp === 'number') {
-                        const forecastTemp = forecast.main.temp;
-                        highTemp = Math.max(highTemp, forecastTemp);
-                        lowTemp = Math.min(lowTemp, forecastTemp);
-                        const condition = forecast.weather[0].description;
-                        conditions.add(this.capitalizeWords(condition));
-                        
-                        const weatherKey = `${condition}|${forecast.weather[0].icon}`;
-                        weatherCounts[weatherKey] = (weatherCounts[weatherKey] || 0) + 1;
-                    }
-                });
-
-                // Get most common weather condition and its icon
-                const mostCommonWeather = Object.entries(weatherCounts)
-                    .sort((a, b) => b[1] - a[1])[0][0]
-                    .split('|');
-
                 const forecastWeather = {
-                    temp: `High ${Math.round(highTemp)}°F • Low ${Math.round(lowTemp)}°F`,
-                    description: Array.from(conditions).slice(0, 2).join(', '),
-                    icon: `https://openweathermap.org/img/wn/${mostCommonWeather[1]}@4x.png`
+                    temp: `High ${Math.round(forecast.temperature)}°F • Low ${Math.round(forecast.templow)}°F`,
+                    description: this.label(forecast.condition),
+                    icon: this.iconUrl(forecast.condition, false)
                 };
 
                 this.updateDisplay(currentWeather, forecastWeather);
@@ -64,46 +58,47 @@ export class WeatherDisplay {
         }
     }
 
-    async fetchCurrent() {
+    async fetchState(entityId) {
         try {
-            const response = await fetch(this.buildUrl('weather'));
+            const response = await fetch(`${this.haUrl}/api/states/${entityId}`, {
+                headers: { Authorization: `Bearer ${this.token}` }
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             return await response.json();
         } catch (error) {
-            console.error('Current weather fetch error:', error);
+            console.error(`State fetch error (${entityId}):`, error);
             return null;
         }
     }
 
+    // Today's daily forecast (high, low, condition)
     async fetchForecast() {
         try {
-            const response = await fetch(this.buildUrl('forecast'));
-            const data = await response.json();
-            
-            // Get forecasts for next 24 hours
-            const now = new Date();
-            const tomorrow = new Date(now);
-            tomorrow.setHours(now.getHours() + 24);
-            
-            console.log('Fetching forecasts between:', now, 'and', tomorrow);
-            
-            // Filter forecasts for next 24 hours
-            const forecasts = data.list.filter(item => {
-                const forecastDate = new Date(item.dt * 1000);
-                return forecastDate >= now && forecastDate < tomorrow;
+            const response = await fetch(`${this.haUrl}/api/services/weather/get_forecasts?return_response`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ entity_id: this.entity, type: 'daily' })
             });
-            
-            console.log('Found forecasts:', forecasts.length);
-            console.log('First forecast:', forecasts[0]);
-            
-            return forecasts;
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            return data.service_response?.[this.entity]?.forecast?.[0] || null;
         } catch (error) {
             console.error('Forecast fetch error:', error);
             return null;
         }
     }
 
-    buildUrl(type = 'weather') {
-        return `https://api.openweathermap.org/data/2.5/${type}?lat=${this.lat}&lon=${this.lon}&units=${this.units}&appid=${this.apiKey}`;
+    iconUrl(condition, night) {
+        const code = ICONS[condition] || '03';
+        const suffix = condition === 'clear-night' || night ? 'n' : 'd';
+        return `https://openweathermap.org/img/wn/${code}${suffix}@4x.png`;
+    }
+
+    label(condition) {
+        return LABELS[condition] || this.capitalizeWords(condition || '');
     }
 
     updateDisplay(currentWeather, forecastWeather) {
@@ -116,7 +111,6 @@ export class WeatherDisplay {
                     <div class="current-weather-info">
                         <div class="temp-line">
                             <div class="temp">${currentWeather.temp}°F</div>
-                            <div class="feels-like">(Feels: ${currentWeather.feelsLike}°F)</div>
                         </div>
                         <div class="details">${currentWeather.description}</div>
                     </div>
@@ -138,7 +132,7 @@ export class WeatherDisplay {
 
     startWeatherCarousel() {
         const sections = Array.from(this.container.querySelectorAll('.weather-section'));
-        
+
         if (this.weatherInterval) {
             clearInterval(this.weatherInterval);
         }
@@ -158,7 +152,7 @@ export class WeatherDisplay {
                 // Show next section immediately
                 nextSection.classList.remove('hidden');
                 nextSection.classList.add('active');
-                
+
             }, 10000); // Match calendar interval timing
         }
     }

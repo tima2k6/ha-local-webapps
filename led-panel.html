@@ -538,7 +538,6 @@ const HA = {
     sounders_data: 'sensor.sounders',
     kraken_data:   'sensor.kraken',
     weather_cond:  'weather.forecast_home',
-    weather_temp:  'sensor.weather_temperature',
     mariners_day:  'input_datetime.mariners_opening_day',
     // Alexa timer: "Panel MQTT — Alexa timer" feeds the panel from the same sensor
     alexa_timer:   'sensor.alexa_pup_next_timer',
@@ -617,13 +616,13 @@ function localKickoff(iso) {
 async function sync() {
     try {
         const [mode,pwr,bri,msg,r,g,b,img,sz,ov,frz,zagsScr,marinersScr,seahawksScr,soundersScr,krakenScr,
-               wC,wT,zagsD,seahawksD,soundersD,krakenD,dM,dZ,dI,dB,dMar,dSea,dSnd,dKrk,marinersDay] = await Promise.all([
+               wC,zagsD,seahawksD,soundersD,krakenD,dM,dZ,dI,dB,dMar,dSea,dSnd,dKrk,marinersDay] = await Promise.all([
             fetchHA(HA.mode),fetchHA(HA.power),fetchHA(HA.brightness),
             fetchHA(HA.msg_input),fetchHA(HA.msg_red),fetchHA(HA.msg_green),
             fetchHA(HA.msg_blue),fetchHA(HA.msg_image),fetchHA(HA.msg_size),
             fetchHA(HA.override),fetchHA(HA.freeze),
             fetchHA(HA.zags_screen),fetchHA(HA.mariners_screen),fetchHA(HA.seahawks_screen),fetchHA(HA.sounders_screen),fetchHA(HA.kraken_screen),
-            fetchHA(HA.weather_cond),fetchHA(HA.weather_temp),
+            fetchHA(HA.weather_cond),
             fetchHA(HA.zags_data),fetchHA(HA.seahawks_data),fetchHA(HA.sounders_data),fetchHA(HA.kraken_data),
             fetchHA(HA.dur_message),fetchHA(HA.dur_zags),
             fetchHA(HA.dur_idle),fetchHA(HA.dur_bedtime),
@@ -663,7 +662,7 @@ async function sync() {
         hs.seahawksOn  = seahawksScr?.state==='on';
         hs.soundersOn  = soundersScr?.state==='on';
         hs.krakenOn    = krakenScr?.state==='on';
-        hs.weather     = {condition:wC?.state||'',temp:parseFloat(wT?.state)||0};
+        hs.weather     = {condition:wC?.state||'',temp:parseFloat(wC?.attributes?.temperature)||0};
         hs.zags        = {teamScore:zagsD?.attributes?.team_score||0,oppScore:zagsD?.attributes?.opponent_score||0,opponent:zagsD?.attributes?.opponent_name||'TBD'};
         hs.durMsg      = parseFloat(dM?.state)||30;
         hs.durZags     = parseFloat(dZ?.state)||30;

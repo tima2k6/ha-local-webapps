@@ -67,7 +67,7 @@ A full control panel and live mirror for the 128×64 HUB75 LED matrix scoreboard
 - `input_number.panel_message_red/green/blue`
 - `input_select.panel_message_image`, `input_select.panel_message_size`
 - `input_number.panel_duration_message/zags/idle/bedtime/mariners`
-- `sensor.zags`, `weather.forecast_home`, `sensor.weather_temperature`
+- `sensor.zags`, `weather.forecast_home` (condition and temperature)
 - `input_datetime.mariners_opening_day`
 - `input_boolean.panel_fx_celebrations|weather_animation|high_low_cycle|message_glow|alert_flash` — Effects card; the HA automation "Panel MQTT — Effects" relays them to `house/panel/fx/*`
 
@@ -83,13 +83,13 @@ A fullscreen kiosk/screensaver for a wall-mounted display. Black background, two
 
 **Layout:**
 - Top: large clock and date display
-- Left column: current conditions + forecast (OpenWeatherMap API), animated weather icon, temperature, feels-like, details; fades between current and forecast views
+- Left column: current conditions + today's forecast from `weather.forecast_home` (met.no, the same source as the LED panel), weather icon, temperature, details; fades between current and forecast views
 - Right column: upcoming HA calendar events with animated fade cycling between events
 - Bottom: full-width scrolling ticker fed by HA sensor data
 
 **Modules (`js/`):**
 - `clock.js` — live clock and date, updates every second
-- `weather.js` — current + forecast conditions from OpenWeatherMap API; cycles between current and forecast on a timer
+- `weather.js` — current conditions and today's high/low from `weather.forecast_home` via the HA REST API (`weather.get_forecasts`); cycles between current and forecast on a timer
 - `calendar.js` — upcoming calendar events from HA REST API; cycles through events with fade transitions
 - `ticker.js` — horizontally scrolling ticker fed by HA sensor states
 
@@ -102,12 +102,7 @@ Copy `js/config.example.js` to `js/config.js` and fill in your values:
 ```javascript
 export const config = {
     haUrl: 'http://YOUR_HA_IP:8123',
-    weatherApiKey: 'YOUR_OPENWEATHERMAP_API_KEY',
     longLivedAccessToken: 'YOUR_HA_LONG_LIVED_TOKEN',
-    weatherLocation: {
-        lat: 'YOUR_LATITUDE',
-        lon: 'YOUR_LONGITUDE'
-    },
     updateIntervals: {
         weather: 300000,   // 5 minutes
         calendar: 300000,

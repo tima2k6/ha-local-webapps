@@ -684,7 +684,7 @@
     <script src="js/ha-config.js?v=20261005"></script>
     <script type="module">
         import { config } from './js/config.js?v=20261005';
-        import { WeatherDisplay } from './js/weather.js?v=2';
+        import { WeatherDisplay } from './js/weather.js?v=3';
         import { CalendarDisplay } from './js/calendar.js';
         import { Clock } from './js/clock.js';
         import { Ticker } from './js/ticker.js?v=3';
@@ -692,7 +692,6 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Full config object:', config);
-            console.log('Weather location:', config.weatherLocation);
             
             // Initialize clock
             const clock = new Clock(
@@ -704,10 +703,9 @@
 
             // Initialize weather
             const weatherDisplay = new WeatherDisplay(
-                config.weatherApiKey, 
-                document.getElementById('weather-display'),
-                config.weatherLocation.lat,
-                config.weatherLocation.lon
+                config.haUrl,
+                config.longLivedAccessToken,
+                document.getElementById('weather-display')
             );
             weatherDisplay.start();
             console.log('Weather initialized');
