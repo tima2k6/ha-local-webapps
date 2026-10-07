@@ -57,6 +57,7 @@
         .seg button.active.is-on { color: #86efac; }
         .seg button.active.is-off { color: #fca5a5; }
         .seg.four { grid-template-columns: repeat(4, 1fr); }
+        .seg.three { grid-template-columns: repeat(3, 1fr); }
         .timer-dur { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
         .timer-dur[hidden] { display: none; }
         .timer-dur .stepper { width: 118px; }
@@ -410,9 +411,10 @@
             </div>
         </div>
 
-        <!-- Alexa timer: how much of the panel a running timer gets -->
+        <!-- Timers: how much of the panel a running timer gets. Pup's Echo and
+             every other speaker are set separately; the others are quieter. -->
         <div class="card">
-            <div class="card-head"><h2>Alexa timer</h2><span class="hint">Timers on Pup</span></div>
+            <div class="card-head"><h2>Timers</h2><span class="hint">Pup's Echo</span></div>
             <div class="seg four" role="group" aria-label="Timer priority">
                 <button id="tmode-Takeover" onclick="setTimerMode('Takeover')">Takeover</button>
                 <button id="tmode-Rotation" onclick="setTimerMode('Rotation')">Rotation</button>
@@ -424,6 +426,13 @@
                 <div class="screen-name">Time on screen<small>Its turn in the rotation</small></div>
                 <div class="stepper"><button onclick="adjustDuration('timer',-5,'durTimerVal','durTimer')">−</button><span><span class="stepper-val" id="durTimerVal">20</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('timer',5,'durTimerVal','durTimer')">+</button></div>
             </div>
+            <div class="card-head" style="margin-top:16px;"><h2 style="font-size:14px;">Other speakers</h2><span class="hint">Other Echos · Google displays</span></div>
+            <div class="seg three" role="group" aria-label="Other speakers' timers">
+                <button id="omode-Corner"   onclick="setOtherTimerMode('Corner')">Corner</button>
+                <button id="omode-Rotation" onclick="setOtherTimerMode('Rotation')">Rotation</button>
+                <button id="omode-Off"      onclick="setOtherTimerMode('Off')">Off</button>
+            </div>
+            <div class="sub" id="otherModeSub" style="margin-top:8px;font-size:12px;color:var(--faint);"></div>
         </div>
         </div>
     </div>
@@ -548,6 +557,7 @@ const HA = {
     notif_blue:    'input_number.panel_notification_blue',
     // How the panel treats a running timer ("Panel MQTT — Timer settings")
     timer_mode:    'input_select.panel_timer_mode',
+    other_mode:    'input_select.panel_other_timers_mode',
     dur_timer:     'input_number.panel_duration_timer',
 };
 
@@ -559,7 +569,7 @@ let hs = {
     zagsOn:false, marinersOn:false, seahawksOn:false, soundersOn:false, krakenOn:false,
     msg2:{text:'', color:{r:255,g:255,b:255}, image:'none', size:'medium'},
     durMsg:30, durMsg2:30, durZags:30, durIdle:10, durBed:30, durMariners:30, durSeahawks:30, durSounders:30, durKraken:30, durTimer:20,
-    timerMode:'Takeover',
+    timerMode:'Takeover', otherMode:'Corner',
     weather:{temp:0,condition:''},
     zags:{teamScore:0,oppScore:0,opponent:'TBD'},
     seahawks:{state:'',teamScore:0,oppScore:0,oppAbbr:'',oppName:'',quarter:0,clock:'',
@@ -629,16 +639,18 @@ async function sync() {
             fetchHA(HA.dur_mariners),fetchHA(HA.dur_seahawks),fetchHA(HA.dur_sounders),fetchHA(HA.dur_kraken),
             fetchHA(HA.mariners_day)
         ]);
-        const [msg2,r2,g2,b2,img2,sz2,dM2,tmr,tMode,dT,nT,nR,nG,nB] = await Promise.all([
+        const [msg2,r2,g2,b2,img2,sz2,dM2,tmr,tMode,dT,nT,nR,nG,nB,oMode] = await Promise.all([
             fetchHA(HA.msg2_input),fetchHA(HA.msg2_red),fetchHA(HA.msg2_green),
             fetchHA(HA.msg2_blue),fetchHA(HA.msg2_image),fetchHA(HA.msg2_size),
             fetchHA(HA.dur_message2),fetchHA(HA.alexa_timer),
             fetchHA(HA.timer_mode),fetchHA(HA.dur_timer),
-            fetchHA(HA.notif_text),fetchHA(HA.notif_red),fetchHA(HA.notif_green),fetchHA(HA.notif_blue)
+            fetchHA(HA.notif_text),fetchHA(HA.notif_red),fetchHA(HA.notif_green),fetchHA(HA.notif_blue),
+            fetchHA(HA.other_mode)
         ]);
         hs.notif={text:nT?.state||'',color:{r:parseInt(nR?.state)||0,g:parseInt(nG?.state)||0,b:parseInt(nB?.state)||0}};
         hs.timer=parseAlexaTimer(tmr);
         hs.timerMode=tMode?.state||'Takeover';
+        hs.otherMode=oMode?.state||'Corner';
         hs.durTimer=parseFloat(dT?.state)||20;
 
         hs.mode        = (mode?.state||'idle').toLowerCase();
@@ -1342,7 +1354,10 @@ function paintControls() {
     const tm=hs.timerMode||'Takeover';
     document.querySelectorAll('[id^="tmode-"]').forEach(b=>b.classList.toggle('active',b.id===`tmode-${tm}`));
     document.getElementById('timerModeSub').textContent=TIMER_MODE_NOTES[tm]||'';
-    document.getElementById('timerDurRow').hidden=(tm!=='Rotation');
+    const om=hs.otherMode||'Corner';
+    document.querySelectorAll('[id^="omode-"]').forEach(b=>b.classList.toggle('active',b.id===`omode-${om}`));
+    document.getElementById('otherModeSub').textContent=OTHER_MODE_NOTES[om]||'';
+    document.getElementById('timerDurRow').hidden=(tm!=='Rotation'&&om!=='Rotation');
 
     document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
     document.getElementById(`mode-${hs.override}`)?.classList.add('active');
@@ -1471,6 +1486,17 @@ const TIMER_MODE_NOTES={
     Rotation:'A screen in the rotation. Jumps in when a timer starts and when it finishes; a small countdown sits in the corner of the other screens.',
     Corner:'Never takes over: a small countdown in the top-left corner of every screen.',
     Off:'The panel ignores Alexa timers.'};
+// Every other Echo and the Google displays: never a takeover, slate not cyan
+const OTHER_MODE_NOTES={
+    Corner:'A small grey countdown in the top-left corner. Pup's countdown wins the corner when both run.',
+    Rotation:'Shares the timer screen in the rotation, after Pup's, with the speaker's name. Never jumps in.',
+    Off:'The panel ignores timers on the other speakers.'};
+async function setOtherTimerMode(mode) {
+    hs.otherMode=mode;
+    paintControls();
+    await callService('input_select','select_option',{entity_id:HA.other_mode,option:mode});
+    setTimeout(sync,600);
+}
 async function setTimerMode(mode) {
     hs.timerMode=mode;
     paintControls();
