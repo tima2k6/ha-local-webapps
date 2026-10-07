@@ -148,6 +148,7 @@ main { max-width: 1280px; margin: 0 auto; }
 .power.on { border-color: var(--accent-border); }
 .room-now { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .room-temp { font-size: 58px; font-weight: 200; line-height: 1; color: var(--text-hi); }
+.room-temp .tenth { font-size: .55em; color: var(--text-mid); }
 .room-temp small { font-size: .4em; color: var(--text-dim); vertical-align: .9em; margin-left: 1px; }
 .pill {
     display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;
@@ -332,20 +333,22 @@ const BLOCKS = [
 const NEXT = { wake: 'day', day: 'evening', evening: 'sleep', sleep: 'wake' };
 
 const ROOMS = [
-    { id: 'climate.living_room_thermostat', name: 'Living Room', kind: 'HeatStorm heater',
+    // sensor: the one each Versatile Thermostat regulates on. The thermostat's own
+    // current_temperature is rounded to whole degrees, so read the sensor for tenths.
+    { id: 'climate.living_room_thermostat', name: 'Living Room', kind: 'HeatStorm heater', sensor: 'sensor.living_room_climate_temp',
       offset: 'input_number.climate_offset_living_room',
       doors: { 'binary_sensor.front_door_contact': 'Front door', 'binary_sensor.slider_door_sensor_contact': 'Patio door' } },
-    { id: 'climate.bedroom_thermostat', name: 'Bedroom', kind: 'HeatStorm heater',
+    { id: 'climate.bedroom_thermostat', name: 'Bedroom', kind: 'HeatStorm heater', sensor: 'sensor.bedroom_temp_calibrated',
       offset: 'input_number.climate_offset_bedroom' },
-    { id: 'climate.liam_s_room_thermostat', name: "Liam's Room", kind: 'Space heater',
+    { id: 'climate.liam_s_room_thermostat', name: "Liam's Room", kind: 'Space heater', sensor: 'sensor.liams_room_temperature',
       offset: 'input_number.climate_offset_liam' },
-    { id: 'climate.office_thermostat', name: 'Office', kind: '750 W space heater',
+    { id: 'climate.office_thermostat', name: 'Office', kind: '750 W space heater', sensor: 'sensor.office_average_temp',
       offset: 'input_number.climate_offset_office' },
 ];
 
 const WATCHED = new Set([
     ...Object.values(E), ...BLOCKS.flatMap(b => [b.time, b.temp]),
-    ...ROOMS.flatMap(r => [r.id, r.offset, ...Object.keys(r.doors || {})]),
+    ...ROOMS.flatMap(r => [r.id, r.sensor, r.offset, ...Object.keys(r.doors || {})]),
 ]);
 
 // ---------- state ----------
@@ -355,6 +358,8 @@ const attr = (id, a) => S.get(id)?.attributes?.[a];
 const num = id => { const v = parseFloat(st(id)); return Number.isFinite(v) ? v : null; };
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const $ = id => document.getElementById(id);
+// A room's temperature to the tenth, falling back to the thermostat's rounded value
+const roomTemp = r => num(r.sensor) ?? (Number.isFinite(attr(r.id, 'current_temperature')) ? attr(r.id, 'current_temperature') : null);
 
 // ---------- HA WebSocket (same pattern as js/timers.js) ----------
 let ws, msgId = 10, reconnectDelay = 3000, authFailed = false;
@@ -560,7 +565,7 @@ function render() {
     $('house-val').innerHTML = houseShown == null ? '--' : `${Math.round(houseShown)}<sup>°</sup>`;
     setStepper($('house-stepper'), houseShown, hMin, hMax, pending.has('house'));
 
-    const temps = ROOMS.map(r => attr(r.id, 'current_temperature')).filter(Number.isFinite);
+    const temps = ROOMS.map(roomTemp).filter(Number.isFinite);
     $('inside').textContent = temps.length ? `${(temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1)}°` : '--';
     const out = num(E.outdoor) ?? attr(E.weather, 'temperature');
     $('outside').textContent = out == null ? '--' : `${Math.round(out)}°`;
@@ -606,8 +611,10 @@ function render() {
 
         el.classList.toggle('unavailable', !avail);
         el.classList.toggle('is-off', avail && !on);
-        el.querySelector('.room-temp').innerHTML = Number.isFinite(a.current_temperature)
-            ? `${a.current_temperature.toFixed(0)}<small>°</small>` : '--';
+        const now = roomTemp(r);
+        const [whole, tenth] = now == null ? [] : now.toFixed(1).split('.');
+        el.querySelector('.room-temp').innerHTML = now == null ? '--'
+            : `${whole}<span class="tenth">.${tenth}</span><small>°</small>`;
         const pw = el.querySelector('.power');
         pw.classList.toggle('on', on);
         pw.disabled = !avail;
@@ -626,7 +633,7 @@ function render() {
         else if (a.hvac_action === 'heating' || power > 0) {
             pill.className = 'pill heating';
             pill.innerHTML = `${ICON.flame}Heating${power > 0 && power < 100 ? ` · ${power}%` : ''}`;
-        } else { pill.className = 'pill'; pill.textContent = Number.isFinite(a.current_temperature) && a.current_temperature >= target ? 'Warm enough' : 'Idle'; }
+        } else { pill.className = 'pill'; pill.textContent = now != null && now >= target ? 'Warm enough' : 'Idle'; }
 
         // Target and how it relates to House
         const st_ = el.querySelector('.stepper');
