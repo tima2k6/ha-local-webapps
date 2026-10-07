@@ -79,16 +79,19 @@
             text-box: trim-both cap alphabetic;
         }
 
-        /* ===== Left column: clock + weather ===== */
+        /* ===== Left column: clock + weather, centered in the column ===== */
         #left {
             display: flex;
             flex-direction: column;
+            align-items: center;
+            text-align: center;
             min-width: 0;
         }
 
         #clock {
             display: flex;
             flex-direction: column;
+            align-items: center;
             gap: calc(var(--u) * 46);
         }
 
@@ -127,6 +130,7 @@
         #weather {
             display: flex;
             flex-direction: column;
+            align-items: center;
             gap: calc(var(--u) * 18);
             margin-top: calc(var(--u) * 48);
         }
@@ -155,6 +159,7 @@
         .wx-cond {
             display: flex;
             flex-direction: column;
+            text-align: left;
             gap: calc(var(--u) * 6);
         }
 
@@ -176,9 +181,10 @@
             color: var(--text-dim);
         }
 
-        /* ===== Right column: agenda, each time above its event ===== */
+        /* ===== Right column: agenda, each time above its event, centered ===== */
         #side {
             min-width: 0;
+            text-align: center;
         }
 
         .agenda-head {
