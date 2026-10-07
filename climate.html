@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a140d">
+<title>House Climate</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Same palette as the "Quiet Hours" screensaver: warm charcoal, paper-white
+   text, teal for "all is well", amber for heat. Landscape on the wall tablet
+   (1280x800), one column on a phone. */
+:root {
+    --bg: #1a140d;
+    --card: #231b12;
+    --card-hi: #2b2117;
+    --line: #3a2f22;
+    --text-hi: #f0e6d6;
+    --text: #e6dccc;
+    --text-mid: #ccc4b8;
+    --text-dim: #a59e92;
+    --accent: #5fc9b4;
+    --accent-bg: rgba(95, 201, 180, .12);
+    --accent-border: #2c5a51;
+    --heat: #f0a656;
+    --heat-bg: rgba(240, 166, 86, .14);
+    --heat-border: #6b4a22;
+    --warn: #f0bd68;
+    --warn-bg: rgba(224, 166, 74, .12);
+    --warn-border: #6b5122;
+    --off: #8f8a82;
+    --alert: #ff9384;
+    --radius: 18px;
+    --tap: 48px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); }
+body {
+    color: var(--text);
+    font: 16px/1.4 'Figtree', system-ui, sans-serif;
+    min-height: 100vh;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+             max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+.num { font-family: 'Outfit', sans-serif; font-variant-numeric: tabular-nums; }
+
+/* ---------- header ---------- */
+header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    max-width: 1280px; margin: 0 auto 16px;
+}
+header h1 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text-hi); letter-spacing: .01em; }
+.meta { display: flex; align-items: center; gap: 14px; color: var(--text-dim); font-size: 15px; }
+.meta .clock { color: var(--text-mid); }
+.live { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
+.live.down { background: var(--alert); }
+.tabs {
+    margin-left: auto; display: flex; background: var(--card); border: 1px solid var(--line);
+    border-radius: 999px; padding: 4px;
+}
+.tabs button {
+    border: 0; background: none; padding: 9px 20px; border-radius: 999px;
+    color: var(--text-dim); font-weight: 500; min-height: 40px;
+}
+.tabs button[aria-selected="true"] { background: var(--card-hi); color: var(--text-hi); }
+
+main { max-width: 1280px; margin: 0 auto; }
+.view[hidden] { display: none !important; }
+
+.card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 22px;
+}
+.label { font-size: 13px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--text-dim); }
+
+/* ---------- steppers ---------- */
+.stepper { display: flex; align-items: center; gap: 10px; }
+.stepper button {
+    width: var(--tap); height: var(--tap); border-radius: 50%;
+    border: 1px solid var(--line); background: var(--card-hi);
+    display: grid; place-items: center; flex: none;
+    transition: background .15s, transform .08s;
+}
+.stepper button:active { transform: scale(.94); background: #3a2d1f; }
+.stepper button:disabled { opacity: .35; cursor: default; }
+.stepper button svg { width: 20px; height: 20px; stroke: var(--text-hi); stroke-width: 2; fill: none; stroke-linecap: round; }
+.stepper .val { min-width: 2.6ch; text-align: center; color: var(--text-hi); }
+.pending .val { color: var(--warn); }
+
+/* ---------- Now view ---------- */
+.now { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.rooms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+
+.house { display: flex; flex-direction: column; gap: 22px; }
+.house-head { display: flex; justify-content: space-between; align-items: center; }
+.mode-chip {
+    font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--accent-border); color: var(--accent); background: var(--accent-bg);
+}
+.mode-chip.night { color: #b9b2ff; border-color: #403b6b; background: rgba(150, 140, 255, .1); }
+.mode-chip.away { color: var(--warn); border-color: var(--warn-border); background: var(--warn-bg); }
+.dial { display: flex; flex-direction: column; gap: 22px; }
+.house .stepper { justify-content: space-between; }
+.house .stepper button { width: 64px; height: 64px; }
+.house .stepper button svg { width: 26px; height: 26px; }
+.house .val { font-size: 112px; font-weight: 200; line-height: .9; letter-spacing: -.02em; }
+.house .val sup { font-size: .4em; font-weight: 300; vertical-align: .95em; margin-left: 2px; color: var(--text-mid); }
+.readings { display: flex; justify-content: center; gap: 22px; color: var(--text-mid); font-size: 15px; }
+.readings b { font-weight: 500; color: var(--text-hi); }
+
+.status {
+    border-top: 1px solid var(--line); padding-top: 18px;
+    display: flex; flex-direction: column; gap: 6px;
+}
+.status .head { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-hi); }
+.status .head .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: none; }
+.status.hold .head .dot, .status.away .head .dot { background: var(--warn); }
+.status.preheat .head .dot { background: var(--heat); }
+.status .sub { color: var(--text-mid); font-size: 15px; }
+.btn {
+    margin-top: 8px; align-self: flex-start; min-height: 44px; padding: 0 18px;
+    border-radius: 999px; border: 1px solid var(--accent-border); background: var(--accent-bg);
+    color: var(--accent); font-weight: 600;
+}
+.btn[hidden] { display: none; }
+
+.room { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.room.unavailable { opacity: .55; }
+.room-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.room-name { font-size: 19px; font-weight: 600; color: var(--text-hi); }
+.room-kind { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+.power {
+    width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: none;
+    display: grid; place-items: center; flex: none;
+}
+.power svg { width: 19px; height: 19px; stroke: var(--text-dim); stroke-width: 2; fill: none; stroke-linecap: round; }
+.power.on svg { stroke: var(--accent); }
+.power.on { border-color: var(--accent-border); }
+.room-now { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.room-temp { font-size: 58px; font-weight: 200; line-height: 1; color: var(--text-hi); }
+.room-temp small { font-size: .4em; color: var(--text-dim); vertical-align: .9em; margin-left: 1px; }
+.pill {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;
+    padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-mid);
+    white-space: nowrap;
+}
+.pill svg { width: 13px; height: 13px; fill: currentColor; }
+.pill.heating { color: var(--heat); border-color: var(--heat-border); background: var(--heat-bg); }
+.pill.paused { color: var(--warn); border-color: var(--warn-border); background: var(--warn-bg); }
+.pill.off { color: var(--off); }
+.room-target {
+    margin-top: auto; border-top: 1px solid var(--line); padding-top: 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.room-target .val { font-size: 30px; font-weight: 300; }
+.room-note { font-size: 14px; color: var(--text-dim); line-height: 1.35; }
+.room-note.manual { color: var(--warn); }
+.link {
+    border: 0; background: none; padding: 0; color: var(--accent); font-weight: 600; font-size: 14px;
+    text-decoration: underline; text-underline-offset: 3px; min-height: 32px;
+}
+.room.is-off .room-target .stepper { opacity: .45; }
+
+/* ---------- Schedule view ---------- */
+.plan { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.plan .card { display: flex; flex-direction: column; gap: 4px; }
+.plan h2 { margin: 0 0 4px; font-size: 19px; font-weight: 600; color: var(--text-hi); }
+.plan .intro { margin: 0 0 10px; color: var(--text-dim); font-size: 14px; }
+.row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center;
+    padding: 12px 0; border-top: 1px solid var(--line);
+}
+.row .what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.row .what b { font-weight: 600; color: var(--text-hi); display: flex; align-items: center; gap: 8px; }
+.row .what span { font-size: 14px; color: var(--text-dim); }
+.row .now-tag {
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600;
+    color: var(--accent); border: 1px solid var(--accent-border); border-radius: 999px; padding: 1px 7px;
+}
+.row .ctrl { display: flex; align-items: center; gap: 14px; }
+.row .val { font-size: 26px; font-weight: 300; }
+.row .stepper button { width: 44px; height: 44px; }
+input[type="time"] {
+    font: 500 16px 'Figtree', sans-serif; color: var(--text-hi); background: var(--card-hi);
+    border: 1px solid var(--line); border-radius: 12px; padding: 0 10px; height: 44px;
+    color-scheme: dark;
+}
+.how { margin-top: 16px; color: var(--text-dim); font-size: 14px; }
+.how p { margin: 0 0 6px; }
+.how b { color: var(--text-mid); font-weight: 600; }
+
+/* ---------- toast ---------- */
+.toast {
+    position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px);
+    background: #3a1f1a; border: 1px solid #7a3128; color: var(--alert); padding: 12px 18px;
+    border-radius: 12px; font-weight: 500; opacity: 0; pointer-events: none; transition: .25s; max-width: calc(100vw - 32px);
+}
+.toast.show { opacity: 1; transform: translateX(-50%); }
+
+/* ---------- responsive ---------- */
+/* Wall tablet: fill the screen instead of leaving the bottom empty */
+@media (min-width: 981px) and (min-height: 640px) {
+    .now { height: calc(100vh - 116px); align-items: stretch; }
+    .rooms { grid-auto-rows: minmax(0, 1fr); }
+    .house { justify-content: space-between; }
+    .room-temp { font-size: 72px; }
+}
+@media (max-width: 980px) {
+    .now, .plan { grid-template-columns: minmax(0, 1fr); }
+    .house .val { font-size: 96px; }
+}
+@media (max-width: 560px) {
+    header { gap: 10px; }
+    header h1 { font-size: 20px; }
+    .tabs { margin-left: 0; width: 100%; }
+    .tabs button { flex: 1; }
+    .rooms { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .card { padding: 18px; }
+    .room-temp { font-size: 48px; }
+    .house .val { font-size: 88px; }
+    .row.block { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .row.block .ctrl { justify-content: space-between; }
+}
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Climate</h1>
+    <div class="meta">
+        <span class="live" id="live" title="Connected to Home Assistant"></span>
+        <span class="clock num" id="clock"></span>
+    </div>
+    <nav class="tabs" role="tablist">
+        <button role="tab" id="tab-now" aria-selected="true" data-view="now">Now</button>
+        <button role="tab" id="tab-plan" aria-selected="false" data-view="plan">Schedule</button>
+    </nav>
+</header>
+
+<main>
+    <section class="view now" id="view-now">
+        <div class="card house">
+            <div class="house-head">
+                <span class="label">House</span>
+                <span class="mode-chip" id="mode-chip">Home</span>
+            </div>
+            <div class="dial">
+            <div class="stepper" id="house-stepper">
+                <button data-step="-1" aria-label="Cooler"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+                <span class="val num" id="house-val">--</span>
+                <button data-step="1" aria-label="Warmer"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+            </div>
+            <div class="readings">
+                <span>Inside <b class="num" id="inside">--</b></span>
+                <span>Outside <b class="num" id="outside">--</b></span>
+            </div>
+            </div>
+            <div class="status" id="house-status">
+                <div class="head"><span class="dot"></span><span id="status-head">Connecting…</span></div>
+                <div class="sub" id="status-sub"></div>
+                <button class="btn" id="resume" hidden>Resume schedule</button>
+            </div>
+        </div>
+        <div class="rooms" id="rooms"></div>
+    </section>
+
+    <section class="view" id="view-plan" hidden>
+        <div class="plan">
+            <div class="card">
+                <h2>Schedule</h2>
+                <p class="intro">Sets the House temperature through the day. Every room follows it.</p>
+                <div id="blocks"></div>
+                <div class="row">
+                    <div class="what"><b>Away</b><span>While the alarm is armed Away</span></div>
+                    <div class="ctrl"><div class="stepper" id="away-stepper"></div></div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Room balance</h2>
+                <p class="intro">How each room runs compared with the House temperature, all day, every block.</p>
+                <div id="balance"></div>
+                <div class="how">
+                    <p><b>Changing a room on the Now screen</b> sets it until the next House change (a schedule block, Night, Away or someone moving House). Then it goes back to House plus its balance.</p>
+                    <p><b>Changing House by hand</b> holds until the next schedule block.</p>
+                    <p>Rooms run 65–80°. Every room is heat only; the air conditioners are put away for winter.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/ha-config.js?v=20261005"></script>
+<script>
+'use strict';
+
+// ---------- what the page controls ----------
+// House temperature is the master. "HVAC - House setpoint applies to all rooms"
+// writes each room = House + its balance (offset), clamped 65-80, every time
+// House changes. "HVAC - Climate Schedule with Smart Recovery" writes House from
+// the four blocks (and sets the manual-hold flag when a person changes it);
+// "HVAC - HSM mode setpoint" writes the Away setback.
+const E = {
+    house: 'input_number.house_setpoint',
+    hold: 'input_boolean.climate_manual_override_active',
+    hsm: 'sensor.hub_hsm_status',
+    outdoor: 'sensor.outdoor_temperature',
+    weather: 'weather.forecast_home',
+    away: 'input_number.climate_away_temp',
+    schedule: 'automation.hvac_climate_schedule_with_smart_recovery',
+    lrRestore: 'input_select.living_room_climate_restore_mode',
+};
+const ROOM_MIN = 65, ROOM_MAX = 80;
+
+const BLOCKS = [
+    { key: 'wake',    name: 'Wake',    time: 'input_datetime.climate_wake_time',    temp: 'input_number.climate_wake_temp' },
+    { key: 'day',     name: 'Day',     time: 'input_datetime.climate_day_time',     temp: 'input_number.climate_day_temp' },
+    { key: 'evening', name: 'Evening', time: 'input_datetime.climate_evening_time', temp: 'input_number.climate_evening_temp' },
+    { key: 'sleep',   name: 'Sleep',   time: 'input_datetime.climate_sleep_time',   temp: 'input_number.climate_sleep_temp' },
+];
+const NEXT = { wake: 'day', day: 'evening', evening: 'sleep', sleep: 'wake' };
+
+const ROOMS = [
+    { id: 'climate.living_room_thermostat', name: 'Living Room', kind: 'HeatStorm heater',
+      offset: 'input_number.climate_offset_living_room',
+      doors: { 'binary_sensor.front_door_contact': 'Front door', 'binary_sensor.slider_door_sensor_contact': 'Patio door' } },
+    { id: 'climate.bedroom_thermostat', name: 'Bedroom', kind: 'HeatStorm heater',
+      offset: 'input_number.climate_offset_bedroom' },
+    { id: 'climate.liam_s_room_thermostat', name: "Liam's Room", kind: 'Space heater',
+      offset: 'input_number.climate_offset_liam' },
+    { id: 'climate.office_thermostat', name: 'Office', kind: '750 W space heater',
+      offset: 'input_number.climate_offset_office' },
+];
+
+const WATCHED = new Set([
+    ...Object.values(E), ...BLOCKS.flatMap(b => [b.time, b.temp]),
+    ...ROOMS.flatMap(r => [r.id, r.offset, ...Object.keys(r.doors || {})]),
+]);
+
+// ---------- state ----------
+const S = new Map();                 // entity_id -> HA state object
+const st = id => S.get(id)?.state;
+const attr = (id, a) => S.get(id)?.attributes?.[a];
+const num = id => { const v = parseFloat(st(id)); return Number.isFinite(v) ? v : null; };
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const $ = id => document.getElementById(id);
+
+// ---------- HA WebSocket (same pattern as js/timers.js) ----------
+let ws, msgId = 10, reconnectDelay = 3000, authFailed = false;
+const waiting = new Map();
+
+function connect() {
+    if (authFailed) return;
+    ws = new WebSocket(`${HA_URL.replace(/^http/, 'ws')}/api/websocket`);
+    ws.onmessage = ev => {
+        const m = JSON.parse(ev.data);
+        if (m.type === 'auth_required') ws.send(JSON.stringify({ type: 'auth', access_token: HA_TOKEN }));
+        else if (m.type === 'auth_invalid') { authFailed = true; toast('Home Assistant rejected the access token'); ws.close(); }
+        else if (m.type === 'auth_ok') {
+            reconnectDelay = 3000;
+            ws.send(JSON.stringify({ id: 1, type: 'get_states' }));
+        } else if (m.type === 'result' && m.id === 1) {
+            S.clear();
+            m.result.forEach(s => WATCHED.has(s.entity_id) && S.set(s.entity_id, s));
+            ws.send(JSON.stringify({ id: 2, type: 'subscribe_events', event_type: 'state_changed' }));
+            setLive(true);
+            render();
+        } else if (m.type === 'event' && m.event?.event_type === 'state_changed') {
+            const { entity_id, new_state } = m.event.data;
+            if (!WATCHED.has(entity_id)) return;
+            new_state ? S.set(entity_id, new_state) : S.delete(entity_id);
+            settle(entity_id);
+            render();
+        } else if (m.type === 'result' && waiting.has(m.id)) {
+            const { resolve, reject } = waiting.get(m.id);
+            waiting.delete(m.id);
+            m.success ? resolve(m.result) : reject(new Error(m.error?.message || 'Request failed'));
+        }
+    };
+    ws.onclose = () => {
+        setLive(false);
+        waiting.forEach(w => w.reject(new Error('Lost connection to Home Assistant')));
+        waiting.clear();
+        if (authFailed) return;
+        setTimeout(connect, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+    };
+}
+
+function call(domain, service, data, entity_id) {
+    return new Promise((resolve, reject) => {
+        if (!ws || ws.readyState !== 1) return reject(new Error('Not connected to Home Assistant'));
+        const id = ++msgId;
+        waiting.set(id, { resolve, reject });
+        ws.send(JSON.stringify({ id, type: 'call_service', domain, service, service_data: data || {},
+                                 target: entity_id ? { entity_id } : undefined }));
+    }).catch(e => { toast(e.message); throw e; });
+}
+
+function setLive(ok) {
+    $('live').classList.toggle('down', !ok);
+    $('live').title = ok ? 'Connected to Home Assistant' : 'Reconnecting to Home Assistant…';
+}
+
+let toastTimer;
+function toast(text) {
+    const t = $('toast');
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ---------- steppers: show the new value at once, send it after a short pause ----------
+// pending: key -> { value, entity, timer, until }. While a value is pending the
+// page shows it rather than HA's, until HA reports it back (or 8 s pass).
+const pending = new Map();
+
+function shown(key, actual) {
+    const p = pending.get(key);
+    if (p && Date.now() < p.until) return p.value;
+    pending.delete(key);
+    return actual;
+}
+
+function nudge(key, entity, actual, delta, lo, hi, commit) {
+    if (actual == null) return;
+    const value = clamp(shown(key, actual) + delta, lo, hi);
+    const p = pending.get(key) || {};
+    clearTimeout(p.timer);
+    p.value = value; p.entity = entity; p.until = Date.now() + 8000;
+    p.timer = setTimeout(() => {
+        p.until = Date.now() + 8000;
+        commit(value).catch(() => pending.delete(key)).finally(render);
+    }, 700);
+    pending.set(key, p);
+    render();
+}
+
+function settle(entity) {
+    for (const [key, p] of pending) {
+        if (p.entity !== entity) continue;
+        const now = entity.startsWith('climate.') ? attr(entity, 'temperature') : num(entity);
+        if (now === p.value) pending.delete(key);
+    }
+}
+
+const ICON = {
+    minus: '<svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>',
+    plus: '<svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>',
+    power: '<svg viewBox="0 0 24 24"><path d="M12 3v8M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>',
+    flame: '<svg viewBox="0 0 24 24"><path d="M12 2c1 4 6 6.5 6 12a6 6 0 0 1-12 0c0-3 1.5-5 3-6.5.3 2 1.2 3.2 2.5 3.5C11 8 11.5 5 12 2z"/></svg>',
+};
+
+function stepperHTML() {
+    return `<button data-step="-1" aria-label="Cooler">${ICON.minus}</button>
+            <span class="val num">--</span>
+            <button data-step="1" aria-label="Warmer">${ICON.plus}</button>`;
+}
+
+function setStepper(el, value, lo, hi, isPending) {
+    el.querySelector('.val').textContent = value == null ? '--' : `${Math.round(value)}°`;
+    const [down, up] = el.querySelectorAll('button');
+    down.disabled = value == null || value <= lo;
+    up.disabled = value == null || value >= hi;
+    el.classList.toggle('pending', !!isPending);
+}
+
+// ---------- schedule logic (mirrors the 'calc' variable in the schedule automation) ----------
+const hms = id => (st(id) || '00:00:00').slice(0, 8);
+
+function fmtTime(t) {
+    const [h, m] = t.split(':').map(Number);
+    if (Number.isNaN(h)) return '--';
+    return `${(h % 12) || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+function scheduleNow() {
+    const hsm = st(E.hsm);
+    const d = new Date();
+    const now = [d.getHours(), d.getMinutes(), d.getSeconds()].map(n => String(n).padStart(2, '0')).join(':');
+    const tWake = hms(BLOCKS[0].time), tDay = hms(BLOCKS[1].time), tEve = hms(BLOCKS[2].time), tSleep = hms(BLOCKS[3].time);
+    const crosses = tSleep > tWake;
+    const inSleep = crosses ? (now >= tSleep || now < tWake) : (now >= tSleep && now < tWake);
+    const clock = inSleep ? 'sleep' : now < tWake ? 'evening' : now < tDay ? 'wake' : now < tEve ? 'day' : 'evening';
+    const block = hsm === 'armedNight' ? 'sleep' : clock;
+    const blockOf = k => BLOCKS.find(b => b.key === k);
+    const next = NEXT[block];
+    return { hsm, block, next, blockTemp: num(blockOf(block).temp), nextTemp: num(blockOf(next).temp),
+             nextTime: hms(blockOf(next).time), away: hsm === 'armedAway' };
+}
+
+// "Evening at 6:00 PM", or "bedtime" for Sleep, which starts when the alarm is armed for Night.
+function nextChange(s) {
+    if (s.away) return 'the alarm is disarmed';
+    if (s.next === 'sleep') return 'bedtime';
+    return `${BLOCKS.find(b => b.key === s.next).name} at ${fmtTime(s.nextTime)}`;
+}
+
+// ---------- build the static parts once (re-rendering never replaces a button mid-tap) ----------
+function build() {
+    $('rooms').innerHTML = ROOMS.map((r, i) => `
+        <article class="card room" id="room-${i}">
+            <div class="room-head">
+                <div><div class="room-name">${r.name}</div><div class="room-kind">${r.kind} · heat only</div></div>
+                <button class="power" data-power="${i}" aria-label="Turn ${r.name} on or off">${ICON.power}</button>
+            </div>
+            <div class="room-now">
+                <span class="room-temp num">--</span>
+                <span class="pill">--</span>
+            </div>
+            <div class="room-target">
+                <div class="room-note"></div>
+                <div class="stepper" data-room="${i}">${stepperHTML()}</div>
+            </div>
+        </article>`).join('');
+
+    $('blocks').innerHTML = BLOCKS.map((b, i) => `
+        <div class="row block" id="block-${i}">
+            <div class="what"><b>${b.name}</b><span class="when"></span></div>
+            <div class="ctrl">
+                <input type="time" data-block-time="${i}" aria-label="${b.name} start time">
+                <div class="stepper" data-block="${i}">${stepperHTML()}</div>
+            </div>
+        </div>`).join('');
+
+    $('balance').innerHTML = ROOMS.map((r, i) => `
+        <div class="row">
+            <div class="what"><b>${r.name}</b><span class="explain"></span></div>
+            <div class="ctrl"><div class="stepper" data-offset="${i}">${stepperHTML()}</div></div>
+        </div>`).join('');
+
+    $('away-stepper').innerHTML = stepperHTML();
+}
+
+// ---------- render ----------
+function render() {
+    const s = scheduleNow();
+    const house = num(E.house);
+    const hold = st(E.hold) === 'on';
+    const houseShown = shown('house', house);
+    const hMin = attr(E.house, 'min') ?? 62, hMax = attr(E.house, 'max') ?? 78;
+
+    // House
+    $('house-val').innerHTML = houseShown == null ? '--' : `${Math.round(houseShown)}<sup>°</sup>`;
+    setStepper($('house-stepper'), houseShown, hMin, hMax, pending.has('house'));
+
+    const temps = ROOMS.map(r => attr(r.id, 'current_temperature')).filter(Number.isFinite);
+    $('inside').textContent = temps.length ? `${(temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1)}°` : '--';
+    const out = num(E.outdoor) ?? attr(E.weather, 'temperature');
+    $('outside').textContent = out == null ? '--' : `${Math.round(out)}°`;
+
+    const chip = $('mode-chip');
+    chip.className = 'mode-chip' + (s.away ? ' away' : s.hsm === 'armedNight' ? ' night' : '');
+    chip.textContent = s.away ? 'Away' : s.hsm === 'armedNight' ? 'Night' : 'Home';
+
+    const preheat = !s.away && !hold && house === s.nextTemp && house !== s.blockTemp;
+    const blockName = BLOCKS.find(b => b.key === s.block).name;
+    const nextName = BLOCKS.find(b => b.key === s.next).name;
+    let head, sub, cls = '';
+    if (s.away) {
+        cls = 'away'; head = 'Away setback';
+        sub = 'Nobody home. The schedule picks up again when the alarm is disarmed.';
+    } else if (hold) {
+        cls = 'hold'; head = 'Held by hand';
+        sub = `The schedule takes over again at ${nextChange(s)}.`;
+    } else if (preheat) {
+        cls = 'preheat'; head = `Warming up for ${nextName}`;
+        sub = `Started early so the house is ${Math.round(s.nextTemp)}° by ${s.next === 'sleep' ? 'bedtime' : fmtTime(s.nextTime)}.`;
+    } else {
+        head = `${blockName} schedule`;
+        sub = s.nextTemp == null ? '' : `Next: ${nextName} ${Math.round(s.nextTemp)}° ${s.next === 'sleep' ? 'at bedtime' : 'at ' + fmtTime(s.nextTime)}`;
+    }
+    $('house-status').className = 'status ' + cls;
+    $('status-head').textContent = head;
+    $('status-sub').textContent = sub;
+    $('resume').hidden = !hold || s.away;
+
+    // Rooms
+    ROOMS.forEach((r, i) => {
+        const el = $(`room-${i}`);
+        const a = S.get(r.id)?.attributes || {};
+        const state = st(r.id);
+        const avail = state && state !== 'unavailable' && state !== 'unknown';
+        const on = state === 'heat';
+        const target = a.temperature;
+        const off = num(r.offset) ?? 0;
+        const follows = house == null ? null : clamp(Math.round(house + off), ROOM_MIN, ROOM_MAX);
+        const key = `room:${i}`;
+        const tShown = shown(key, target);
+
+        el.classList.toggle('unavailable', !avail);
+        el.classList.toggle('is-off', avail && !on);
+        el.querySelector('.room-temp').innerHTML = Number.isFinite(a.current_temperature)
+            ? `${a.current_temperature.toFixed(0)}<small>°</small>` : '--';
+        const pw = el.querySelector('.power');
+        pw.classList.toggle('on', on);
+        pw.disabled = !avail;
+        pw.title = on ? `Turn ${r.name} off` : `Turn ${r.name} on`;
+
+        // Status pill
+        const pill = el.querySelector('.pill');
+        const windowOpen = a.window_manager?.window_state === 'on';
+        const openDoor = r.doors && st(E.lrRestore) && st(E.lrRestore) !== 'off'
+            ? Object.entries(r.doors).find(([d]) => st(d) === 'on')?.[1] || 'A door' : null;
+        const power = Math.round(a.power_percent ?? 0);
+        if (!avail) { pill.className = 'pill off'; pill.textContent = 'Unavailable'; }
+        else if (!on && windowOpen) { pill.className = 'pill paused'; pill.textContent = 'Paused · window open'; }
+        else if (!on && openDoor) { pill.className = 'pill paused'; pill.textContent = `Paused · ${openDoor.toLowerCase()} open`; }
+        else if (!on) { pill.className = 'pill off'; pill.textContent = 'Off'; }
+        else if (a.hvac_action === 'heating' || power > 0) {
+            pill.className = 'pill heating';
+            pill.innerHTML = `${ICON.flame}Heating${power > 0 && power < 100 ? ` · ${power}%` : ''}`;
+        } else { pill.className = 'pill'; pill.textContent = Number.isFinite(a.current_temperature) && a.current_temperature >= target ? 'Warm enough' : 'Idle'; }
+
+        // Target and how it relates to House
+        const st_ = el.querySelector('.stepper');
+        setStepper(st_, tShown, a.min_temp ?? ROOM_MIN, a.max_temp ?? ROOM_MAX, pending.has(key));
+        const note = el.querySelector('.room-note');
+        note.className = 'room-note';
+        if (!avail) note.textContent = 'Not responding';
+        else if (!on && openDoor) note.textContent = 'Back on when the door closes';
+        else if (!on && windowOpen) note.textContent = 'Back on when the window closes';
+        else if (!on) note.textContent = 'Off until turned back on';
+        else if (pending.has(key) || (follows != null && target !== follows)) {
+            note.className = 'room-note manual';
+            note.innerHTML = `Set by hand until ${nextChange(s)} · <button class="link" data-resume="${i}">Follow house</button>`;
+        } else {
+            note.textContent = off === 0 ? 'Following House' : `Following House, ${Math.abs(off)}° ${off < 0 ? 'cooler' : 'warmer'}`;
+        }
+    });
+
+    // Schedule
+    BLOCKS.forEach((b, i) => {
+        const row = $(`block-${i}`);
+        const t = hms(b.time).slice(0, 5);
+        const input = row.querySelector('input');
+        if (document.activeElement !== input && !pending.has(`time:${i}`)) input.value = t;
+        row.querySelector('.when').innerHTML = (b.key === 'sleep'
+            ? 'When the alarm is armed for Night, or at this time if it isn’t'
+            : `From ${fmtTime(hms(b.time))}`)
+            + (!s.away && s.block === b.key ? ' <span class="now-tag">Now</span>' : '');
+        const key = `block:${i}`;
+        setStepper(row.querySelector('.stepper'), shown(key, num(b.temp)), attr(b.temp, 'min') ?? 60, attr(b.temp, 'max') ?? 78, pending.has(key));
+    });
+    const awayEl = $('away-stepper');
+    if (S.has(E.away)) setStepper(awayEl, shown('away', num(E.away)), attr(E.away, 'min') ?? 60, attr(E.away, 'max') ?? 78, pending.has('away'));
+    else { setStepper(awayEl, null, 0, 0, false); }
+
+    // Room balance
+    ROOMS.forEach((r, i) => {
+        const key = `offset:${i}`;
+        const off = shown(key, num(r.offset));
+        const el = document.querySelector(`[data-offset="${i}"]`);
+        el.querySelector('.val').textContent = off == null ? '--' : off === 0 ? '0°' : `${off > 0 ? '+' : '−'}${Math.abs(off)}°`;
+        const [down, up] = el.querySelectorAll('button');
+        down.disabled = off == null || off <= (attr(r.offset, 'min') ?? -5);
+        up.disabled = off == null || off >= (attr(r.offset, 'max') ?? 5);
+        el.classList.toggle('pending', pending.has(key));
+        const result = house == null || off == null ? '' : ` · ${clamp(Math.round(house + off), ROOM_MIN, ROOM_MAX)}° right now`;
+        el.closest('.row').querySelector('.explain').textContent =
+            off == null ? '' : (off === 0 ? 'Same as House' : `${Math.abs(off)}° ${off < 0 ? 'cooler' : 'warmer'} than House`) + result;
+    });
+}
+
+// ---------- input ----------
+document.addEventListener('click', e => {
+    const tab = e.target.closest('[data-view]');
+    if (tab) {
+        document.querySelectorAll('[data-view]').forEach(t => t.setAttribute('aria-selected', t === tab));
+        $('view-now').hidden = tab.dataset.view !== 'now';
+        $('view-plan').hidden = tab.dataset.view !== 'plan';
+        try { localStorage.setItem('climate-view', tab.dataset.view); } catch (_) {}
+        return;
+    }
+
+    const step = e.target.closest('[data-step]');
+    if (step && !step.disabled) {
+        const d = Number(step.dataset.step);
+        const box = step.closest('.stepper');
+        if (box.id === 'house-stepper') {
+            nudge('house', E.house, num(E.house), d, attr(E.house, 'min') ?? 62, attr(E.house, 'max') ?? 78,
+                  v => call('input_number', 'set_value', { value: v }, E.house));
+        } else if (box.dataset.room != null) {
+            const r = ROOMS[box.dataset.room], a = S.get(r.id)?.attributes || {};
+            nudge(`room:${box.dataset.room}`, r.id, a.temperature, d, a.min_temp ?? ROOM_MIN, a.max_temp ?? ROOM_MAX,
+                  v => call('climate', 'set_temperature', { temperature: v }, r.id));
+        } else if (box.dataset.block != null) {
+            const b = BLOCKS[box.dataset.block];
+            nudge(`block:${box.dataset.block}`, b.temp, num(b.temp), d, attr(b.temp, 'min') ?? 60, attr(b.temp, 'max') ?? 78,
+                  v => call('input_number', 'set_value', { value: v }, b.temp));
+        } else if (box.dataset.offset != null) {
+            const r = ROOMS[box.dataset.offset];
+            nudge(`offset:${box.dataset.offset}`, r.offset, num(r.offset), d, attr(r.offset, 'min') ?? -5, attr(r.offset, 'max') ?? 5,
+                  v => call('input_number', 'set_value', { value: v }, r.offset));
+        } else if (box.id === 'away-stepper') {
+            nudge('away', E.away, num(E.away), d, attr(E.away, 'min') ?? 60, attr(E.away, 'max') ?? 78,
+                  v => call('input_number', 'set_value', { value: v }, E.away));
+        }
+        return;
+    }
+
+    const pw = e.target.closest('[data-power]');
+    if (pw && !pw.disabled) {
+        const r = ROOMS[pw.dataset.power];
+        call('climate', 'set_hvac_mode', { hvac_mode: st(r.id) === 'heat' ? 'off' : 'heat' }, r.id).catch(() => {});
+        return;
+    }
+
+    // Put one room back on House + its balance
+    const back = e.target.closest('[data-resume]');
+    if (back) {
+        const i = back.dataset.resume, r = ROOMS[i];
+        const value = clamp(Math.round(num(E.house) + (num(r.offset) ?? 0)), ROOM_MIN, ROOM_MAX);
+        const p = pending.get(`room:${i}`);
+        if (p) { clearTimeout(p.timer); pending.delete(`room:${i}`); }
+        call('climate', 'set_temperature', { temperature: value }, r.id).catch(() => {});
+        return;
+    }
+
+    // Clear the hold, then run the schedule now (conditions still checked, so
+    // it never overrides Away) - it writes the current block's temperature.
+    if (e.target.closest('#resume')) {
+        call('input_boolean', 'turn_off', {}, E.hold)
+            .then(() => call('automation', 'trigger', { skip_condition: false }, E.schedule))
+            .catch(() => {});
+    }
+});
+
+document.addEventListener('change', e => {
+    const i = e.target.dataset?.blockTime;
+    if (i == null || !e.target.value) return;
+    const key = `time:${i}`;
+    pending.set(key, { value: e.target.value, entity: BLOCKS[i].time, until: Date.now() + 8000 });
+    call('input_datetime', 'set_datetime', { time: `${e.target.value}:00` }, BLOCKS[i].time)
+        .finally(() => { pending.delete(key); render(); });
+});
+
+function tick() {
+    const d = new Date();
+    $('clock').textContent = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+// ---------- start ----------
+build();
+// climate.html#schedule opens the Schedule tab; otherwise the last tab used
+if (location.hash === '#schedule') $('tab-plan').click();
+else try { if (localStorage.getItem('climate-view') === 'plan') $('tab-plan').click(); } catch (_) {}
+tick();
+setInterval(() => { tick(); if (S.size) render(); }, 15000);
+connect();
+</script>
+</body>
+</html>

@@ -110,6 +110,28 @@ export const config = {
 
 ---
 
+### 4. House Climate (`climate.html`)
+
+One place to run the four heated rooms. Landscape on the wall tablet, one column on a phone. Linked from the HA Home dashboard; `climate.html#schedule` opens straight to the Schedule tab.
+
+**How the house works (and what the page shows):**
+- **House** (`input_number.house_setpoint`) is the master dial. "HVAC - House setpoint applies to all rooms" sets each room to House + its balance, clamped 65-80, whenever House changes.
+- The **schedule** (Wake / Day / Evening / Sleep) writes House. Sleep starts when HSM arms for Night, with the Sleep time as a late fallback; Away uses its own setback. Moving House by hand sets `input_boolean.climate_manual_override_active`, which holds until the next block; **Resume schedule** clears it and runs the schedule automation (conditions still checked, so it never overrides Away).
+- A **room** changed on the Now screen keeps that target until the next House change; the card says so and offers **Follow house**. The page spots this by comparing the room's target with House + balance; no extra helpers.
+- **Room balance** (the `input_number.climate_offset_*` helpers) lives on the Schedule tab: how many degrees each room runs above or below House, all the time.
+- Room cards show heating (with duty %), idle, off, or paused by an open window (Versatile Thermostat window manager) or an open front/patio door (the living room door automation).
+
+**HA Entities Used:**
+- `input_number.house_setpoint`, `input_boolean.climate_manual_override_active`, `sensor.hub_hsm_status`
+- `climate.living_room_thermostat`, `climate.bedroom_thermostat`, `climate.liam_s_room_thermostat`, `climate.office_thermostat` (Versatile Thermostats)
+- `input_number.climate_offset_living_room|bedroom|liam|office`
+- `input_datetime.climate_wake|day|evening|sleep_time`, `input_number.climate_wake|day|evening|sleep_temp`, `input_number.climate_away_temp`
+- `input_select.living_room_climate_restore_mode`, `binary_sensor.front_door_contact`, `binary_sensor.slider_door_sensor_contact`
+- `sensor.outdoor_temperature`
+- `automation.hvac_climate_schedule_with_smart_recovery` (triggered by Resume schedule)
+
+---
+
 ## Infrastructure
 
 - **Server:** nginx on Proxmox LXC
