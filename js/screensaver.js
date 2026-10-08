@@ -169,20 +169,23 @@ class Agenda {
 // conditions as the old ticker, day and night, except that "Zoey's been
 // fed" is only a confirmation: it shows for FED_SHOW_MS after she's marked
 // fed, not for the rest of the feeding window. "Not fed" and "probably
-// hungry" stay up until handled.
+// hungry" stay up until handled. The time comes from the fed toggles
+// themselves: the status sensor's last_changed resets whenever template
+// sensors reload, which would bring the tag back.
 const FED_SHOW_MS = 30 * 60 * 1000;
 
 class StatusTags extends Ticker {
     constructor(haUrl, token, el) {
         super(haUrl, token, el);
         this.el = el;
-        this.fedAt = null;            // when the feeding status turned "fed"
+        this.fedOn = {};              // fed toggle -> when it was switched on (ms)
         setInterval(() => this.updateTicker(), 60000);   // lets the fed tag expire
     }
 
     processEntityState(entityId, state, stateObj) {
-        if (entityId === 'sensor.zoey_feeding_status') {
-            this.fedAt = state === 'fed' ? (Date.parse(stateObj?.last_changed) || Date.now()) : null;
+        if (/^input_boolean\.zoey_fed_(morning|afternoon)$/.test(entityId)) {
+            if (state === 'on') this.fedOn[entityId] = Date.parse(stateObj?.last_changed) || Date.now();
+            else delete this.fedOn[entityId];
         }
         return super.processEntityState(entityId, state, stateObj);
     }
@@ -198,7 +201,8 @@ class StatusTags extends Ticker {
             'not-fed': ['alert', 'Zoey has NOT been fed'],
             'overdue': ['warn', "Zoey's probably hungry!"]
         }[s.feedingState];
-        const fedTooLongAgo = s.feedingState === 'fed' && !(this.fedAt && Date.now() - this.fedAt < FED_SHOW_MS);
+        const fedAt = Math.max(0, ...Object.values(this.fedOn));
+        const fedTooLongAgo = s.feedingState === 'fed' && !(fedAt && Date.now() - fedAt < FED_SHOW_MS);
         if (feed && !fedTooLongAgo) out.push(feed);
 
         // Same schedule as the old ticker: only while the waste reminder is on
