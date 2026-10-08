@@ -163,7 +163,8 @@ class Agenda {
 }
 
 // ===== Insights: a few quiet, rotating lines under the weather =====
-// Whatever is worth saying at this time of day; two lines show at once and the
+// Whatever is worth saying at this time of day, plus house check-ins (warm-ups,
+// heat hold, 3D printers) whenever they apply; two lines show at once and the
 // rest take turns. Something that needs someone (meds) stays pinned on top.
 // Never the same things as the tags along the bottom; hidden at night with the
 // rest of the day layout. Mail was left out on purpose: its sensors aren't
@@ -172,6 +173,10 @@ const SUN = 'sun.sun';
 const MEDS_TAKEN = 'binary_sensor.prozac_taken_today';   // same sensor as the 6 PM reminder
 const MEDS_FROM = 14 * 60;                                // meds line from 2 PM until night
 const EVENING = 18 * 60;
+const PRINTERS = ['x1c_00m00a2c0618544', 'p1s_01p00c611801219'];   // Bambu: Rainier, Flower
+const PRINT_DONE_FOR = 2 * 3600e3;    // "finished its print" for two hours after
+const WARMUPS = { house: 'the whole house', living_room: 'the living room', bedroom: 'the bedroom', liam: "Liam's room", office: 'the office' };
+const HOLD = 'input_boolean.climate_manual_override_active';
 const WET = new Set(['rainy', 'pouring', 'lightning-rainy', 'snowy', 'snowy-rainy', 'hail']);
 const SNOW = new Set(['snowy', 'snowy-rainy', 'hail']);
 const FROST_AT = 34;          // °F low that counts as frost
@@ -187,6 +192,7 @@ const INS_ICONS = {
     cold: '<path d="M12 3v18M5 7l14 10M19 7L5 17M9.5 4.5L12 7l2.5-2.5M9.5 19.5L12 17l2.5 2.5"/>',
     warm: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
     wind: '<path d="M3 8h11a2.5 2.5 0 1 0-2.5-2.5M3 12h16a2.5 2.5 0 1 1-2.5 2.5M3 16h9a2.5 2.5 0 1 1-2.5 2.5"/>',
+    print: '<rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 8h16M9 15.5h6M12 8v4.5"/>',
     cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'
 };
 const insIcon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
@@ -216,11 +222,41 @@ class Insights {
         return r.json();
     }
 
-    // Sun and meds: every minute, so the meds line goes soon after the dose is logged
+    // Everything read every minute (sun, meds, printers, warm-ups, hold) in one
+    // template call, so the meds line goes soon after the dose is logged
     async refreshStates() {
+        const tpl = `{% set ns = namespace(p=[], w=[]) %}
+{% for id in ${JSON.stringify(PRINTERS)} %}{% set st = states['sensor.' ~ id ~ '_print_status'] %}{% if st %}
+{% set ns.p = ns.p + [{'name': (states('sensor.' ~ id ~ '_printer_name').split(' (')[0]), 'status': st.state,
+  'end': states('sensor.' ~ id ~ '_end_time'),
+  'left': states('sensor.' ~ id ~ '_remaining_time')}] %}{% endif %}{% endfor %}
+{% for k in ${JSON.stringify(Object.keys(WARMUPS))} %}{% set t = states['timer.climate_boost_' ~ k] %}
+{% if t and t.state == 'active' %}{% set ns.w = ns.w + [{'room': k, 'ends': t.attributes.finishes_at}] %}{% endif %}{% endfor %}
+{{ {'rise': state_attr('${SUN}', 'next_rising'), 'set': state_attr('${SUN}', 'next_setting'),
+    'meds': states('${MEDS_TAKEN}'), 'hold': states('${HOLD}'), 'printers': ns.p, 'warm': ns.w} | tojson }}`;
         try {
-            const [sun, meds] = await Promise.all([this.api(`states/${SUN}`), this.api(`states/${MEDS_TAKEN}`)]);
-            Object.assign(this.data, { sun: sun.attributes, medsTaken: meds.state !== 'off' });
+            const r = await fetch(`${this.haUrl}/api/template`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ template: tpl })
+            });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const d = JSON.parse(await r.text());
+            // "Finished" only for a print this screen watched end: a Home Assistant
+            // restart resets last_changed and would make an old print look new
+            const was = new Map((this.data.printers || []).map(p => [p.name, p.status]));
+            this.finished = this.finished || {};
+            for (const p of d.printers) {
+                const before = was.get(p.name);
+                if ((before === 'running' || before === 'pause') && (p.status === 'finish' || p.status === 'failed')) this.finished[p.name] = Date.now();
+            }
+            Object.assign(this.data, {
+                sun: { next_rising: d.rise, next_setting: d.set },
+                medsTaken: d.meds !== 'off',
+                hold: d.hold === 'on',
+                printers: d.printers,
+                warm: d.warm
+            });
         } catch (e) { console.error('Insights:', e); }
         this.render();
     }
@@ -274,6 +310,26 @@ class Insights {
 
         if (this.data.medsTaken === false && m >= MEDS_FROM)
             out.push(['nudge', 'pill', "Tim hasn't taken his meds yet"]);
+
+        // House check-ins, any time of day
+        for (const w of this.data.warm || []) {
+            const ends = new Date(w.ends);
+            if (ends > now) out.push(['', 'warm', `Warming up ${esc(WARMUPS[w.room] || w.room)} until <b>${esc(hmFull(ends))}</b>`]);
+        }
+        if (this.data.hold) out.push(['', 'warm', 'Heat schedule is on hold for now']);
+        for (const p of this.data.printers || []) {
+            const name = esc(p.name || '3D printer');
+            if (p.status === 'running') {
+                const end = Date.parse(p.end) || (parseFloat(p.left) > 0 ? now.getTime() + parseFloat(p.left) * 3600e3 : NaN);
+                out.push(['', 'print', isNaN(end) ? `${name} is printing` : `${name} is printing · done around <b>${esc(hmFull(new Date(end)))}</b>`]);
+            } else if (p.status === 'prepare' || p.status === 'init' || p.status === 'slicing') {
+                out.push(['', 'print', `${name} is getting ready to print`]);
+            } else if (p.status === 'pause') {
+                out.push(['', 'print', `${name}'s print is paused`]);
+            } else if ((p.status === 'finish' || p.status === 'failed') && now - (this.finished?.[p.name] || 0) < PRINT_DONE_FOR) {
+                out.push(['', 'print', p.status === 'finish' ? `${name} finished its print` : `${name}'s print stopped early`]);
+            }
+        }
 
         let rise = null, set = null;
         if (sun?.next_setting && sun?.next_rising) {
