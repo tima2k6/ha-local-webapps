@@ -184,6 +184,38 @@
             color: var(--text-dim);
         }
 
+        /* ===== Insights: a few quiet, rotating lines under the weather ===== */
+        /* Two lines tall at all times, so the clock above never shifts as lines come and go */
+        #insights {
+            display: flex;
+            flex-direction: column;
+            gap: calc(var(--u) * 14);
+            min-height: calc(var(--u) * 87);
+            margin-top: calc(var(--u) * 30);
+            padding-top: calc(var(--u) * 26);
+            border-top: 1.5px solid #1f1f1f;
+        }
+        #insights:empty, body.night #insights { display: none; }
+        .ins {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--u) * 16);
+            font-size: calc(var(--u) * 29);
+            line-height: 1.25;
+            color: var(--text-mid);
+            white-space: nowrap;
+        }
+        .ins.fresh { animation: insFade 2.5s ease-out both; }
+        @keyframes insFade { from { opacity: 0; } to { opacity: 1; } }
+        .ins svg {
+            width: calc(var(--u) * 32);
+            height: calc(var(--u) * 32);
+            flex: none;
+            color: var(--text-low);
+        }
+        .ins b { font-weight: 500; color: var(--text-hi); }
+        .ins.nudge { color: var(--warn-text); }
+        .ins.nudge svg { color: var(--warn); }
         /* ===== Right column: agenda, each time above its event ===== */
         #side {
             min-width: 0;
@@ -401,6 +433,7 @@
                     </div>
                 </div>
                 <div id="weather"></div>
+                <div id="insights"></div>
                 <div id="night-weather"></div>
             </div>
             <div id="side">
@@ -417,7 +450,7 @@
     <script src="js/ha-config.js?v=20261005"></script>
     <script type="module">
         import { config } from './js/config.js?v=20261005';
-        import { startScreensaver } from './js/screensaver.js?v=12';
+        import { startScreensaver } from './js/screensaver.js?v=13';
 
         document.addEventListener('DOMContentLoaded', () => startScreensaver(config));
     </script>

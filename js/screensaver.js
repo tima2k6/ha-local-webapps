@@ -162,6 +162,229 @@ class Agenda {
     }
 }
 
+// ===== Insights: a few quiet, rotating lines under the weather =====
+// Whatever is worth saying at this time of day; two lines show at once and the
+// rest take turns. Something that needs someone (meds) stays pinned on top.
+// Never the same things as the tags along the bottom; hidden at night with the
+// rest of the day layout. Mail was left out on purpose: its sensors aren't
+// accurate enough (2026-10-08).
+const SUN = 'sun.sun';
+const MEDS_TAKEN = 'binary_sensor.prozac_taken_today';   // same sensor as the 6 PM reminder
+const MEDS_FROM = 14 * 60;                                // meds line from 2 PM until night
+const EVENING = 18 * 60;
+const WET = new Set(['rainy', 'pouring', 'lightning-rainy', 'snowy', 'snowy-rainy', 'hail']);
+const SNOW = new Set(['snowy', 'snowy-rainy', 'hail']);
+const FROST_AT = 34;          // °F low that counts as frost
+const BIG_CHANGE = 8;         // °F difference in highs worth mentioning
+const WINDY_AT = 15;          // mph
+const SHOWN = 2, ROTATE_MS = 20000;
+
+const INS_ICONS = {
+    sunrise: '<path d="M3 17h18M6.5 17a5.5 5.5 0 0 1 11 0M12 6v3M5.2 9.2l2 2M18.8 9.2l-2 2M8 21h8"/>',
+    sunset: '<path d="M3 17h18M6.5 17a5.5 5.5 0 0 1 11 0M12 5v4M10 7l2 2 2-2M8 21h8"/>',
+    rain: '<path d="M7 15a4 4 0 0 1-.5-8A5.5 5.5 0 0 1 17 7.5a3.75 3.75 0 0 1 0 7.5H7z"/><path d="M8 18l-1 2.5M12 18l-1 2.5M16 18l-1 2.5"/>',
+    pill: '<rect x="3" y="8.5" width="18" height="7" rx="3.5" transform="rotate(-35 12 12)"/><path d="M9.6 8.6l4.8 6.8"/>',
+    cold: '<path d="M12 3v18M5 7l14 10M19 7L5 17M9.5 4.5L12 7l2.5-2.5M9.5 19.5L12 17l2.5 2.5"/>',
+    warm: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
+    wind: '<path d="M3 8h11a2.5 2.5 0 1 0-2.5-2.5M3 12h16a2.5 2.5 0 1 1-2.5 2.5M3 16h9a2.5 2.5 0 1 1-2.5 2.5"/>',
+    cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'
+};
+const insIcon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${INS_ICONS[name]}</svg>`;
+
+// "7:21" (sun times are never ambiguous), "1 PM" / "noon", "10:00 AM"
+const hm = d => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]\.?M\.?$/i, '');
+const hr = d => d.getHours() === 12 ? 'noon' : d.toLocaleTimeString([], { hour: 'numeric' });
+const hmFull = d => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+class Insights {
+    constructor(haUrl, token, el) {
+        Object.assign(this, { haUrl, token, el });
+        this.data = {};
+        this.turn = 0;
+    }
+
+    async api(path, body) {
+        const r = await fetch(`${this.haUrl}/api/${path}`, {
+            method: body ? 'POST' : 'GET',
+            headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+            body: body ? JSON.stringify(body) : undefined
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+    }
+
+    // Sun and meds: every minute, so the meds line goes soon after the dose is logged
+    async refreshStates() {
+        try {
+            const [sun, meds] = await Promise.all([this.api(`states/${SUN}`), this.api(`states/${MEDS_TAKEN}`)]);
+            Object.assign(this.data, { sun: sun.attributes, medsTaken: meds.state !== 'off' });
+        } catch (e) { console.error('Insights:', e); }
+        this.render();
+    }
+
+    async refreshForecast() {
+        try {
+            const [h, d] = await Promise.all(['hourly', 'daily'].map(type =>
+                this.api('services/weather/get_forecasts?return_response', { entity_id: WEATHER, type })));
+            const list = r => (r.service_response?.[WEATHER]?.forecast || []).map(x => ({ ...x, t: new Date(x.datetime) }));
+            Object.assign(this.data, { hourly: list(h), daily: list(d) });
+        } catch (e) { console.error('Insights forecast:', e); }
+        this.render();
+    }
+
+    // Tomorrow's first timed event before noon (all-day events don't start "early")
+    async refreshCalendar() {
+        try {
+            const a = new Date(); a.setHours(24, 0, 0, 0);
+            const b = new Date(a); b.setHours(12);
+            const evs = await this.api(`calendars/${CALENDAR}?start=${a.toISOString()}&end=${b.toISOString()}`);
+            const starts = evs.filter(e => e.start.dateTime).map(e => new Date(e.start.dateTime))
+                .filter(t => t >= a && t < b).sort((x, y) => x - y);
+            this.data.earlyTomorrow = starts[0] || null;
+        } catch (e) { console.error('Insights calendar:', e); }
+        this.render();
+    }
+
+    hours(from, until) {
+        return (this.data.hourly || []).filter(h => h.t >= from && h.t < until);
+    }
+
+    // Wet hours between from and until, grouped into [start, end) spans
+    wetSpans(from, until) {
+        const spans = [];
+        let snow = false;
+        for (const h of this.hours(from, until)) {
+            if (!WET.has(h.condition)) continue;
+            if (SNOW.has(h.condition)) snow = true;
+            const last = spans[spans.length - 1], end = new Date(h.t.getTime() + 3600e3);
+            if (last && last[1].getTime() === h.t.getTime()) last[1] = end;
+            else spans.push([h.t, end]);
+        }
+        return { spans, word: snow ? 'Snow' : 'Rain' };
+    }
+
+    // Every line that applies right now: [tone, icon, html]. tone 'nudge' stays pinned.
+    lines(now = new Date()) {
+        const m = now.getHours() * 60 + now.getMinutes();
+        const { sun, daily } = this.data;
+        const out = [];
+
+        if (this.data.medsTaken === false && m >= MEDS_FROM)
+            out.push(['nudge', 'pill', "Tim hasn't taken his meds yet"]);
+
+        let rise = null, set = null;
+        if (sun?.next_setting && sun?.next_rising) {
+            set = new Date(sun.next_setting);
+            rise = new Date(sun.next_rising);
+            if (dayKey(rise) !== dayKey(now)) rise = new Date(rise.getTime() - 86400e3);   // today's, near enough
+            if (dayKey(set) !== dayKey(now)) set = new Date(set.getTime() - 86400e3);
+        }
+
+        if (m < EVENING) {
+            // Rain in the next 12 hours
+            const hourStart = new Date(now); hourStart.setMinutes(0, 0, 0);
+            const horizon = new Date(now.getTime() + 12 * 3600e3);
+            const { spans, word } = this.wetSpans(hourStart, horizon);
+            if (spans.length) {
+                const [a, b] = spans[0], next = spans[1];
+                const end = b >= new Date(horizon.getTime() - 3600e3) ? null : b;
+                let t;
+                if (a <= now) t = end ? `${word} till about <b>${esc(hr(end))}</b>` : `${word} on and off all day`;
+                else t = end ? `${word} later, about <b>${esc(hr(a))} – ${esc(hr(end))}</b>` : `${word} from about <b>${esc(hr(a))}</b>`;
+                if (a <= now && end && next) t += `, back around <b>${esc(hr(next[0]))}</b>`;
+                out.push(['', 'rain', t]);
+            }
+
+            // Windy later today
+            const gusty = this.hours(now, new Date(Math.min(horizon, new Date(now).setHours(20, 0, 0, 0))))
+                .filter(h => h.wind_speed >= WINDY_AT);
+            if (gusty.length) {
+                const top = Math.round(Math.max(...gusty.map(h => h.wind_speed)));
+                out.push(['', 'wind', gusty[0].t <= now ? `Windy now, up to <b>${top} mph</b>`
+                    : `Windy from about <b>${esc(hr(gusty[0].t))}</b>, up to ${top} mph`]);
+            }
+
+            // The sun: both times in the morning; sunset and light left after noon
+            if (rise && set) {
+                if (m < 12 * 60) out.push(['', 'sunrise', `Sunrise <b>${esc(hm(rise))}</b> · sunset <b>${esc(hm(set))}</b>`]);
+                else if (set > now) {
+                    const left = (set - now) / 3600e3;
+                    const light = left < 1 ? 'under an hour of light left' : `about ${plural(Math.round(left), 'hour')} of light left`;
+                    out.push(['', 'sunset', `Sunset at <b>${esc(hm(set))}</b> · ${light}`]);
+                }
+                // Day length
+                const len = (((set - rise) / 60e3) % 1440 + 1440) % 1440;
+                out.push(['', 'sunrise', `<b>${Math.floor(len / 60)}h ${Math.round(len % 60)}m</b> of daylight today`]);
+            }
+        } else {
+            // Frost tonight
+            const tonight = this.hours(now, new Date(now.getTime() + 12 * 3600e3));
+            const low = tonight.length ? Math.round(Math.min(...tonight.map(h => h.temperature))) : null;
+            if (low !== null && low <= FROST_AT) out.push(['', 'cold', `Frost likely tonight · low <b>${low}°</b>`]);
+
+            // How tomorrow will feel
+            const tmr = new Date(now); tmr.setDate(tmr.getDate() + 1);
+            const today = (daily || []).find(d => dayKey(d.t) === dayKey(now));
+            const next = (daily || []).find(d => dayKey(d.t) === dayKey(tmr));
+            if (next) {
+                const hi = Math.round(next.temperature);
+                const diff = today ? hi - Math.round(today.temperature) : 0;
+                const at = h => { const t = new Date(tmr); t.setHours(h, 0, 0, 0); return t; };
+                const am = this.wetSpans(at(6), at(12)), pm = this.wetSpans(at(12), at(20));
+                const wet = am.spans.length > 0 || pm.spans.length > 0;
+                const w = (am.spans.length ? am : pm).word.toLowerCase();
+                const when = am.spans.length && pm.spans.length ? `${w} on and off`
+                    : am.spans.length ? `${w} in the morning` : `${w} in the afternoon`;
+                const feel = diff <= -BIG_CHANGE ? 'Cooler tomorrow' : diff >= BIG_CHANGE ? 'Warmer tomorrow' : null;
+                if (feel) out.push(['', diff > 0 ? 'warm' : 'cold', `${feel} · ${wet ? `${when}, ` : ''}high <b>${hi}°</b>`]);
+                else if (wet) out.push(['', 'rain', `${when.charAt(0).toUpperCase() + when.slice(1)} tomorrow · high <b>${hi}°</b>`]);
+            }
+
+            if (this.data.earlyTomorrow)
+                out.push(['', 'cal', `First thing tomorrow at <b>${esc(hmFull(this.data.earlyTomorrow))}</b>`]);
+
+            if (sun?.next_rising) out.push(['', 'sunrise', `Sunrise tomorrow at <b>${esc(hm(new Date(sun.next_rising)))}</b>`]);
+        }
+        return out;
+    }
+
+    // Pinned lines, then the rest taking turns in the space left. Lines that stay
+    // on screen keep their element, so only the ones that change fade in.
+    render() {
+        const all = this.lines();
+        const pinned = all.filter(l => l[0] === 'nudge'), rest = all.filter(l => l[0] !== 'nudge');
+        const room = Math.max(0, SHOWN - pinned.length);
+        let shown = rest;
+        if (rest.length > room) {
+            const start = (this.turn * room) % rest.length;
+            shown = Array.from({ length: room }, (_, i) => rest[(start + i) % rest.length]);
+        }
+        const want = [...pinned, ...shown].map(([tone, ic, text]) => ({ key: `${tone}|${ic}|${text}`, tone, ic, text }));
+        const have = new Map([...this.el.children].map(c => [c.dataset.key, c]));
+        const els = want.map(w => {
+            if (have.has(w.key)) return have.get(w.key);
+            const d = document.createElement('div');
+            d.className = `ins ${w.tone} fresh`;
+            d.dataset.key = w.key;
+            d.innerHTML = `${insIcon(w.ic)}<span>${w.text}</span>`;
+            return d;
+        });
+        if (els.length === this.el.children.length && els.every((e, i) => e === this.el.children[i])) return;
+        this.el.replaceChildren(...els);
+    }
+
+    start() {
+        this.refreshStates(); this.refreshForecast(); this.refreshCalendar();
+        setInterval(() => this.refreshStates(), 60000);
+        setInterval(() => this.refreshForecast(), 900000);
+        setInterval(() => this.refreshCalendar(), 900000);
+        setInterval(() => { this.turn++; this.render(); }, ROTATE_MS);
+    }
+}
+
 // ===== Status tags: the ticker's sensors, rendered as static tags =====
 // tone: calm (teal), warn (amber), alert (red). Shown on the same
 // conditions and in the same words as the old ticker, day and night.
@@ -262,6 +485,7 @@ export function startScreensaver(config) {
     new Weather(haUrl, token, $('weather'), $('night-weather')).start();
     nightWatch(night => document.body.classList.toggle('night', night));
     new Agenda(haUrl, token, $('agenda')).start();
+    new Insights(haUrl, token, $('insights')).start();
     new StatusTags(haUrl, token, $('tags'));
     new TimerTag(haUrl, token, $('timers')).start();
     drift($('screen'));
