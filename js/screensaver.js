@@ -184,6 +184,16 @@ const PLANTS = { snake_plant: 'The snake plant', dracaena: 'The dracaena', mimos
 const PLANT_SOON = 5;            // % above too-dry that counts as "soon"
 const PLANT_STALE = 2 * 86400e3; // ignore readings older than this (dead battery)
 const FRESH_AIR = { from: 10 * 60, until: 19 * 60, low: 60, high: 75, warmer: 4 };   // °F
+// Only-when-it-matters weather and air. The pinned ones (amber) stay up top.
+const AQI = 'sensor.u_s_air_quality_index';     // AirVisual, hourly; fine particles = smoke
+const AQI_POOR = 101, AQI_BAD = 151;            // EPA: sensitive groups / everyone
+// Outdoor humidity: judged by dew point (85% on a cool PNW day is normal, not muggy)
+const MUGGY_DEW = 65;                           // °F dew point: sticky outside
+const DRY_OUT = 20;                             // % humidity: very dry (fire weather)
+const THUNDER = new Set(['lightning', 'lightning-rainy']);
+const STRONG_WIND = 30;                         // mph, pinned
+const HOT = 90, HARD_FREEZE = 28;               // °F
+const UV_HIGH = 7;
 
 // ===== Moon: full and new moon times (Meeus, Astronomical Algorithms ch. 49,
 // main terms; good to a few minutes) =====
@@ -249,6 +259,10 @@ const INS_ICONS = {
     moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
     window: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M12 3v18M4 12h16"/>',
     plant: '<path d="M12 21v-9M12 12c0-4 3-7 8-7 0 4.5-3 7-8 7zM12 15c0-3-2.5-5.5-7-5.5 0 3.5 2.5 5.5 7 5.5zM8 21h8"/>',
+    air: '<path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/>',
+    storm: '<path d="M7 15a4 4 0 0 1-.5-8A5.5 5.5 0 0 1 17 7.5a3.75 3.75 0 0 1 0 7.5"/><path d="M12.5 12L10 16.5h4L11.5 21"/>',
+    drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+    fog: '<path d="M7 9.5a5 5 0 0 1 9.6-1.9A3.5 3.5 0 0 1 17.5 14M3 14h14M5 17.5h14M3 21h12"/>',
     cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'
 };
 const insIcon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
@@ -293,6 +307,8 @@ class Insights {
 {% if t and t.state == 'active' %}{% set ns.w = ns.w + [{'room': k, 'ends': t.attributes.finishes_at}] %}{% endif %}{% endfor %}
 {{ {'rise': state_attr('${SUN}', 'next_rising'), 'set': state_attr('${SUN}', 'next_setting'),
     'meds': states('${MEDS_TAKEN}'), 'hold': states('${HOLD}'), 'printers': ns.p, 'warm': ns.w,
+    'aqi': states('${AQI}'), 'dew': state_attr('${WEATHER}', 'dew_point'),
+    'humid': state_attr('${WEATHER}', 'humidity'),
     'out': state_attr('${WEATHER}', 'temperature'), 'cond': states('${WEATHER}'), 'windows': states('${OPEN_WINDOWS}'), 'plants': ns2.pl,
     'inside': (${JSON.stringify(ROOMS)} | map('state_attr', 'current_temperature') | select('is_number') | list) } | tojson }}`;
         try {
@@ -321,7 +337,10 @@ class Insights {
                 outsideCond: d.cond,
                 inside: d.inside.length ? d.inside.reduce((a, b) => a + b, 0) / d.inside.length : null,
                 windowsOpen: parseInt(d.windows, 10) || 0,
-                plants: d.plants
+                plants: d.plants,
+                aqi: parseFloat(d.aqi),
+                dew: typeof d.dew === 'number' ? d.dew : null,
+                humidOut: typeof d.humid === 'number' ? d.humid : null
             });
         } catch (e) { console.error('Insights:', e); }
         this.render();
@@ -365,7 +384,8 @@ class Insights {
             if (last && last[1].getTime() === h.t.getTime()) last[1] = end;
             else spans.push([h.t, end]);
         }
-        return { spans, word: snow ? 'Snow' : 'Rain' };
+        const heavy = this.hours(from, until).some(h => h.condition === 'pouring');
+        return { spans, word: snow ? 'Snow' : heavy ? 'Heavy rain' : 'Rain' };
     }
 
     // Every line that applies right now: [tone, icon, html]. tone 'nudge' stays pinned.
@@ -376,6 +396,18 @@ class Insights {
 
         if (this.data.medsTaken === false && m >= MEDS_FROM)
             out.push(['nudge', 'pill', "Tim hasn't taken his meds yet"]);
+
+        // Pinned: bad air, storms, strong wind
+        const aqi = this.data.aqi;
+        if (aqi >= AQI_BAD) out.push(['nudge', 'air', `Unhealthy air outside · AQI <b>${Math.round(aqi)}</b>, keep windows shut`]);
+        else if (aqi >= AQI_POOR) out.push(['nudge', 'air', `Air quality is poor · AQI <b>${Math.round(aqi)}</b>, keep windows shut`]);
+        const next12 = this.hours(new Date(new Date(now).setMinutes(0, 0, 0)), new Date(now.getTime() + 12 * 3600e3));
+        const storm = next12.find(h => THUNDER.has(h.condition));
+        if (storm && m < NIGHT_STARTS - 60) out.push(['nudge', 'storm', storm.t <= now ? 'Thunderstorms nearby'
+            : `Thunderstorms possible around <b>${esc(hr(storm.t))}</b>`]);
+        const gale = next12.filter(h => h.t < new Date(now.getTime() + 8 * 3600e3)).find(h => h.wind_speed >= STRONG_WIND);
+        if (gale) out.push(['nudge', 'wind', gale.t <= now ? `Strong winds now, up to <b>${Math.round(gale.wind_speed)} mph</b>`
+            : `Strong winds around <b>${esc(hr(gale.t))}</b>, up to ${Math.round(gale.wind_speed)} mph`]);
 
         // House check-ins, any time of day
         for (const w of this.data.warm || []) {
@@ -428,7 +460,7 @@ class Insights {
         if (m < EVENING) {
             // Fresh air: nice out, cooler than the house, dry, windows shut
             const { outside: o, inside: i } = this.data;
-            if (m >= FRESH_AIR.from && m < FRESH_AIR.until && o !== null && i !== null && !this.data.windowsOpen
+            if (m >= FRESH_AIR.from && m < FRESH_AIR.until && o !== null && i !== null && !this.data.windowsOpen && !(aqi >= AQI_POOR)
                 && !WET.has(this.data.outsideCond) && o >= FRESH_AIR.low && o <= FRESH_AIR.high && i - o >= FRESH_AIR.warmer)
                 out.push(['', 'window', `<b>${Math.round(o)}°</b> outside, <b>${Math.round(i)}°</b> in · nice for an open window`]);
 
@@ -448,10 +480,23 @@ class Insights {
                 out.push(['', 'rain', t]);
             }
 
+            // Fog in the morning
+            if (m < 11 * 60 && this.data.outsideCond === 'fog') out.push(['', 'fog', 'Foggy out · take it slow on the roads']);
+
+            // Hot today, sticky out, strong sun
+            const rest = this.hours(now, new Date(new Date(now).setHours(21, 0, 0, 0)));
+            const peak = rest.reduce((a, h) => (!a || h.temperature > a.temperature ? h : a), null);
+            if (peak && peak.temperature >= HOT) out.push(['', 'warm', `Hot one today · up to <b>${Math.round(peak.temperature)}°</b> around ${esc(hr(peak.t))}`]);
+            const { dew, humidOut: rh } = this.data;
+            if (dew !== null && dew >= MUGGY_DEW) out.push(['', 'drop', rh !== null ? `Muggy out · <b>${Math.round(rh)}%</b> humidity` : 'Muggy out']);
+            else if (rh !== null && rh <= DRY_OUT) out.push(['', 'drop', `Very dry out · <b>${Math.round(rh)}%</b> humidity`]);
+            const uv = rest.filter(h => h.uv_index >= UV_HIGH);
+            if (uv.length) out.push(['', 'warm', `Strong sun · UV <b>${Math.round(Math.max(...uv.map(h => h.uv_index)))}</b> around ${esc(hr(uv[0].t))}, sunscreen weather`]);
+
             // Windy later today
             const gusty = this.hours(now, new Date(Math.min(horizon, new Date(now).setHours(20, 0, 0, 0))))
                 .filter(h => h.wind_speed >= WINDY_AT);
-            if (gusty.length) {
+            if (gusty.length && !gale) {
                 const top = Math.round(Math.max(...gusty.map(h => h.wind_speed)));
                 out.push(['', 'wind', gusty[0].t <= now ? `Windy now, up to <b>${top} mph</b>`
                     : `Windy from about <b>${esc(hr(gusty[0].t))}</b>, up to ${top} mph`]);
@@ -473,7 +518,8 @@ class Insights {
             // Frost tonight
             const tonight = this.hours(now, new Date(now.getTime() + 12 * 3600e3));
             const low = tonight.length ? Math.round(Math.min(...tonight.map(h => h.temperature))) : null;
-            if (low !== null && low <= FROST_AT) out.push(['', 'cold', `Frost likely tonight · low <b>${low}°</b>`]);
+            if (low !== null && low <= HARD_FREEZE) out.push(['nudge', 'cold', `Hard freeze tonight · low <b>${low}°</b>, bring in the plants`]);
+            else if (low !== null && low <= FROST_AT) out.push(['', 'cold', `Frost likely tonight · low <b>${low}°</b>`]);
 
             // How tomorrow will feel
             const tmr = new Date(now); tmr.setDate(tmr.getDate() + 1);
@@ -513,7 +559,8 @@ class Insights {
     // on screen keep their element, so only the ones that change fade in.
     render() {
         const all = this.lines();
-        const pinned = all.filter(l => l[0] === 'nudge'), rest = all.filter(l => l[0] !== 'nudge');
+        let pinned = all.filter(l => l[0] === 'nudge'), rest = all.filter(l => l[0] !== 'nudge');
+        if (pinned.length > SHOWN) { rest = pinned; pinned = []; }      // several urgent ones take turns
         const room = Math.max(0, SHOWN - pinned.length);
         let shown = rest;
         if (rest.length > room) {
