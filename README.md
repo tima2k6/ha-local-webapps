@@ -112,7 +112,7 @@ export const config = {
 
 ### 4. House Climate (`climate.html`)
 
-One place to run the four heated rooms. **Served from Home Assistant** (`/config/www/climate/climate.html`, opened as `/local/climate/climate.html`): inside the HA app it borrows the app's own connection, so it works away from home, needs no token, and every change is made as the person using it. The nginx copy still works on the home network with the token. Deploy both with `./deploy-climate.sh`. Landscape on the wall tablet, one column on a phone. In HA, the **Climate** button in each view's nav row opens it in a fullscreen browser_mod popup (← closes it, so you never leave the dashboard); `/lovelace/climate` is the same page as a subview. `?embed` hides the page's own title inside HA; `#schedule` opens the Schedule tab.
+One place to run the four heated rooms. **Served from Home Assistant** (`/config/www/webapps/climate.html`, opened as `/local/webapps/climate.html`): inside the HA app it borrows the app's own connection, so it works away from home, needs no token, and every change is made as the person using it. The nginx copy still works on the home network with the token. Deploy with `./deploy.sh`. Landscape on the wall tablet, one column on a phone. In HA, the **Climate** button in each view's nav row opens it in a fullscreen browser_mod popup (← closes it, so you never leave the dashboard); `/lovelace/climate` is the same page as a subview. `?embed` hides the page's own title inside HA; `#schedule` opens the Schedule tab.
 
 **How the house works (and what the page shows):**
 - **House** (`input_number.house_setpoint`) is the master dial. "HVAC - House setpoint applies to all rooms" sets each room to House + its balance, clamped 65-80, whenever House changes.
@@ -136,6 +136,10 @@ One place to run the four heated rooms. **Served from Home Assistant** (`/config
 - `automation.hvac_climate_schedule_with_smart_recovery` (triggered by Resume schedule)
 
 ---
+
+## Inside Home Assistant (away from home)
+
+`./deploy.sh` also copies `climate.html`, `led-panel.html` and `bedtime.html` (plus icons and `js/ha-app.js`) to `/config/www/webapps/`, and the dashboard opens them as `/local/webapps/<page>.html`. Served from HA's own address, they work wherever the HA app does — including away from home over https — and use the app's login instead of a stored token: `climate.html` borrows the app's connection directly; `led-panel.html` and `bedtime.html` load `js/ha-app.js`, which points `HA_URL` at the page's own origin and makes `HA_TOKEN` read the app's current access token (refreshing it before it expires). The nginx copies keep working on the home network with `js/ha-config.js`. `/local` is cached for 31 days, so bump `?v=` in the dashboard links after a deploy.
 
 ## Infrastructure
 

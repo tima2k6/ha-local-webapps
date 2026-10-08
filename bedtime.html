@@ -446,9 +446,11 @@
   </div>
 </div>
 
-<script src="js/ha-config.js?v=20261005"></script>
+<script src="js/ha-app.js?v=1"></script>
+<script src="js/ha-config.js?v=20261005" onerror="this.remove()"></script>
 <script>
-const HEADERS = { 'Authorization': `Bearer ${HA_TOKEN}`, 'Content-Type': 'application/json' };
+// A function, not a constant: inside the HA app the token refreshes (js/ha-app.js)
+const HEADERS = () => ({ 'Authorization': `Bearer ${HA_TOKEN}`, 'Content-Type': 'application/json' });
 
 const PHASE_EMOJIS = {
   '10-min warning':'⏰','Jammies Time!':'🚿','Books!':'📚',
@@ -476,11 +478,11 @@ let lastSlots = null;
 
 // ── HA API ────────────────────────────────────────────────────
 async function fetchState(id) {
-  return (await fetch(`${HA_URL}/api/states/${id}`, { headers: HEADERS })).json();
+  return (await fetch(`${HA_URL}/api/states/${id}`, { headers: HEADERS() })).json();
 }
 async function callService(domain, service, data = {}) {
   await fetch(`${HA_URL}/api/services/${domain}/${service}`, {
-    method:'POST', headers: HEADERS, body: JSON.stringify(data)
+    method:'POST', headers: HEADERS(), body: JSON.stringify(data)
   });
 }
 async function callScript(id)           { await callService('script','turn_on',{ entity_id:id }); }
