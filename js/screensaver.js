@@ -189,10 +189,12 @@ class StatusTags extends Ticker {
         // on and the trash hasn't been marked as out
         const g = s.garbageCollection, r = s.recyclingCollection;
         if (s.wasteReminder && !s.trashOut) {
-            // "Trash & recycling tomorrow", or "Trash today · Recycling in 3 days"
-            const when = v => /^\d+\s+days?$/i.test(v) ? `in ${v}` : String(v).toLowerCase();
-            const text = g && r && g === r ? `Trash & recycling ${when(g)}`
-                : [g && `Trash ${when(g)}`, r && `Recycling ${when(r)}`].filter(Boolean).join(' · ') || 'Trash';
+            // Only what's due (today or tomorrow, as the reminder sensor
+            // counts it): "Trash & recycling tomorrow", "Trash tomorrow"
+            const due = v => ['today', 'tomorrow'].includes(String(v).toLowerCase()) ? String(v).toLowerCase() : null;
+            const gd = due(g), rd = due(r);
+            const text = gd && rd && gd === rd ? `Trash & recycling ${gd}`
+                : [gd && `Trash ${gd}`, rd && `Recycling ${rd}`].filter(Boolean).join(' · ') || 'Trash';
             out.push(['warn', text]);
         }
 
