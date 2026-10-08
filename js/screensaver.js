@@ -5,7 +5,7 @@
 // The ticker's and timers' HA logic is reused by subclassing them; only their
 // rendering changes.
 
-import { Ticker } from './ticker.js?v=3';
+import { Ticker } from './ticker.js?v=4';
 import { Timers } from './timers.js?v=2';
 
 const WEATHER = 'weather.forecast_home';
@@ -166,11 +166,25 @@ class Agenda {
 
 // ===== Status tags: the ticker's sensors, rendered as static tags =====
 // tone: calm (teal), warn (amber), alert (red). Shown on the same
-// conditions as the old ticker, day and night.
+// conditions as the old ticker, day and night, except that "Zoey's been
+// fed" is only a confirmation: it shows for FED_SHOW_MS after she's marked
+// fed, not for the rest of the feeding window. "Not fed" and "probably
+// hungry" stay up until handled.
+const FED_SHOW_MS = 30 * 60 * 1000;
+
 class StatusTags extends Ticker {
     constructor(haUrl, token, el) {
         super(haUrl, token, el);
         this.el = el;
+        this.fedAt = null;            // when the feeding status turned "fed"
+        setInterval(() => this.updateTicker(), 60000);   // lets the fed tag expire
+    }
+
+    processEntityState(entityId, state, stateObj) {
+        if (entityId === 'sensor.zoey_feeding_status') {
+            this.fedAt = state === 'fed' ? (Date.parse(stateObj?.last_changed) || Date.now()) : null;
+        }
+        return super.processEntityState(entityId, state, stateObj);
     }
 
     static pickup(v) {
@@ -184,7 +198,8 @@ class StatusTags extends Ticker {
             'not-fed': ['alert', 'Zoey has NOT been fed'],
             'overdue': ['warn', "Zoey's probably hungry!"]
         }[s.feedingState];
-        if (feed) out.push(feed);
+        const fedTooLongAgo = s.feedingState === 'fed' && !(this.fedAt && Date.now() - this.fedAt < FED_SHOW_MS);
+        if (feed && !fedTooLongAgo) out.push(feed);
 
         // Same schedule as the old ticker: only while the waste reminder is on
         // and the trash hasn't been marked as out

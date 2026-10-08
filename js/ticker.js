@@ -65,7 +65,7 @@ export class Ticker {
             // Handle initial state response
             else if (data.type === "result" && data.id === 1) {
                 data.result.forEach(entity => {
-                    this.processEntityState(entity.entity_id, entity.state);
+                    this.processEntityState(entity.entity_id, entity.state, entity);
                 });
 
                 this.ws.send(JSON.stringify({
@@ -82,7 +82,7 @@ export class Ticker {
                 const entityId = data.event.data.entity_id;
                 // new_state is null when an entity is removed
                 const newState = data.event.data.new_state?.state ?? null;
-                if (this.processEntityState(entityId, newState)) {
+                if (this.processEntityState(entityId, newState, data.event.data.new_state)) {
                     this.updateTicker();
                 }
             }
@@ -101,8 +101,9 @@ export class Ticker {
         };
     }
 
-    // Returns true if the tracked state actually changed
-    processEntityState(entityId, state) {
+    // Returns true if the tracked state actually changed. stateObj is the full
+    // HA state (last_changed etc.) for subclasses that need it.
+    processEntityState(entityId, state, stateObj) {
         let stateChanged = false;
         const raw = typeof state === 'string' ? state : '';
 
