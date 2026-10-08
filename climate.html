@@ -216,11 +216,16 @@ input[type="time"] {
 .legend span { display: inline-flex; align-items: center; gap: 7px; }
 .key { display: inline-block; width: 18px; border-top: 2px solid; }
 .key.temp { border-color: var(--c-temp); }
-.key.target { border-color: var(--c-target); }
-.key.heat { width: 14px; height: 6px; border: 0; border-radius: 2px; background: var(--heat); }
+.key.target { width: 16px; height: 10px; border: 0; border-radius: 3px; background: rgba(25, 158, 112, .35); }
+.key.heat { width: 16px; height: 7px; border: 0; border-radius: 4px; background: var(--heat); }
 .key.off { width: 14px; height: 12px; border: 0; border-radius: 2px;
     background: repeating-linear-gradient(45deg, rgba(255,255,255,.2) 0 1.5px, transparent 1.5px 5px); }
-.key.night { width: 14px; height: 12px; border: 0; border-radius: 2px; background: rgba(255,255,255,.07); }
+.key.night { width: 16px; height: 12px; border: 0; border-radius: 4px; background: rgba(255,255,255,.08); }
+.key.temp { border-top-width: 2.5px; border-radius: 2px; }
+.chart-sub { margin: 0 0 6px; color: var(--text-mid); font-size: 14px; }
+.chart-sub.big { font-size: 16px; color: var(--text); margin: 2px 0 10px; }
+.chart[data-room] { cursor: pointer; transition: background .15s; }
+.chart[data-room]:hover, .chart[data-room]:active { background: var(--card-hi); }
 .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .chart { padding: 14px 18px 8px; }
 .chart.wide { grid-column: 1 / -1; }
@@ -244,6 +249,38 @@ input[type="time"] {
 .tip .r i.sq { width: 10px; height: 6px; border: 0; border-radius: 2px; }
 .hist-note { color: var(--text-dim); font-size: 13px; margin: 12px 0 0; }
 @media (max-width: 980px) { .charts { grid-template-columns: minmax(0, 1fr); } }
+
+/* Tapping a room (Now card, History heading, dashboard) opens its own page */
+#rooms .room-head > div, #rooms .room-now { cursor: pointer; }
+.room-name .more, .chart-head .more { color: var(--text-dim); font-weight: 400; margin-left: 6px; }
+
+/* ---------- Room page ---------- */
+.room-bar { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.back {
+    display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 14px 0 8px;
+    border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text-mid); font-weight: 500;
+}
+.back svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; }
+.switch { display: flex; gap: 6px; flex-wrap: wrap; }
+.switch button {
+    min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line);
+    background: none; color: var(--text-dim); font-weight: 500;
+}
+.switch button[aria-current="true"] { background: var(--card-hi); color: var(--text-hi); border-color: var(--card-hi); }
+.room-page { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.room-page .room { min-height: 300px; }
+.room-page .chart-head { align-items: center; margin-bottom: 8px; }
+.room-page .legend { margin-bottom: 4px; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.stat { background: var(--card-hi); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+.stat .k { font-size: 12px; color: var(--text-dim); }
+.stat .v { font: 300 26px/1.25 'Outfit', sans-serif; color: var(--text-hi); }
+.stat .s { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 980px) {
+    .room-page { grid-template-columns: minmax(0, 1fr); }
+    .room-page .room { min-height: 0; }
+    .stats { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* ---------- toast ---------- */
 .toast {
@@ -353,13 +390,42 @@ input[type="time"] {
             <div class="legend">
                 <span><i class="key temp"></i>Temperature</span>
                 <span><i class="key target"></i>Target</span>
-                <span><i class="key heat"></i>Heater on</span>
-                <span><i class="key off"></i>Thermostat off</span>
+                <span><i class="key heat"></i>Heating</span>
                 <span><i class="key night"></i>Night / Away</span>
             </div>
         </div>
         <div class="charts" id="charts"></div>
         <p class="hist-note" id="hist-note"></p>
+    </section>
+
+    <section class="view" id="view-room" hidden>
+        <div class="room-bar">
+            <button class="back" id="room-back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>All rooms</button>
+            <div class="switch" id="room-switch"></div>
+        </div>
+        <div class="room-page">
+            <div id="room-detail"></div>
+            <article class="card chart" id="room-chart" data-h="300" data-tip="1">
+                <div class="chart-head">
+                    <b>History</b>
+                    <div class="range" role="group" aria-label="Time range">
+                        <button data-room-range="24" aria-pressed="true">24 hours</button>
+                        <button data-room-range="72" aria-pressed="false">3 days</button>
+                        <button data-room-range="168" aria-pressed="false">7 days</button>
+                    </div>
+                </div>
+                <p class="chart-sub big" id="room-sentence"></p>
+                <div class="legend">
+                    <span><i class="key temp"></i>Temperature</span>
+                    <span><i class="key target"></i>Target</span>
+                    <span><i class="key heat"></i>Heating</span>
+                    <span><i class="key night"></i>Night / Away</span>
+                </div>
+                <div class="plot"></div>
+                <div class="stats" id="room-stats"></div>
+                <p class="hist-note" id="room-note"></p>
+            </article>
+        </div>
     </section>
 </main>
 
@@ -398,14 +464,14 @@ const NEXT = { wake: 'day', day: 'evening', evening: 'sleep', sleep: 'wake' };
 const ROOMS = [
     // sensor: the one each Versatile Thermostat regulates on. The thermostat's own
     // current_temperature is rounded to whole degrees, so read the sensor for tenths.
-    { id: 'climate.living_room_thermostat', name: 'Living Room', kind: 'HeatStorm heater', sensor: 'sensor.living_room_climate_temp',
+    { key: 'living', id: 'climate.living_room_thermostat', name: 'Living Room', kind: 'HeatStorm heater', sensor: 'sensor.living_room_climate_temp',
       offset: 'input_number.climate_offset_living_room',
       doors: { 'binary_sensor.front_door_contact': 'Front door', 'binary_sensor.slider_door_sensor_contact': 'Patio door' } },
-    { id: 'climate.bedroom_thermostat', name: 'Bedroom', kind: 'HeatStorm heater', sensor: 'sensor.bedroom_temp_calibrated',
+    { key: 'bedroom', id: 'climate.bedroom_thermostat', name: 'Bedroom', kind: 'HeatStorm heater', sensor: 'sensor.bedroom_temp_calibrated',
       offset: 'input_number.climate_offset_bedroom' },
-    { id: 'climate.liam_s_room_thermostat', name: "Liam's Room", kind: 'Space heater', sensor: 'sensor.liams_room_temperature',
+    { key: 'liam', id: 'climate.liam_s_room_thermostat', name: "Liam's Room", kind: 'Space heater', sensor: 'sensor.liams_room_temperature',
       offset: 'input_number.climate_offset_liam' },
-    { id: 'climate.office_thermostat', name: 'Office', kind: '750 W space heater', sensor: 'sensor.office_average_temp',
+    { key: 'office', id: 'climate.office_thermostat', name: 'Office', kind: '750 W space heater', sensor: 'sensor.office_average_temp',
       offset: 'input_number.climate_offset_office' },
 ];
 
@@ -445,6 +511,7 @@ function connect() {
             setLive(true);
             render();
             if (!$('view-hist').hidden) loadHistory();
+            if (RH.idx !== null) loadRoomHistory();
         } else if (m.type === 'event' && m.event?.event_type === 'state_changed') {
             const { entity_id, new_state } = m.event.data;
             if (!WATCHED.has(entity_id)) return;
@@ -587,11 +654,12 @@ function until(s) {
 }
 
 // ---------- build the static parts once (re-rendering never replaces a button mid-tap) ----------
-function build() {
-    $('rooms').innerHTML = ROOMS.map((r, i) => `
-        <article class="card room" id="room-${i}">
+function roomCardHTML(r, i, id, more) {
+    return `
+        <article class="card room" id="${id}" data-idx="${i}">
             <div class="room-head">
-                <div><div class="room-name">${r.name}</div><div class="room-kind">${r.kind} · heat only</div></div>
+                <div><div class="room-name">${r.name}${more ? '<span class="more" aria-hidden="true">›</span>' : ''}</div>
+                     <div class="room-kind">${r.kind} · heat only</div></div>
                 <button class="power" data-power="${i}" aria-label="Turn ${r.name} on or off">${ICON.power}</button>
             </div>
             <div class="room-now">
@@ -602,7 +670,12 @@ function build() {
                 <div class="room-note"></div>
                 <div class="stepper" data-room="${i}">${stepperHTML()}</div>
             </div>
-        </article>`).join('');
+        </article>`;
+}
+
+function build() {
+    $('rooms').innerHTML = ROOMS.map((r, i) => roomCardHTML(r, i, `room-${i}`, true)).join('');
+    $('room-switch').innerHTML = ROOMS.map((r, i) => `<button data-open-room="${i}">${r.name}</button>`).join('');
 
     $('blocks').innerHTML = BLOCKS.map((b, i) => `
         <div class="row block" id="block-${i}">
@@ -665,9 +738,16 @@ function render() {
     $('status-sub').textContent = sub;
     $('resume').hidden = !hold || s.away;
 
-    // Rooms
-    ROOMS.forEach((r, i) => {
-        const el = $(`room-${i}`);
+    // Rooms (the grid on Now, and the open room page)
+    ROOMS.forEach((r, i) => renderRoom($(`room-${i}`), r, i, s, house));
+    const open = $('room-detail').firstElementChild;
+    if (open) renderRoom(open, ROOMS[open.dataset.idx], Number(open.dataset.idx), s, house);
+
+    renderPlan(s);
+}
+
+function renderRoom(el, r, i, s, house) {
+    {
         const a = S.get(r.id)?.attributes || {};
         const state = st(r.id);
         const avail = state && state !== 'unavailable' && state !== 'unknown';
@@ -719,8 +799,10 @@ function render() {
         } else {
             note.textContent = off === 0 ? 'On schedule' : `On schedule, ${Math.abs(off)}° ${off < 0 ? 'cooler' : 'warmer'} than the house`;
         }
-    });
+    }
+}
 
+function renderPlan(s) {
     // Schedule
     BLOCKS.forEach((b, i) => {
         const row = $(`block-${i}`);
@@ -826,11 +908,12 @@ async function loadHistory() {
     }
 }
 
-function historyModel(res, t0, t1, heaters) {
+function historyModel(res, t0, t1, heaters, idxs = HIST_ROOMS.map((_, i) => i)) {
     const get = id => steps(res[id]);
     const house = get(E.house);
     let derivedAny = false;
-    const rooms = HIST_ROOMS.map((r, i) => {
+    const rooms = idxs.map(i => {
+        const r = HIST_ROOMS[i];
         const temp = get(r.sensor).map(p => ({ t: Math.max(p.t, t0), v: numOr(p.v) })).filter(p => p.v != null);
         const tgtRows = get(r.target), off = get(r.offset);
         const since = tgtRows.length ? Math.max(tgtRows[0].t, t0) : t1;
@@ -873,7 +956,158 @@ function historyModel(res, t0, t1, heaters) {
     };
 }
 
-const fmtDur = ms => { const m = Math.round(ms / 60000), h = Math.floor(m / 60); return h ? `${h} h ${m % 60} m` : `${m} m`; };
+// ---------- Room page ----------
+const RH = { idx: null, hours: 24, data: null, busy: false, from: 'now' };
+
+function openRoom(i) {
+    if (!ROOMS[i]) return;
+    if (RH.idx === null) RH.from = document.querySelector('[data-view][aria-selected="true"]')?.dataset.view || 'now';
+    RH.idx = i;
+    document.querySelectorAll('[data-view]').forEach(t => t.setAttribute('aria-selected', 'false'));
+    ['now', 'plan', 'hist'].forEach(v => { $(`view-${v}`).hidden = true; });
+    $('view-room').hidden = false;
+    $('room-detail').innerHTML = roomCardHTML(ROOMS[i], i, 'room-open', false);
+    document.querySelectorAll('[data-open-room]').forEach(b => b.setAttribute('aria-current', String(Number(b.dataset.openRoom) === i)));
+    // replaceState: no history entry, so HA's own back arrow still closes the popup
+    try { history.replaceState(null, '', `#room/${ROOMS[i].key}`); } catch (_) {}
+    RH.data = null;
+    $('room-chart').querySelector('.plot').innerHTML = '';
+    $('room-stats').replaceChildren();
+    if (S.size) render();
+    window.scrollTo(0, 0);
+    loadRoomHistory();
+}
+
+function closeRoom() {
+    RH.idx = null;
+    $('room-detail').innerHTML = '';
+    $('view-room').hidden = true;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (_) {}
+    document.querySelector(`[data-view="${RH.from}"]`)?.click();
+}
+
+async function loadRoomHistory() {
+    const i = RH.idx;
+    if (i === null || RH.busy || !ws || ws.readyState !== 1 || !S.size) return;
+    RH.busy = true;
+    $('room-chart').classList.add('loading');
+    const t1 = Date.now(), t0 = t1 - RH.hours * 3600e3;
+    const heaters = HIST_ROOMS.map(heaterOf), r = HIST_ROOMS[i];
+    try {
+        const res = await request({
+            type: 'history/history_during_period',
+            entity_ids: [E.house, E.hsm, r.sensor, r.target, r.offset, heaters[i]].filter(Boolean),
+            start_time: new Date(t0).toISOString(), end_time: new Date(t1).toISOString(),
+            include_start_time_state: true, significant_changes_only: false,
+            minimal_response: true, no_attributes: true,
+        });
+        if (RH.idx === i) { RH.data = historyModel(res, t0, t1, heaters, [i]); drawRoom(); }
+    } catch (e) {
+        toast(`Couldn't load the history: ${e.message}`);
+    } finally {
+        RH.busy = false;
+        $('room-chart').classList.remove('loading');
+        if (RH.idx !== null && RH.idx !== i) loadRoomHistory();     // switched rooms while loading
+    }
+}
+
+// ---------- Friendly charts ----------
+// A smooth temperature curve with a soft fill, the target as a soft zone,
+// heating as a few merged capsules, Night/Away as faint bands, three gridlines.
+// History tab: compact cards that open the room. Room page: one big chart
+// with a tap/hover readout and a few plain numbers.
+
+// Heater cycles a few minutes apart read as one heating period
+function heatingPeriods(list, gapMs = 20 * 60e3) {
+    const out = [];
+    for (const [a, b] of mergeSpans(list)) {
+        const last = out[out.length - 1];
+        if (last && a - last[1] <= gapMs) last[1] = Math.max(last[1], b); else out.push([a, b]);
+    }
+    return out;
+}
+
+// Temperature on an even grid, averaged over about 1/48 of the range
+function smoothed(temp, t0, t1, n = 360) {
+    if (!temp.length) return [];
+    const step = (t1 - t0) / n, win = Math.max(1, Math.round(n / 48));
+    const raw = [];
+    for (let k = 0; k <= n; k++) { const t = t0 + k * step; raw.push({ t, v: valueAt(temp, t) }); }
+    return raw.map((p, k) => {
+        if (p.v == null) return p;
+        let sum = 0, c = 0;
+        for (let j = Math.max(0, k - win); j <= Math.min(n, k + win); j++) if (raw[j].v != null) { sum += raw[j].v; c++; }
+        return { t: p.t, v: sum / c };
+    });
+}
+
+// Catmull-Rom through the points, as cubic Beziers
+function curve(pts) {
+    if (pts.length < 2) return '';
+    const f = n => n.toFixed(1);
+    let d = `M${f(pts[0][0])} ${f(pts[0][1])}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+        const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+        d += `C${f(p1[0] + (p2[0] - p0[0]) / 6)} ${f(p1[1] + (p2[1] - p0[1]) / 6)} `
+           + `${f(p2[0] - (p3[0] - p1[0]) / 6)} ${f(p2[1] - (p3[1] - p1[1]) / 6)} ${f(p2[0])} ${f(p2[1])}`;
+    }
+    return d;
+}
+
+// Smoothing and heating periods, worked out once per model
+function prep(m, d) {
+    m.smooth ??= smoothed(m.temp, d.t0, d.t1);
+    m.periods ??= heatingPeriods(m.heat);
+    return m;
+}
+
+function scaleFor(models) {
+    const vals = models.flatMap(m => [
+        ...m.smooth.map(p => p.v),
+        ...m.target.flatMap(p => p.v == null ? [] : [p.v - 0.5, p.v + 0.5]),
+    ]).filter(v => v != null);
+    if (!vals.length) return null;
+    let lo = Math.floor(Math.min(...vals) - 0.5), hi = Math.ceil(Math.max(...vals) + 0.5);
+    if (hi - lo < 4) { lo = Math.floor((hi + lo) / 2 - 2); hi = lo + 4; }
+    return [lo, hi];
+}
+
+// The part of the day most of the heating happened in, if one stands out
+function mostlyWhen(periods) {
+    const parts = { overnight: 0, 'in the morning': 0, 'in the afternoon': 0, 'in the evening': 0 };
+    for (const [a, b] of periods) {
+        for (let t = a; t < b; t += 5 * 60e3) {
+            const h = new Date(t).getHours();
+            parts[h < 5 || h >= 22 ? 'overnight' : h < 12 ? 'in the morning' : h < 17 ? 'in the afternoon' : 'in the evening']++;
+        }
+    }
+    const total = Object.values(parts).reduce((x, y) => x + y, 0);
+    const [name, n] = Object.entries(parts).sort((x, y) => y[1] - x[1])[0];
+    return total && n / total >= 0.5 ? name : '';
+}
+
+function aboutHours(ms) {
+    const h = ms / 3600e3;
+    if (h < 0.75) return `${Math.max(1, Math.round(ms / 60000))} minutes`;
+    const r = Math.round(h * 2) / 2;
+    return `${r % 1 ? r.toFixed(1) : r} hour${r === 1 ? '' : 's'}`;
+}
+
+// "Mostly 69-71°. The heater ran about 5 hours, mostly overnight."
+function sentence(m, d) {
+    const v = m.smooth.map(p => p.v).filter(x => x != null).sort((x, y) => x - y);
+    if (!v.length) return 'No readings in this period.';
+    const pct = q => v[Math.min(v.length - 1, Math.floor(q * v.length))];
+    const lo = Math.round(pct(0.1)), hi = Math.round(pct(0.9));
+    const temp = lo === hi ? `Steady around ${lo}\u00b0.` : `Mostly ${lo}\u2013${hi}\u00b0.`;
+    const heatMs = m.heat.reduce((a, [s0, e]) => a + (e - s0), 0), days = (d.t1 - d.t0) / 86400e3;
+    if (heatMs < 60e3) return `${temp} ${m.house ? 'No heater needed to run.' : 'The heater didn\u2019t need to run.'}`;
+    const when = mostlyWhen(m.periods);
+    const amount = days > 1.5 ? `about ${aboutHours(heatMs / days)} a day` : `about ${aboutHours(heatMs)}`;
+    return `${temp} ${m.house ? 'Heaters were running' : 'The heater ran'} ${amount}${when ? `, mostly ${when}` : ''}.`;
+}
+
+const fmtDur = ms => { const m = Math.round(ms / 60000), h = Math.floor(m / 60); return h ? (m % 60 ? `${h} h ${m % 60} m` : `${h} h`) : `${m} m`; };
 const fmtClock = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const fmtWhen = t => {
     const d = new Date(t), today = new Date().toDateString() === d.toDateString();
@@ -883,120 +1117,158 @@ function tickLabel(d) {
     const h = d.getHours();
     return h === 0 ? d.toLocaleDateString([], { weekday: 'short' }) : `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
 }
+const ESTIMATE_NOTE = 'Targets before 8 Oct are estimated from the schedule.';
 
 function drawHistory() {
     const d = H.data;
     if (!d) return;
-    const all = [d.house, ...d.rooms];
-    // One shared scale, so rooms compare at a glance
-    const vals = all.flatMap(m => [...m.temp, ...m.target].map(p => p.v)).filter(v => v != null);
-    if (!vals.length) return;
-    let lo = Math.floor(Math.min(...vals)) - 1, hi = Math.ceil(Math.max(...vals)) + 1;
-    if (hi - lo < 6) { lo = Math.floor((hi + lo) / 2 - 3); hi = lo + 6; }
-
+    const all = [d.house, ...d.rooms].map(m => prep(m, d));
+    const sc = scaleFor(all);           // one shared scale, so rooms compare at a glance
+    if (!sc) return;
     const box = $('charts');
     if (box.children.length !== all.length) {
         box.innerHTML = all.map((m, i) => `
-            <article class="card chart${i ? '' : ' wide'}">
-                <div class="chart-head"><b></b><span></span></div>
+            <article class="card chart${i ? '' : ' wide'}"${i ? ` data-room="${i - 1}"` : ' data-tip="1"'}>
+                <div class="chart-head"><b></b></div>
+                <p class="chart-sub"></p>
                 <div class="plot"></div>
             </article>`).join('');
     }
-    all.forEach((m, i) => drawChart(box.children[i], m, d, lo, hi, i));
-    $('hist-note').textContent = d.derivedAny
-        ? 'Targets before 8 Oct are worked out from the House temperature and each room\u2019s balance, so a room changed by hand or switched off before then doesn\u2019t show.'
-        : '';
+    all.forEach((m, i) => {
+        const card = box.children[i];
+        const title = card.querySelector('.chart-head b');
+        title.textContent = m.name;
+        if (i) title.insertAdjacentHTML('beforeend', '<span class="more" aria-hidden="true">›</span>');
+        card.querySelector('.chart-sub').textContent = sentence(m, d);
+        drawChart(card, m, d, sc[0], sc[1], i, H.hours);
+    });
+    $('hist-note').textContent = d.derivedAny ? ESTIMATE_NOTE : '';
 }
 
-function drawChart(card, m, d, lo, hi, idx) {
+function drawRoom() {
+    const d = RH.data;
+    if (!d) return;
+    const m = prep(d.rooms[0], d);
+    const sc = scaleFor([m]);
+    if (!sc) return;
+    $('room-sentence').textContent = sentence(m, d);
+    drawChart($('room-chart'), m, d, sc[0], sc[1], 'room', RH.hours);
+
+    // A few plain numbers
+    const span = d.t1 - d.t0, days = span / 86400e3;
+    const heatMs = m.heat.reduce((a, [s0, e]) => a + (e - s0), 0);
+    let onN = 0, near = 0;
+    for (let t = d.t0; t <= d.t1; t += 120e3) {
+        const v = valueAt(m.temp, t), tg = valueAt(m.target, t);
+        if (v == null || tg == null || m.off.some(([a, b]) => t >= a && t < b)) continue;
+        onN++;
+        if (Math.abs(v - tg) <= 1) near++;
+    }
+    const v = m.smooth.map(p => p.v).filter(x => x != null).sort((x, y) => x - y);
+    const pct = q => v[Math.min(v.length - 1, Math.floor(q * v.length))];
+    let lowP = null, highP = null;
+    for (const p of m.temp) {
+        if (!lowP || p.v < lowP.v) lowP = p;
+        if (!highP || p.v > highP.v) highP = p;
+    }
+    const tiles = [
+        ['Heater ran', days > 1.5 ? `${aboutHours(heatMs / days)}` : fmtDur(heatMs),
+            days > 1.5 ? 'a day, on average' : `${Math.round(heatMs / span * 100)}% of the time`],
+        ['Usually', v.length ? `${Math.round(pct(0.1))}\u2013${Math.round(pct(0.9))}\u00b0` : '--',
+            lowP ? `coldest ${lowP.v.toFixed(1)}\u00b0 ${fmtWhen(lowP.t)}` : ''],
+        ['Close to target', onN ? `${Math.round(near / onN * 100)}%` : '--', 'of the time, within 1\u00b0'],
+    ];
+    $('room-stats').replaceChildren(...tiles.map(([k, val, sub]) => {
+        const el = document.createElement('div');
+        el.className = 'stat';
+        for (const [cls, text] of [['k', k], ['v', val], ['s', sub]]) {
+            const x = document.createElement('div');
+            x.className = cls; x.textContent = text; el.append(x);
+        }
+        return el;
+    }));
+    $('room-note').textContent = d.derivedAny ? ESTIMATE_NOTE : '';
+}
+
+function drawChart(card, m, d, lo, hi, idx, hours) {
     const plot = card.querySelector('.plot'), W = plot.clientWidth;
     if (!W) return;
-    const Hh = m.house ? 150 : 136;
-    const M = { l: 30, r: 8, t: 16, b: 30 }, pw = W - M.l - M.r, ph = Hh - M.t - M.b;
+    const Hh = Number(card.dataset.h) || (m.house ? 140 : 112);
+    const M = { l: 30, r: 10, t: 18, b: 34 }, pw = W - M.l - M.r, ph = Hh - M.t - M.b;
     const X = t => M.l + (t - d.t0) / (d.t1 - d.t0) * pw;
     const Y = v => M.t + (hi - v) / (hi - lo) * ph;
     const f = n => n.toFixed(1);
 
-    // Header: name and a one-line summary
-    card.querySelector('.chart-head b').textContent = m.name;
-    const temps = m.temp.map(p => p.v);
-    const range = temps.length ? `${Math.min(...temps).toFixed(1)}\u2013${Math.max(...temps).toFixed(1)}\u00b0` : '';
-    const heatMs = m.heat.reduce((a, [s, e]) => a + (e - s), 0);
-    card.querySelector('.chart-head span').textContent = m.house
-        ? `Inside ${range} \u00b7 any heater on ${fmtDur(heatMs)}`
-        : `Heater on ${fmtDur(heatMs)} \u00b7 ${range}`;
-
     let g = `<svg viewBox="0 0 ${W} ${Hh}" height="${Hh}" role="img" aria-label="${m.name}: temperature and target">
-        <defs><pattern id="hatch${idx}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(255,255,255,.16)" stroke-width="1.5"/></pattern></defs>`;
+        <defs>
+            <linearGradient id="fill${idx}" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#3987e5" stop-opacity=".22"/><stop offset="1" stop-color="#3987e5" stop-opacity="0"/>
+            </linearGradient>
+            <pattern id="hatch${idx}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(255,255,255,.12)" stroke-width="1.5"/></pattern>
+        </defs>`;
 
-    // Night / Away
+    // Night / Away: faint rounded bands
     for (const [a, b, label] of d.bands) {
         const x0 = X(a), x1 = X(b);
-        g += `<rect x="${f(x0)}" y="${M.t}" width="${f(Math.max(0, x1 - x0))}" height="${ph}" fill="rgba(255,255,255,.045)"/>`;
-        if (x1 - x0 > 40) g += `<text x="${f(x0 + 4)}" y="${M.t - 5}">${label}</text>`;
+        g += `<rect x="${f(x0)}" y="${M.t}" width="${f(Math.max(0, x1 - x0))}" height="${ph}" rx="6" fill="rgba(255,255,255,.035)"/>`;
+        if (x1 - x0 > 44) g += `<text x="${f(x0 + 6)}" y="${M.t - 6}">${label}</text>`;
     }
-    // Thermostat off
     for (const [a, b] of m.off) {
-        const x0 = X(a), x1 = X(b);
-        g += `<rect x="${f(x0)}" y="${M.t}" width="${f(Math.max(1, x1 - x0))}" height="${ph}" fill="url(#hatch${idx})"/>`;
+        g += `<rect x="${f(X(a))}" y="${M.t}" width="${f(Math.max(1, X(b) - X(a)))}" height="${ph}" fill="url(#hatch${idx})"/>`;
     }
-    // Grid: degrees every 2 (or 4 on a wide range), hours spaced to fit
-    const vStep = hi - lo > 10 ? 4 : 2;
+    // Three soft gridlines
+    const vStep = Math.max(1, Math.round((hi - lo) / 3));
     for (let v = Math.ceil(lo / vStep) * vStep; v <= hi; v += vStep) {
-        g += `<line x1="${M.l}" x2="${W - M.r}" y1="${f(Y(v))}" y2="${f(Y(v))}" stroke="#262626"/>`
-           + `<text x="${M.l - 6}" y="${f(Y(v) + 4)}" text-anchor="end">${v}\u00b0</text>`;
+        g += `<line x1="${M.l}" x2="${W - M.r}" y1="${f(Y(v))}" y2="${f(Y(v))}" stroke="#1e1e1e"/>`
+           + `<text x="${M.l - 8}" y="${f(Y(v) + 4)}" text-anchor="end">${v}\u00b0</text>`;
     }
-    const hStep = [1, 2, 3, 6, 12, 24].find(n => n * pw / H.hours >= 64) || 24;
+    const hStep = [1, 2, 3, 6, 12, 24].find(n => n * pw / hours >= 70) || 24;
     for (let t = Math.ceil(d.t0 / 3600e3) * 3600e3; t <= d.t1; t += 3600e3) {
         const dt = new Date(t);
         if (dt.getHours() % hStep) continue;
         const x = X(t);
-        g += `<line x1="${f(x)}" x2="${f(x)}" y1="${M.t}" y2="${M.t + ph}" stroke="#1f1f1f"/>`;
-        if (x > M.l + 14 && x < W - M.r - 14) g += `<text x="${f(x)}" y="${Hh - 5}" text-anchor="middle">${tickLabel(dt)}</text>`;
+        if (x > M.l + 16 && x < W - M.r - 16) g += `<text x="${f(x)}" y="${Hh - 4}" text-anchor="middle">${tickLabel(dt)}</text>`;
     }
 
-    // Target: a step line (it jumps, it doesn't drift); gaps while off
-    let tp = '', pen = false;
+    // Target zone: half a degree either side
     m.target.forEach((p, i) => {
-        const xb = X(i + 1 < m.target.length ? m.target[i + 1].t : d.t1);
-        if (p.v == null) { pen = false; return; }
-        tp += (pen ? `V${f(Y(p.v))}` : `M${f(X(p.t))} ${f(Y(p.v))}`) + `H${f(xb)}`;
-        pen = true;
+        if (p.v == null) return;
+        const x0 = X(p.t), x1 = X(i + 1 < m.target.length ? m.target[i + 1].t : d.t1);
+        if (x1 - x0 < 0.5) return;
+        g += `<rect x="${f(x0)}" y="${f(Y(p.v + 0.5))}" width="${f(x1 - x0)}" height="${f(Y(p.v - 0.5) - Y(p.v + 0.5))}" fill="var(--c-target)" fill-opacity=".2"/>`;
     });
-    g += `<path d="${tp}" fill="none" stroke="var(--c-target)" stroke-width="2" stroke-linejoin="round"/>`;
 
-    // Temperature, at most one point per pixel, held to now
-    const pts = m.temp.length ? [...m.temp, { t: d.t1, v: m.temp[m.temp.length - 1].v }] : [];
-    let lp = '', lastX = -1e9;
-    pts.forEach((p, i) => {
-        const x = X(p.t);
-        if (x - lastX < 1 && i < pts.length - 1) return;
-        lp += (lp ? 'L' : 'M') + f(x) + ' ' + f(Y(p.v));
-        lastX = x;
-    });
-    g += `<path d="${lp}" fill="none" stroke="var(--c-temp)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-    if (pts.length) {
-        const last = pts[pts.length - 1];
-        g += `<circle cx="${f(X(last.t))}" cy="${f(Y(last.v))}" r="4" fill="var(--c-temp)" stroke="${CARD_BG}" stroke-width="2"/>`;
+    // Temperature: soft fill and a smooth curve, in runs (gaps where no readings)
+    const runs = [[]];
+    for (const p of m.smooth) {
+        if (p.v == null) { if (runs[runs.length - 1].length) runs.push([]); continue; }
+        runs[runs.length - 1].push([X(p.t), Y(p.v)]);
+    }
+    for (const run of runs.filter(r => r.length > 1)) {
+        const c = curve(run), base = M.t + ph;
+        g += `<path d="${c}L${f(run[run.length - 1][0])} ${base}L${f(run[0][0])} ${base}Z" fill="url(#fill${idx})"/>`
+           + `<path d="${c}" fill="none" stroke="var(--c-temp)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+    const last = [...m.smooth].reverse().find(p => p.v != null);
+    if (last) g += `<circle cx="${f(X(last.t))}" cy="${f(Y(last.v))}" r="4.5" fill="var(--c-temp)" stroke="${CARD_BG}" stroke-width="2"/>`;
+
+    // Heating: rounded capsules under the chart
+    const sy = M.t + ph + 7;
+    for (const [a, b] of m.periods) {
+        const x0 = X(a), w = Math.max(6, X(b) - x0);
+        g += `<rect x="${f(x0)}" y="${sy}" width="${f(w)}" height="7" rx="3.5" fill="var(--heat)" fill-opacity=".9"/>`;
     }
 
-    // Heater on: a strip under the plot
-    const sy = M.t + ph + 5;
-    g += `<rect x="${M.l}" y="${sy}" width="${pw}" height="6" rx="2" fill="#212121"/>`;
-    for (const [a, b] of m.heat) {
-        const x0 = X(a), w = Math.max(1.5, X(b) - x0);
-        g += `<rect x="${f(x0)}" y="${sy}" width="${f(w)}" height="6" rx="2" fill="var(--heat)"/>`;
+    if (card.dataset.tip) {
+        g += `<g class="xh" visibility="hidden">
+                <line y1="${M.t}" y2="${M.t + ph}" stroke="rgba(255,255,255,.3)"/>
+                <circle class="dt" r="5" fill="var(--c-temp)" stroke="${CARD_BG}" stroke-width="2"/>
+              </g>`;
     }
-
-    // Crosshair (shown on hover / touch)
-    g += `<g class="xh" visibility="hidden">
-            <line y1="${M.t}" y2="${M.t + ph}" stroke="rgba(255,255,255,.35)"/>
-            <circle class="dg" r="4" fill="var(--c-target)" stroke="${CARD_BG}" stroke-width="2"/>
-            <circle class="dt" r="4" fill="var(--c-temp)" stroke="${CARD_BG}" stroke-width="2"/>
-          </g></svg><div class="tip" hidden></div>`;
+    g += `</svg><div class="tip" hidden></div>`;
     plot.innerHTML = g;
-    plot._g = { m, d, X, Y, M, pw, ph, W };
+    plot._g = card.dataset.tip ? { m, d, Y, M, pw, W } : null;
 }
 
 function tipRow(tip, key, value, label) {
@@ -1016,20 +1288,18 @@ function hoverChart(e) {
     const { m, d, Y, M, pw, W } = plot._g, rect = plot.getBoundingClientRect();
     const x = clamp(e.clientX - rect.left, M.l, M.l + pw);
     const t = d.t0 + (x - M.l) / pw * (d.t1 - d.t0);
-    const temp = valueAt(m.temp, t), tgt = valueAt(m.target, t);
+    const temp = valueAt(m.smooth, t), tgt = valueAt(m.target, t);
     const inSpan = list => list.some(([a, b]) => t >= a && t < b);
-    const off = inSpan(m.off), heating = inSpan(m.heat);
+    const off = inSpan(m.off), heating = inSpan(m.periods);
     const band = d.bands.find(([a, b]) => t >= a && t < b);
 
     const xh = plot.querySelector('.xh');
     xh.setAttribute('visibility', 'visible');
     const line = xh.querySelector('line');
     line.setAttribute('x1', x); line.setAttribute('x2', x);
-    const dt = xh.querySelector('.dt'), dg = xh.querySelector('.dg');
+    const dt = xh.querySelector('.dt');
     dt.setAttribute('visibility', temp == null ? 'hidden' : 'visible');
     if (temp != null) { dt.setAttribute('cx', x); dt.setAttribute('cy', Y(temp)); }
-    dg.setAttribute('visibility', tgt == null || off ? 'hidden' : 'visible');
-    if (tgt != null) { dg.setAttribute('cx', x); dg.setAttribute('cy', Y(tgt)); }
 
     const tip = plot.querySelector('.tip');
     tip.replaceChildren();
@@ -1037,11 +1307,10 @@ function hoverChart(e) {
     head.className = 't';
     head.textContent = fmtWhen(t) + (band ? ` \u00b7 ${band[2]}` : '');
     tip.append(head);
-    if (temp != null) tipRow(tip, { color: 'var(--c-temp)' }, `${temp.toFixed(1)}\u00b0`, m.house ? 'inside, average' : 'temperature');
+    if (temp != null) tipRow(tip, { color: 'var(--c-temp)' }, `${temp.toFixed(1)}\u00b0`, m.house ? 'average inside' : 'in the room');
     if (off) tipRow(tip, { color: 'var(--off)' }, 'Off', 'thermostat');
-    else if (tgt != null) tipRow(tip, { color: 'var(--c-target)' }, `${Math.round(tgt)}\u00b0`, m.house ? 'house target' : 'target');
-    tipRow(tip, { color: heating ? 'var(--heat)' : '#3a3a3a', sq: true },
-           heating ? 'On' : 'Off', m.house ? (heating ? 'a heater' : 'all heaters') : 'heater');
+    else if (tgt != null) tipRow(tip, { color: 'var(--c-target)' }, `${Math.round(tgt)}\u00b0`, 'target');
+    tipRow(tip, { color: heating ? 'var(--heat)' : '#3a3a3a', sq: true }, heating ? 'Heating' : 'Not heating', '');
     tip.hidden = false;
     const tw = tip.offsetWidth;
     tip.style.left = `${x > W / 2 ? x - tw - 12 : x + 12}px`;
@@ -1061,12 +1330,30 @@ document.addEventListener('pointerout', e => {
 document.addEventListener('click', e => {
     const tab = e.target.closest('[data-view]');
     if (tab) {
+        if (RH.idx !== null) { RH.idx = null; $('room-detail').innerHTML = ''; $('view-room').hidden = true;
+            try { history.replaceState(null, '', location.pathname + location.search); } catch (_) {} }
         document.querySelectorAll('[data-view]').forEach(t => t.setAttribute('aria-selected', t === tab));
         $('view-now').hidden = tab.dataset.view !== 'now';
         $('view-plan').hidden = tab.dataset.view !== 'plan';
         $('view-hist').hidden = tab.dataset.view !== 'hist';
         if (tab.dataset.view === 'hist') loadHistory();
         try { localStorage.setItem('climate-view', tab.dataset.view); } catch (_) {}
+        return;
+    }
+
+    // Open a room: its card on Now (not its buttons), its History heading, the switcher
+    const openBtn = e.target.closest('[data-open-room]');
+    if (openBtn) { openRoom(Number(openBtn.dataset.openRoom)); return; }
+    const card = e.target.closest('#rooms .room');
+    if (card && !e.target.closest('button, input, .stepper')) { openRoom(Number(card.dataset.idx)); return; }
+    const roomChart = e.target.closest('.chart[data-room]');
+    if (roomChart) { openRoom(Number(roomChart.dataset.room)); return; }
+    if (e.target.closest('#room-back')) { closeRoom(); return; }
+    const rr = e.target.closest('[data-room-range]');
+    if (rr) {
+        document.querySelectorAll('[data-room-range]').forEach(b => b.setAttribute('aria-pressed', b === rr));
+        RH.hours = Number(rr.dataset.roomRange);
+        loadRoomHistory();
         return;
     }
 
@@ -1149,7 +1436,9 @@ function tick() {
 if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 build();
 // climate.html#schedule / #history open those tabs; otherwise the last tab used
-if (location.hash === '#schedule') $('tab-plan').click();
+const roomLink = location.hash.match(/^#room\/(\w+)/);
+if (roomLink && ROOMS.some(r => r.key === roomLink[1])) openRoom(ROOMS.findIndex(r => r.key === roomLink[1]));
+else if (location.hash === '#schedule') $('tab-plan').click();
 else if (location.hash === '#history') $('tab-hist').click();
 else try {
     const v = localStorage.getItem('climate-view');
@@ -1158,8 +1447,9 @@ else try {
 } catch (_) {}
 tick();
 setInterval(() => { tick(); if (S.size) render(); }, 15000);
-setInterval(() => { if (!$('view-hist').hidden) loadHistory(); }, 5 * 60000);
+setInterval(() => { if (!$('view-hist').hidden) loadHistory(); if (RH.idx !== null) loadRoomHistory(); }, 5 * 60000);
 new ResizeObserver(() => { if (!$('view-hist').hidden && H.data) drawHistory(); }).observe($('charts'));
+new ResizeObserver(() => { if (RH.idx !== null && RH.data) drawRoom(); }).observe($('room-chart'));
 connect();
 </script>
 </body>
