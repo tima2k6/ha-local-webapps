@@ -8,20 +8,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300&family=Figtree:wght@400;500;600&display=swap">
     <style>
-        /* "Quiet Hours": warm near-black, warm off-white text, one accent, sized to read
+        /* "Quiet Hours": neutral near-black, grey-white text, one accent, sized to read
            from across the room with light strokes. Everything is sized in --u, one design pixel
            of a 1280x800 layout: the 16:10 Galaxy Tab A9+ (1920x1200). */
         :root {
             --u: min(calc(100vw / 1280), calc(100vh / 800));
-            /* Not pure black: the tablet's LCD backlight turns #000 a cool navy
-               on the wall. A faint brown cancels that blue so the screen reads as
-               warm charcoal beside the cream wall, and the text is paper-white. */
-            --bg: #1a140d;
-            --text-hi: #f0e6d6;
-            --text: #e6dccc;
-            --text-mid: #ccc4b8;
-            --text-dim: #bab2a6;
-            --text-low: #a59e92;
+            /* Neutral blacks matching the HA dashboard's Caule Black themes
+               (2026-10-07: the user rejected the warm brown tint; it read as
+               brown, not charcoal). Not pure black, which glows navy on the LCD. */
+            --bg: #0c0c0c;
+            --text-hi: #f2f2f2;
+            --text: #e5e5e5;
+            --text-mid: #c8c8c8;
+            --text-dim: #b4b4b4;
+            --text-low: #9e9e9e;
             --tag-border: #3a3a3a;
             --accent: #5fc9b4;
             --accent-border: #2c5a51;
@@ -31,8 +31,8 @@
             --alert: #ff6b5e;
             --alert-text: #ff9384;
             --alert-border: #7a3128;
-            --night-text: #9a958c;
-            --night-low: #8f8a82;
+            --night-text: #9a9a9a;
+            --night-low: #8c8c8c;
         }
 
         html, body {
@@ -343,8 +343,8 @@
         }
 
         /* ===== Night: dim clock + temperature; tags and timers as by day ===== */
-        /* In a dark room the warm charcoal glows; night goes back to near-black */
-        body.night { --bg: #070504; }
+        /* In a dark room even #0c0c0c glows; night goes darker still */
+        body.night { --bg: #050505; }
 
         #night-weather { display: none; }
 
