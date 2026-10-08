@@ -267,7 +267,40 @@ input[type="time"] {
     background: none; color: var(--text-dim); font-weight: 500;
 }
 .switch button[aria-current="true"] { background: var(--card-hi); color: var(--text-hi); border-color: var(--card-hi); }
-.room-page { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.room-page {
+    display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; align-items: start;
+    grid-template-areas: "card chart" "act chart";
+}
+#room-detail { grid-area: card; }
+#room-chart { grid-area: chart; }
+#room-activity { grid-area: act; }
+
+/* What happened: a short, plain list */
+.activity h3, .suggest h3 { margin: 0 0 10px; font-size: 16px; font-weight: 600; color: var(--text-hi); }
+.activity .day { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); margin: 12px 0 4px; }
+.activity .day:first-of-type { margin-top: 0; }
+.act { display: grid; grid-template-columns: 68px 12px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 6px 0; font-size: 14px; }
+.act time { color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.act i { width: 8px; height: 8px; border-radius: 50%; background: #555; align-self: center; }
+.act.person i { background: var(--accent); }
+.act.door i { background: var(--warn); }
+.act.away i { background: #8b85e0; }
+.act span { color: var(--text); }
+.activity .empty { color: var(--text-dim); font-size: 14px; margin: 0; }
+.activity .more-btn {
+    margin-top: 8px; border: 0; background: none; padding: 6px 0; color: var(--accent); font-weight: 600; font-size: 14px;
+}
+
+/* Suggestions on the Schedule tab */
+.suggest { max-width: 1280px; margin: 0 auto 16px; }
+.suggest[hidden] { display: none; }
+.sug { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; padding: 12px 0; border-top: 1px solid var(--line); }
+.sug:first-of-type { border-top: 0; padding-top: 0; }
+.sug p { flex: 1 1 280px; margin: 0; color: var(--text); font-size: 15px; }
+.sug p small { display: block; color: var(--text-dim); font-size: 13px; margin-top: 2px; }
+.sug button { min-height: 40px; padding: 0 16px; border-radius: 999px; font-weight: 600; }
+.sug .yes { border: 0; background: var(--accent); color: #0c0c0c; }
+.sug .no { border: 1px solid var(--line); background: none; color: var(--text-dim); }
 .room-page .room { min-height: 300px; }
 .room-page .chart-head { align-items: center; margin-bottom: 8px; }
 .room-page .legend { margin-bottom: 4px; }
@@ -277,7 +310,7 @@ input[type="time"] {
 .stat .v { font: 300 26px/1.25 'Outfit', sans-serif; color: var(--text-hi); }
 .stat .s { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 980px) {
-    .room-page { grid-template-columns: minmax(0, 1fr); }
+    .room-page { grid-template-columns: minmax(0, 1fr); grid-template-areas: "card" "chart" "act"; }
     .room-page .room { min-height: 0; }
     .stats { grid-template-columns: minmax(0, 1fr); }
 }
@@ -379,6 +412,10 @@ input[type="time"] {
     </section>
 
     <section class="view" id="view-plan" hidden>
+        <section class="card suggest" id="suggest" hidden>
+            <h3>Suggestions</h3>
+            <div id="suggest-list"></div>
+        </section>
         <div class="plan">
             <div class="card">
                 <h2>Schedule</h2>
@@ -425,6 +462,10 @@ input[type="time"] {
         </div>
         <div class="room-page">
             <div id="room-detail"></div>
+            <section class="card activity" id="room-activity">
+                <h3>What happened</h3>
+                <div id="activity-list"><p class="empty">Loading…</p></div>
+            </section>
             <article class="card chart" id="room-chart" data-h="300" data-tip="1">
                 <div class="chart-head">
                     <b>History</b>
@@ -451,7 +492,7 @@ input[type="time"] {
 
 <div class="toast" id="toast"></div>
 
-<script src="js/ha-config.js?v=20261005"></script>
+<script src="js/ha-config.js?v=20261005" onerror="this.remove()"></script>
 <script>
 'use strict';
 
@@ -510,12 +551,76 @@ const $ = id => document.getElementById(id);
 // A room's temperature to the tenth, falling back to the thermostat's rounded value
 const roomTemp = r => num(r.sensor) ?? (Number.isFinite(attr(r.id, 'current_temperature')) ? attr(r.id, 'current_temperature') : null);
 
-// ---------- HA WebSocket (same pattern as js/timers.js) ----------
+// ---------- Connection to Home Assistant ----------
+// Inside Home Assistant (served from /local/climate/, opened in the dashboard
+// popup) the page borrows the app's own connection: no token, it works away
+// from home, and every change is made as whoever is using the app. Opened
+// anywhere else (http://192.168.2.119/climate.html) it falls back to its own
+// WebSocket with the long-lived token from js/ha-config.js.
+let HA = null;               // { request(payload) -> Promise, connected() -> bool, user }
+const USERS = new Map();     // HA user id -> person name
+
+function appConnection() {
+    try {
+        if (window.parent === window) return null;
+        const hass = window.parent.document.querySelector('home-assistant')?.hass;
+        return hass?.connection ? hass : null;
+    } catch (_) { return null; }      // a parent on another origin
+}
+
+function onStates(list) {
+    S.clear();
+    USERS.clear();
+    for (const s of list) {
+        if (WATCHED.has(s.entity_id)) S.set(s.entity_id, s);
+        if (s.entity_id.startsWith('person.') && s.attributes.user_id) USERS.set(s.attributes.user_id, s.attributes.friendly_name);
+    }
+    setLive(true);
+    render();
+    if (!$('view-hist').hidden) loadHistory();
+    if (RH.idx !== null) loadRoomHistory();
+    if (!$('view-plan').hidden) loadSuggestions();
+}
+
+function onStateChanged(data) {
+    const { entity_id, new_state } = data;
+    if (!WATCHED.has(entity_id)) return;
+    new_state ? S.set(entity_id, new_state) : S.delete(entity_id);
+    settle(entity_id);
+    render();
+}
+
+function connect() {
+    const hass = appConnection();
+    if (hass) return connectViaApp(hass);
+    if (typeof HA_URL === 'undefined') { setLive(false); toast('Open Climate from the Home Assistant app'); return; }
+    connectViaToken();
+}
+
+function connectViaApp(hass) {
+    const conn = hass.connection;
+    HA = { request: p => conn.sendMessagePromise(p), connected: () => conn.connected !== false, user: hass.user };
+    const load = () => conn.sendMessagePromise({ type: 'get_states' }).then(onStates).catch(() => setLive(false));
+    conn.subscribeEvents(e => onStateChanged(e.data), 'state_changed');    // re-subscribed by HA after reconnects
+    conn.addEventListener('ready', load);
+    conn.addEventListener('disconnected', () => setLive(false));
+    load();
+}
+
 let ws, msgId = 10, reconnectDelay = 3000, authFailed = false;
 const waiting = new Map();
 
-function connect() {
+function connectViaToken() {
     if (authFailed) return;
+    HA = {
+        connected: () => !!ws && ws.readyState === 1,
+        request: payload => new Promise((resolve, reject) => {
+            if (!ws || ws.readyState !== 1) return reject(new Error('Not connected to Home Assistant'));
+            const id = ++msgId;
+            waiting.set(id, { resolve, reject });
+            ws.send(JSON.stringify({ id, ...payload }));
+        }),
+    };
     ws = new WebSocket(`${HA_URL.replace(/^http/, 'ws')}/api/websocket`);
     ws.onmessage = ev => {
         const m = JSON.parse(ev.data);
@@ -525,19 +630,10 @@ function connect() {
             reconnectDelay = 3000;
             ws.send(JSON.stringify({ id: 1, type: 'get_states' }));
         } else if (m.type === 'result' && m.id === 1) {
-            S.clear();
-            m.result.forEach(s => WATCHED.has(s.entity_id) && S.set(s.entity_id, s));
+            onStates(m.result);
             ws.send(JSON.stringify({ id: 2, type: 'subscribe_events', event_type: 'state_changed' }));
-            setLive(true);
-            render();
-            if (!$('view-hist').hidden) loadHistory();
-            if (RH.idx !== null) loadRoomHistory();
         } else if (m.type === 'event' && m.event?.event_type === 'state_changed') {
-            const { entity_id, new_state } = m.event.data;
-            if (!WATCHED.has(entity_id)) return;
-            new_state ? S.set(entity_id, new_state) : S.delete(entity_id);
-            settle(entity_id);
-            render();
+            onStateChanged(m.event.data);
         } else if (m.type === 'result' && waiting.has(m.id)) {
             const { resolve, reject } = waiting.get(m.id);
             waiting.delete(m.id);
@@ -549,19 +645,13 @@ function connect() {
         waiting.forEach(w => w.reject(new Error('Lost connection to Home Assistant')));
         waiting.clear();
         if (authFailed) return;
-        setTimeout(connect, reconnectDelay);
+        setTimeout(connectViaToken, reconnectDelay);
         reconnectDelay = Math.min(reconnectDelay * 2, 30000);
     };
 }
 
-function request(payload) {
-    return new Promise((resolve, reject) => {
-        if (!ws || ws.readyState !== 1) return reject(new Error('Not connected to Home Assistant'));
-        const id = ++msgId;
-        waiting.set(id, { resolve, reject });
-        ws.send(JSON.stringify({ id, ...payload }));
-    });
-}
+const request = payload => HA ? HA.request(payload) : Promise.reject(new Error('Not connected to Home Assistant'));
+const connected = () => !!HA && HA.connected();
 
 function call(domain, service, data, entity_id) {
     return request({ type: 'call_service', domain, service, service_data: data || {},
@@ -910,7 +1000,7 @@ function mergeSpans(list) {
 }
 
 async function loadHistory() {
-    if (H.busy || !ws || ws.readyState !== 1 || !S.size) return;
+    if (H.busy || !connected() || !S.size) return;
     H.busy = true;
     $('charts').classList.add('loading');
     const t1 = Date.now(), t0 = t1 - H.hours * 3600e3;
@@ -996,6 +1086,8 @@ function openRoom(i) {
     // replaceState: no history entry, so HA's own back arrow still closes the popup
     try { history.replaceState(null, '', `#room/${ROOMS[i].key}`); } catch (_) {}
     RH.data = null;
+    ACT.items = []; ACT.showAll = false;
+    $('activity-list').innerHTML = '<p class="empty">Loading…</p>';
     $('room-chart').querySelector('.plot').innerHTML = '';
     $('room-stats').replaceChildren();
     if (S.size) render();
@@ -1013,7 +1105,7 @@ function closeRoom() {
 
 async function loadRoomHistory() {
     const i = RH.idx;
-    if (i === null || RH.busy || !ws || ws.readyState !== 1 || !S.size) return;
+    if (i === null || RH.busy || !connected() || !S.size) return;
     RH.busy = true;
     $('room-chart').classList.add('loading');
     const t1 = Date.now(), t0 = t1 - RH.hours * 3600e3;
@@ -1026,7 +1118,7 @@ async function loadRoomHistory() {
             include_start_time_state: true, significant_changes_only: false,
             minimal_response: true, no_attributes: true,
         });
-        if (RH.idx === i) { RH.data = historyModel(res, t0, t1, heaters, [i]); drawRoom(); }
+        if (RH.idx === i) { RH.data = historyModel(res, t0, t1, heaters, [i]); drawRoom(); loadActivity(); }
     } catch (e) {
         toast(`Couldn't load the history: ${e.message}`);
     } finally {
@@ -1130,6 +1222,229 @@ function sentence(m, d) {
     const when = mostlyWhen(m.periods);
     const amount = days > 1.5 ? `about ${aboutHours(heatMs / days)} a day` : `about ${aboutHours(heatMs)}`;
     return `${temp} ${m.house ? 'Heaters were running' : 'The heater ran'} ${amount}${when ? `, mostly ${when}` : ''}.`;
+}
+
+// ---------- What happened (room page) ----------
+// The House and room thermostats' logbook says who or what changed them:
+// the schedule and Away automations, the door pause, and (via the automation
+// "HVAC - Log room changes made by people") a person's own room changes,
+// e.g. "Bedroom: set to 73° by Emily".
+const AUTO = {
+    schedule: 'automation.hvac_climate_schedule_with_smart_recovery',
+    away: 'automation.hvac_away_home_cold_setpoints',
+    door: 'automation.hvac_turn_off_a_c_when_doors_open',
+    people: 'automation.hvac_log_room_changes_made_by_people',
+};
+const whoIs = id => USERS.get(id) || 'Someone';
+const DAY = 86400e3;
+
+function logbook(entityIds, t0, t1 = Date.now()) {
+    return request({ type: 'logbook/get_events', entity_ids: entityIds,
+                     start_time: new Date(t0).toISOString(), end_time: new Date(t1).toISOString() });
+}
+
+// One room's activity: what changed its target or switched it on/off, newest first
+function roomActivity(r, entries, m) {
+    const out = [];
+    const offsetNow = num(r.offset) ?? 0;
+    const roomValueAfter = (t, houseV) => {
+        const v = m ? valueAt(m.target, t + 20e3) : null;
+        return v ?? clamp(Math.round(houseV + offsetNow), ROOM_MIN, ROOM_MAX);
+    };
+    let lastRoomState = null;
+    for (const e of [...entries].sort((a, b) => a.when - b.when)) {
+        const t = e.when * 1000;
+        if (e.entity_id === E.house) {
+            const v = numOr(e.state);
+            if (v == null) continue;
+            const here = roomValueAfter(t, v);
+            if (e.context_entity_id === AUTO.schedule) out.push({ t, kind: 'schedule', text: `Schedule set ${here}°` });
+            else if (e.context_entity_id === AUTO.away) out.push({ t, kind: 'away', text: `Away \u2014 set ${here}°` });
+            else if (e.context_user_id) out.push({ t, kind: 'person', text: `${whoIs(e.context_user_id)} changed the house \u2014 ${here}° here` });
+            else out.push({ t, kind: 'schedule', text: `House changed \u2014 ${here}° here` });
+        } else if (e.entity_id === r.id && e.message) {
+            // "set to 73° by Emily" -> "Emily set it to 73°"
+            const mm = e.message.match(/^(set to \S+|turned off|turned on) by (.+)$/);
+            if (!mm) continue;
+            const [, what, who] = mm;
+            const name = who === 'voice or another app' ? 'Voice or another app' : who;
+            out.push({ t, kind: 'person', text: what.startsWith('set') ? `${name} ${what.replace('set to', 'set it to')}` : `${name} ${what.replace('turned', 'turned it')}` });
+        } else if (e.entity_id === r.id && (e.state === 'heat' || e.state === 'off')) {
+            if (e.state === lastRoomState) continue;        // restarts repeat the same state
+            const first = lastRoomState === null;
+            lastRoomState = e.state;
+            if (first && !e.context_entity_id) continue;
+            if (e.context_entity_id === AUTO.door) out.push({ t, kind: 'door', text: e.state === 'off' ? 'Paused \u2014 a door was left open' : 'Back on \u2014 door closed' });
+            else if (e.context_entity_id === AUTO.people) continue;
+            else if (!e.context_user_id) out.push({ t, kind: 'door', text: e.state === 'off' ? 'Paused \u2014 window open' : 'Back on' });
+        }
+    }
+    return out.reverse();
+}
+
+function dayLabel(t) {
+    const d = new Date(t), today = new Date();
+    const y = new Date(today); y.setDate(today.getDate() - 1);
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    if (d.toDateString() === y.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString([], { weekday: 'long' });
+}
+
+const ACT = { items: [], showAll: false };
+async function loadActivity() {
+    const i = RH.idx;
+    if (i === null || !connected()) return;
+    const r = ROOMS[i];
+    try {
+        const entries = await logbook([E.house, r.id], Date.now() - 3 * DAY);
+        if (RH.idx !== i) return;
+        ACT.items = roomActivity(r, entries, RH.data?.rooms?.[0]);
+        drawActivity();
+    } catch (e) {
+        $('activity-list').innerHTML = '<p class="empty">Couldn\u2019t load what happened.</p>';
+    }
+}
+
+function drawActivity() {
+    const list = $('activity-list');
+    const items = ACT.showAll ? ACT.items : ACT.items.slice(0, 6);
+    if (!items.length) { list.innerHTML = '<p class="empty">Nothing changed in the last 3 days.</p>'; return; }
+    list.replaceChildren();
+    let day = null;
+    for (const it of items) {
+        const label = dayLabel(it.t);
+        if (label !== day) {
+            day = label;
+            const h = document.createElement('div');
+            h.className = 'day'; h.textContent = label; list.append(h);
+        }
+        const row = document.createElement('div');
+        row.className = `act ${it.kind}`;
+        const time = document.createElement('time');
+        time.textContent = fmtClock(it.t);
+        const dot = document.createElement('i');
+        const text = document.createElement('span');
+        text.textContent = it.text;
+        row.append(time, dot, text);
+        list.append(row);
+    }
+    if (ACT.items.length > 6) {
+        const b = document.createElement('button');
+        b.className = 'more-btn';
+        b.dataset.actMore = '1';
+        b.textContent = ACT.showAll ? 'Show less' : `Show all ${ACT.items.length}`;
+        list.append(b);
+    }
+}
+
+// ---------- Suggestions (Schedule tab) ----------
+// When people keep making the same change by hand, offer to make it the norm:
+//   the House turned up in the same block on 3+ of the last 7 days -> raise that block;
+//   a room turned up (or down) on 3+ of the last 7 days -> make it warmer/cooler for good.
+// "Not now" hides a suggestion on this device for two weeks.
+const SUG_DAYS = 7, SUG_MIN_DAYS = 3;
+
+function blockAt(t) {
+    const d = new Date(t);
+    const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:00`;
+    const [w, dy, ev, sl] = BLOCKS.map(b => hms(b.time));
+    if (sl > w ? (hm >= sl || hm < w) : (hm >= sl && hm < w)) return BLOCKS[3];
+    return hm < dy ? BLOCKS[0] : hm < ev ? BLOCKS[1] : BLOCKS[2];
+}
+
+const median = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
+
+function findSuggestions(entries, now = Date.now()) {
+    const since = now - SUG_DAYS * DAY;
+    const houseSteps = entries.filter(e => e.entity_id === E.house)
+        .map(e => ({ t: e.when * 1000, v: numOr(e.state) })).filter(p => p.v != null).sort((a, b) => a.t - b.t);
+    const out = [];
+
+    // House, by schedule block
+    const byBlock = new Map();
+    for (const e of entries) {
+        if (e.entity_id !== E.house || !e.context_user_id || e.when * 1000 < since) continue;
+        const v = numOr(e.state), b = blockAt(e.when * 1000), base = num(b.temp);
+        if (v == null || base == null || v === base) continue;
+        const key = `${b.key}:${v > base ? 'up' : 'down'}`;
+        if (!byBlock.has(key)) byBlock.set(key, { b, deltas: [], days: new Set() });
+        const g = byBlock.get(key);
+        g.deltas.push(v - base); g.days.add(new Date(e.when * 1000).toDateString());
+    }
+    for (const [key, g] of byBlock) {
+        if (g.days.size < SUG_MIN_DAYS) continue;
+        const base = num(g.b.temp), to = clamp(base + Math.round(median(g.deltas)), 60, 78);
+        if (to === base) continue;
+        out.push({ id: `block:${key}`, entity: g.b.temp, value: to,
+            text: `Make ${g.b.name} ${to}°?`,
+            why: `The house was turned ${to > base ? 'up' : 'down'} during ${g.b.name} on ${g.days.size} of the last ${SUG_DAYS} days.`,
+            done: `${g.b.name} is now ${to}°.` });
+    }
+
+    // Rooms, by direction (offsets apply all day)
+    ROOMS.forEach(r => {
+        const groups = { up: { deltas: [], days: new Set() }, down: { deltas: [], days: new Set() } };
+        const off = num(r.offset) ?? 0;
+        const offChanged = Math.max(0, ...entries.filter(e => e.entity_id === r.offset).map(e => e.when * 1000));
+        for (const e of entries) {
+            if (e.entity_id !== r.id || !e.message) continue;
+            const t = e.when * 1000;
+            const mm = e.message.match(/^set to (\d+)° by /);
+            if (!mm || t < since || t < offChanged) continue;
+            const h = valueAt(houseSteps, t);
+            if (h == null) continue;
+            const delta = Number(mm[1]) - clamp(Math.round(h + off), ROOM_MIN, ROOM_MAX);
+            if (!delta) continue;
+            const g = groups[delta > 0 ? 'up' : 'down'];
+            g.deltas.push(delta); g.days.add(new Date(t).toDateString());
+        }
+        for (const [dir, g] of Object.entries(groups)) {
+            if (g.days.size < SUG_MIN_DAYS) continue;
+            const step = clamp(Math.round(median(g.deltas)), -2, 2), to = clamp(off + step, -5, 5);
+            if (to === off) continue;
+            const n = Math.abs(to);
+            out.push({ id: `room:${r.key}:${dir}`, entity: r.offset, value: to,
+                text: `Keep the ${r.name} ${Math.abs(step)}° ${step > 0 ? 'warmer' : 'cooler'}?`,
+                why: `It was turned ${dir} by hand on ${g.days.size} of the last ${SUG_DAYS} days.`,
+                done: to === 0 ? `${r.name} now follows the house exactly.` : `${r.name} now runs ${n}° ${to > 0 ? 'warmer' : 'cooler'} than the house.` });
+        }
+    });
+    return out;
+}
+
+function dismissed(id) {
+    try { return Number(localStorage.getItem(`climate-sug:${id}`) || 0) > Date.now(); } catch (_) { return false; }
+}
+
+const SUG = { list: [] };
+async function loadSuggestions() {
+    if (!connected() || !S.size) return;
+    try {
+        const ids = [E.house, ...ROOMS.flatMap(r => [r.id, r.offset])];
+        const entries = await logbook(ids, Date.now() - SUG_DAYS * DAY);
+        SUG.list = findSuggestions(entries).filter(x => !dismissed(x.id));
+        drawSuggestions();
+    } catch (_) { /* suggestions are optional */ }
+}
+
+function drawSuggestions() {
+    const box = $('suggest'), list = $('suggest-list');
+    box.hidden = !SUG.list.length;
+    list.replaceChildren(...SUG.list.map((x, i) => {
+        const row = document.createElement('div');
+        row.className = 'sug';
+        const p = document.createElement('p');
+        p.textContent = x.text;
+        const small = document.createElement('small');
+        small.textContent = x.why;
+        p.append(small);
+        const yes = document.createElement('button');
+        yes.className = 'yes'; yes.dataset.sugYes = i; yes.textContent = 'Yes, do it';
+        const no = document.createElement('button');
+        no.className = 'no'; no.dataset.sugNo = i; no.textContent = 'Not now';
+        row.append(p, yes, no);
+        return row;
+    }));
 }
 
 const fmtDur = ms => { const m = Math.round(ms / 60000), h = Math.floor(m / 60); return h ? (m % 60 ? `${h} h ${m % 60} m` : `${h} h`) : `${m} m`; };
@@ -1362,6 +1677,7 @@ document.addEventListener('click', e => {
         $('view-plan').hidden = tab.dataset.view !== 'plan';
         $('view-hist').hidden = tab.dataset.view !== 'hist';
         if (tab.dataset.view === 'hist') loadHistory();
+        if (tab.dataset.view === 'plan') loadSuggestions();
         try { localStorage.setItem('climate-view', tab.dataset.view); } catch (_) {}
         return;
     }
@@ -1434,6 +1750,18 @@ document.addEventListener('click', e => {
             setTimeout(() => document.querySelectorAll(`[data-power="${i}"]`).forEach(b => b.classList.remove('arm')), 4000);
             say(`Tap again to turn the ${r.name} heater off.`);
         }
+        return;
+    }
+
+    if (e.target.closest('[data-act-more]')) { ACT.showAll = !ACT.showAll; drawActivity(); return; }
+    const sy = e.target.closest('[data-sug-yes]'), sn = e.target.closest('[data-sug-no]');
+    if (sy || sn) {
+        const x = SUG.list[Number((sy || sn).dataset.sugYes ?? (sy || sn).dataset.sugNo)];
+        if (!x) return;
+        if (sy) call('input_number', 'set_value', { value: x.value }, x.entity).then(() => say(x.done)).catch(() => {});
+        else try { localStorage.setItem(`climate-sug:${x.id}`, String(Date.now() + 14 * DAY)); } catch (_) {}
+        SUG.list = SUG.list.filter(y => y !== x);
+        drawSuggestions();
         return;
     }
 
