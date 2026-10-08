@@ -289,11 +289,26 @@ input[type="time"] {
     border-radius: 12px; font-weight: 500; opacity: 0; pointer-events: none; transition: .25s; max-width: calc(100vw - 32px);
 }
 .toast.show { opacity: 1; transform: translateX(-50%); }
+.toast.ok { background: #1f1f1f; border-color: #333; color: var(--text-hi); }
+.power.arm { border-color: var(--warn); }
+.power.arm svg { stroke: var(--warn); }
+.first-tip {
+    display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap;
+    max-width: 1280px; margin: 0 auto 16px; padding: 14px 18px; border-radius: var(--radius);
+    background: var(--accent-bg); border: 1px solid var(--accent-border); color: var(--text-hi); font-size: 15px;
+}
+.first-tip[hidden] { display: none; }
+.first-tip span { flex: 1 1 260px; }
+.first-tip button {
+    min-height: 40px; padding: 0 18px; border-radius: 999px; border: 0;
+    background: var(--accent); color: #0c0c0c; font-weight: 600;
+}
 
 /* ---------- responsive ---------- */
 /* Wall tablet: fill the screen instead of leaving the bottom empty */
 @media (min-width: 981px) and (min-height: 640px) {
     .now { height: calc(100vh - 116px); align-items: stretch; }
+    body:has(#first-tip:not([hidden])) .now { height: calc(100vh - 186px); }
     .rooms { grid-auto-rows: minmax(0, 1fr); }
     .house { justify-content: space-between; }
     .room-temp { font-size: 72px; }
@@ -330,6 +345,11 @@ input[type="time"] {
         <button role="tab" id="tab-hist" aria-selected="false" data-view="hist">History</button>
     </nav>
 </header>
+
+<div class="first-tip" id="first-tip" hidden>
+    <span>Tap <b>+</b> or <b>−</b> to warm or cool the whole house or a single room. It goes back to normal at the next scheduled change.</span>
+    <button id="tip-ok">Got it</button>
+</div>
 
 <main>
     <section class="view now" id="view-now">
@@ -555,9 +575,11 @@ function setLive(ok) {
 }
 
 let toastTimer;
-function toast(text) {
+const say = text => toast(text, 'ok');
+function toast(text, kind) {
     const t = $('toast');
     t.textContent = text;
+    t.classList.toggle('ok', kind === 'ok');
     t.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
@@ -567,6 +589,7 @@ function toast(text) {
 // pending: key -> { value, entity, timer, until }. While a value is pending the
 // page shows it rather than HA's, until HA reports it back (or 8 s pass).
 const pending = new Map();
+const armedOff = { i: null, until: 0 };
 
 function shown(key, actual) {
     const p = pending.get(key);
@@ -659,7 +682,7 @@ function roomCardHTML(r, i, id, more) {
         <article class="card room" id="${id}" data-idx="${i}">
             <div class="room-head">
                 <div><div class="room-name">${r.name}${more ? '<span class="more" aria-hidden="true">›</span>' : ''}</div>
-                     <div class="room-kind">${r.kind} · heat only</div></div>
+                     <div class="room-kind">${r.kind}</div></div>
                 <button class="power" data-power="${i}" aria-label="Turn ${r.name} on or off">${ICON.power}</button>
             </div>
             <div class="room-now">
@@ -724,14 +747,16 @@ function render() {
         cls = 'away'; head = 'Away';
         sub = 'Nobody home, so the house is kept cooler. The schedule starts again when the alarm is turned off.';
     } else if (hold) {
-        cls = 'hold'; head = 'Changed by hand';
+        cls = 'hold'; head = `Holding ${Math.round(house)}°`;
         sub = `Back to the schedule ${backAt(s)}.`;
     } else if (preheat) {
-        cls = 'preheat'; head = `Warming up for ${nextName}`;
-        sub = `Started early so the house is ${Math.round(s.nextTemp)}° by ${s.next === 'sleep' ? 'bedtime' : fmtTime(s.nextTime)}.`;
+        cls = 'preheat'; head = 'Warming up early';
+        sub = `So the house is ${Math.round(s.nextTemp)}° by ${s.next === 'sleep' ? 'bedtime' : fmtTime(s.nextTime)}.`;
     } else {
-        head = `${blockName} schedule`;
-        sub = s.nextTemp == null ? '' : `Next: ${nextName} ${Math.round(s.nextTemp)}° ${s.next === 'sleep' ? 'at bedtime' : 'at ' + fmtTime(s.nextTime)}`;
+        head = 'Following the schedule';
+        const when = s.next === 'sleep' ? 'at bedtime' : `at ${fmtTime(s.nextTime)}`;
+        sub = s.nextTemp == null ? ''
+            : Math.round(s.nextTemp) === Math.round(house) ? `Next change ${when}.` : `Goes to ${Math.round(s.nextTemp)}° ${when}.`;
     }
     $('house-status').className = 'status ' + cls;
     $('status-head').textContent = head;
@@ -781,7 +806,7 @@ function renderRoom(el, r, i, s, house) {
         else if (!on) { pill.className = 'pill off'; pill.textContent = 'Off'; }
         else if (a.hvac_action === 'heating' || power > 0) {
             pill.className = 'pill heating';
-            pill.innerHTML = `${ICON.flame}Heating${power > 0 && power < 100 ? ` · ${power}%` : ''}`;
+            pill.innerHTML = `${ICON.flame}Heating`;
         } else { pill.className = 'pill'; pill.textContent = now != null && now >= target ? 'Warm enough' : 'Idle'; }
 
         // Target and how it relates to House
@@ -795,9 +820,9 @@ function renderRoom(el, r, i, s, house) {
         else if (!on) note.textContent = 'Off until turned back on';
         else if (pending.has(key) || (follows != null && target !== follows)) {
             note.className = 'room-note manual';
-            note.innerHTML = `Changed by hand ${until(s)} · <button class="link" data-resume="${i}">Undo</button>`;
+            note.innerHTML = `Stays at ${Math.round(tShown)}° ${until(s)} · <button class="link" data-resume="${i}">Undo</button>`;
         } else {
-            note.textContent = off === 0 ? 'On schedule' : `On schedule, ${Math.abs(off)}° ${off < 0 ? 'cooler' : 'warmer'} than the house`;
+            note.textContent = 'Following the schedule';
         }
     }
 }
@@ -1371,11 +1396,13 @@ document.addEventListener('click', e => {
         const box = step.closest('.stepper');
         if (box.id === 'house-stepper') {
             nudge('house', E.house, num(E.house), d, attr(E.house, 'min') ?? 62, attr(E.house, 'max') ?? 78,
-                  v => call('input_number', 'set_value', { value: v }, E.house));
+                  v => call('input_number', 'set_value', { value: v }, E.house)
+                      .then(() => say(scheduleNow().away ? `House set to ${v}°.` : `House set to ${v}°. Back to the schedule ${backAt(scheduleNow())}.`)));
         } else if (box.dataset.room != null) {
             const r = ROOMS[box.dataset.room], a = S.get(r.id)?.attributes || {};
             nudge(`room:${box.dataset.room}`, r.id, a.temperature, d, a.min_temp ?? ROOM_MIN, a.max_temp ?? ROOM_MAX,
-                  v => call('climate', 'set_temperature', { temperature: v }, r.id));
+                  v => call('climate', 'set_temperature', { temperature: v }, r.id)
+                      .then(() => say(`${r.name} set to ${v}° ${until(scheduleNow())}.`)));
         } else if (box.dataset.block != null) {
             const b = BLOCKS[box.dataset.block];
             nudge(`block:${box.dataset.block}`, b.temp, num(b.temp), d, attr(b.temp, 'min') ?? 60, attr(b.temp, 'max') ?? 78,
@@ -1393,8 +1420,26 @@ document.addEventListener('click', e => {
 
     const pw = e.target.closest('[data-power]');
     if (pw && !pw.disabled) {
-        const r = ROOMS[pw.dataset.power];
-        call('climate', 'set_hvac_mode', { hvac_mode: st(r.id) === 'heat' ? 'off' : 'heat' }, r.id).catch(() => {});
+        const i = Number(pw.dataset.power), r = ROOMS[i];
+        if (st(r.id) !== 'heat') {
+            call('climate', 'set_hvac_mode', { hvac_mode: 'heat' }, r.id).then(() => say(`${r.name} heater on.`)).catch(() => {});
+        } else if (armedOff.i === i && Date.now() < armedOff.until) {
+            armedOff.i = null;
+            document.querySelectorAll('.power.arm').forEach(b => b.classList.remove('arm'));
+            call('climate', 'set_hvac_mode', { hvac_mode: 'off' }, r.id)
+                .then(() => say(`${r.name} heater off. It stays off until you turn it back on.`)).catch(() => {});
+        } else {
+            armedOff.i = i; armedOff.until = Date.now() + 4000;
+            document.querySelectorAll(`[data-power="${i}"]`).forEach(b => b.classList.add('arm'));
+            setTimeout(() => document.querySelectorAll(`[data-power="${i}"]`).forEach(b => b.classList.remove('arm')), 4000);
+            say(`Tap again to turn the ${r.name} heater off.`);
+        }
+        return;
+    }
+
+    if (e.target.closest('#tip-ok')) {
+        $('first-tip').hidden = true;
+        try { localStorage.setItem('climate-tip-ok', '1'); } catch (_) {}
         return;
     }
 
@@ -1405,7 +1450,8 @@ document.addEventListener('click', e => {
         const value = clamp(Math.round(num(E.house) + (num(r.offset) ?? 0)), ROOM_MIN, ROOM_MAX);
         const p = pending.get(`room:${i}`);
         if (p) { clearTimeout(p.timer); pending.delete(`room:${i}`); }
-        call('climate', 'set_temperature', { temperature: value }, r.id).catch(() => {});
+        call('climate', 'set_temperature', { temperature: value }, r.id)
+            .then(() => say(`${r.name} is back on the schedule (${value}°).`)).catch(() => {});
         return;
     }
 
@@ -1414,6 +1460,7 @@ document.addEventListener('click', e => {
     if (e.target.closest('#resume')) {
         call('input_boolean', 'turn_off', {}, E.hold)
             .then(() => call('automation', 'trigger', { skip_condition: false }, E.schedule))
+            .then(() => say('Back on the schedule.'))
             .catch(() => {});
     }
 });
@@ -1433,6 +1480,7 @@ function tick() {
 }
 
 // ---------- start ----------
+try { $('first-tip').hidden = !!localStorage.getItem('climate-tip-ok'); } catch (_) { $('first-tip').hidden = false; }
 if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');
 build();
 // climate.html#schedule / #history open those tabs; otherwise the last tab used
