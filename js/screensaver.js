@@ -164,7 +164,7 @@ class Agenda {
 
 // ===== Insights: a few quiet, rotating lines under the weather =====
 // Whatever is worth saying at this time of day, plus house check-ins (warm-ups,
-// heat hold, 3D printers) whenever they apply; two lines show at once and the
+// heat hold, 3D printers), thirsty plants and clock changes whenever they apply; two lines show at once and the
 // rest take turns. Something that needs someone (meds) stays pinned on top.
 // Never the same things as the tags along the bottom; hidden at night with the
 // rest of the day layout. Mail was left out on purpose: its sensors aren't
@@ -177,6 +177,58 @@ const PRINTERS = ['x1c_00m00a2c0618544', 'p1s_01p00c611801219'];   // Bambu: Rai
 const PRINT_DONE_FOR = 2 * 3600e3;    // "finished its print" for two hours after
 const WARMUPS = { house: 'the whole house', living_room: 'the living room', bedroom: 'the bedroom', liam: "Liam's room", office: 'the office' };
 const HOLD = 'input_boolean.climate_manual_override_active';
+const ROOMS = ['living_room', 'bedroom', 'liam_s_room', 'office'].map(r => `climate.${r}_thermostat`);
+const OPEN_WINDOWS = 'sensor.open_windows_count';
+// Plants: soil moisture vs each plant's own "too dry" number (set in the plant card)
+const PLANTS = { snake_plant: 'The snake plant', dracaena: 'The dracaena', mimosa_pudica: 'The mimosa' };
+const PLANT_SOON = 5;            // % above too-dry that counts as "soon"
+const PLANT_STALE = 2 * 86400e3; // ignore readings older than this (dead battery)
+const FRESH_AIR = { from: 10 * 60, until: 19 * 60, low: 60, high: 75, warmer: 4 };   // °F
+
+// ===== Moon: full and new moon times (Meeus, Astronomical Algorithms ch. 49,
+// main terms; good to a few minutes) =====
+function moonPhaseTime(k) {      // k: whole = new moon, .5 = full moon; returns ms
+    const rad = Math.PI / 180, T = k / 1236.85;
+    const E = 1 - 0.002516 * T;
+    const M = (2.5534 + 29.1053567 * k) * rad;
+    const Mp = (201.5643 + 385.81693528 * k + 0.0107582 * T * T) * rad;
+    const F = (160.7108 + 390.67050284 * k - 0.0016118 * T * T) * rad;
+    const O = (124.7746 - 1.56375588 * k) * rad;
+    const full = k % 1 !== 0;
+    let jde = 2451550.09766 + 29.530588861 * k + 0.00015437 * T * T;
+    jde += (full ? -0.40614 : -0.40720) * Math.sin(Mp) + (full ? 0.17302 : 0.17241) * E * Math.sin(M)
+        + (full ? 0.01614 : 0.01608) * Math.sin(2 * Mp) + (full ? 0.01043 : 0.01039) * Math.sin(2 * F)
+        + (full ? 0.00734 : 0.00739) * E * Math.sin(Mp - M) - 0.00514 * E * Math.sin(Mp + M)
+        + (full ? 0.00209 : 0.00208) * E * E * Math.sin(2 * M) - 0.00111 * Math.sin(Mp - 2 * F)
+        - 0.00057 * Math.sin(Mp + 2 * F) + 0.00056 * E * Math.sin(2 * Mp + M) - 0.00042 * Math.sin(3 * Mp)
+        + 0.00042 * E * Math.sin(M + 2 * F) + 0.00038 * E * Math.sin(M - 2 * F)
+        - 0.00024 * E * Math.sin(2 * Mp - M) - 0.00017 * Math.sin(O);
+    return (jde - 2440587.5) * 86400000;
+}
+// The full or new moon that falls in [from, until), if any: { full, at }
+function moonBetween(from, until) {
+    const k0 = Math.floor(((from / 86400000 + 2440587.5) - 2451550.09766) / 29.530588861);
+    for (let k = k0 - 1; k <= k0 + 2; k += 0.5) {
+        const at = moonPhaseTime(k);
+        if (at >= from && at < until) return { full: k % 1 !== 0, at };
+    }
+    return null;
+}
+
+// ===== Daylight saving: the next clock change within a week, if any =====
+function clockChange(now) {
+    let off = now.getTimezoneOffset();
+    for (let h = 1; h <= 8 * 24; h++) {
+        const t = new Date(now.getTime() + h * 3600e3);
+        if (t.getTimezoneOffset() !== off) return { at: t, back: t.getTimezoneOffset() > off };
+    }
+    return null;
+}
+// ...and one that happened in the last 12 hours
+function clockChanged(now) {
+    const before = new Date(now.getTime() - 12 * 3600e3);
+    return before.getTimezoneOffset() !== now.getTimezoneOffset() ? { back: now.getTimezoneOffset() > before.getTimezoneOffset() } : null;
+}
 const WET = new Set(['rainy', 'pouring', 'lightning-rainy', 'snowy', 'snowy-rainy', 'hail']);
 const SNOW = new Set(['snowy', 'snowy-rainy', 'hail']);
 const FROST_AT = 34;          // °F low that counts as frost
@@ -193,6 +245,10 @@ const INS_ICONS = {
     warm: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
     wind: '<path d="M3 8h11a2.5 2.5 0 1 0-2.5-2.5M3 12h16a2.5 2.5 0 1 1-2.5 2.5M3 16h9a2.5 2.5 0 1 1-2.5 2.5"/>',
     print: '<rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 8h16M9 15.5h6M12 8v4.5"/>',
+    clock: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2.5h6"/>',
+    moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+    window: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M12 3v18M4 12h16"/>',
+    plant: '<path d="M12 21v-9M12 12c0-4 3-7 8-7 0 4.5-3 7-8 7zM12 15c0-3-2.5-5.5-7-5.5 0 3.5 2.5 5.5 7 5.5zM8 21h8"/>',
     cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'
 };
 const insIcon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
@@ -230,10 +286,15 @@ class Insights {
 {% set ns.p = ns.p + [{'name': (states('sensor.' ~ id ~ '_printer_name').split(' (')[0]), 'status': st.state,
   'end': states('sensor.' ~ id ~ '_end_time'),
   'left': states('sensor.' ~ id ~ '_remaining_time')}] %}{% endif %}{% endfor %}
+{% set ns2 = namespace(pl=[]) %}{% for id in ${JSON.stringify(Object.keys(PLANTS))} %}{% set sm = states['sensor.' ~ id ~ '_soil_moisture'] %}
+{% if sm and sm.state | is_number %}{% set ns2.pl = ns2.pl + [{'id': id, 'v': sm.state | float, 'min': states('number.' ~ id ~ '_min_soil_moisture') | float(0),
+  'at': sm.last_updated.isoformat()}] %}{% endif %}{% endfor %}
 {% for k in ${JSON.stringify(Object.keys(WARMUPS))} %}{% set t = states['timer.climate_boost_' ~ k] %}
 {% if t and t.state == 'active' %}{% set ns.w = ns.w + [{'room': k, 'ends': t.attributes.finishes_at}] %}{% endif %}{% endfor %}
 {{ {'rise': state_attr('${SUN}', 'next_rising'), 'set': state_attr('${SUN}', 'next_setting'),
-    'meds': states('${MEDS_TAKEN}'), 'hold': states('${HOLD}'), 'printers': ns.p, 'warm': ns.w} | tojson }}`;
+    'meds': states('${MEDS_TAKEN}'), 'hold': states('${HOLD}'), 'printers': ns.p, 'warm': ns.w,
+    'out': state_attr('${WEATHER}', 'temperature'), 'cond': states('${WEATHER}'), 'windows': states('${OPEN_WINDOWS}'), 'plants': ns2.pl,
+    'inside': (${JSON.stringify(ROOMS)} | map('state_attr', 'current_temperature') | select('is_number') | list) } | tojson }}`;
         try {
             const r = await fetch(`${this.haUrl}/api/template`, {
                 method: 'POST',
@@ -255,7 +316,12 @@ class Insights {
                 medsTaken: d.meds !== 'off',
                 hold: d.hold === 'on',
                 printers: d.printers,
-                warm: d.warm
+                warm: d.warm,
+                outside: typeof d.out === 'number' ? d.out : null,
+                outsideCond: d.cond,
+                inside: d.inside.length ? d.inside.reduce((a, b) => a + b, 0) / d.inside.length : null,
+                windowsOpen: parseInt(d.windows, 10) || 0,
+                plants: d.plants
             });
         } catch (e) { console.error('Insights:', e); }
         this.render();
@@ -339,7 +405,35 @@ class Insights {
             if (dayKey(set) !== dayKey(now)) set = new Date(set.getTime() - 86400e3);
         }
 
+        // Plants: dry ones any time of day; "all happy" now and then by day
+        const plants = (this.data.plants || []).filter(p => now - new Date(p.at) < PLANT_STALE && p.min > 0);
+        for (const p of plants) {
+            if (p.v < p.min) out.push(['', 'plant', `${esc(PLANTS[p.id])} needs water · soil at <b>${Math.round(p.v)}%</b>`]);
+            else if (p.v < p.min + PLANT_SOON) out.push(['', 'plant', `${esc(PLANTS[p.id])} will want water soon`]);
+        }
+        const plantsHappy = plants.length === Object.keys(PLANTS).length && plants.every(p => p.v >= p.min + PLANT_SOON);
+
+        // Clocks: the week before a change, and the morning after
+        const cc = clockChange(now);
+        if (cc) {
+            const eve = new Date(cc.at.getTime() - 12 * 3600e3);      // the evening before the 2 AM change
+            const days = Math.round((new Date(eve).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) / 86400e3);
+            const when = days <= 0 ? 'tonight' : days === 1 ? 'tomorrow night' : eve.toLocaleDateString([], { weekday: 'long' }) + ' night';
+            out.push(['', 'clock', cc.back ? `Clocks fall back <b>${when}</b> · an extra hour of sleep`
+                : `Clocks spring forward <b>${when}</b> · an hour less sleep`]);
+        }
+        const cd = clockChanged(now);
+        if (cd && m < 12 * 60) out.push(['', 'clock', `Clocks went ${cd.back ? 'back' : 'forward'} an hour last night · check the oven and car`]);
+
         if (m < EVENING) {
+            // Fresh air: nice out, cooler than the house, dry, windows shut
+            const { outside: o, inside: i } = this.data;
+            if (m >= FRESH_AIR.from && m < FRESH_AIR.until && o !== null && i !== null && !this.data.windowsOpen
+                && !WET.has(this.data.outsideCond) && o >= FRESH_AIR.low && o <= FRESH_AIR.high && i - o >= FRESH_AIR.warmer)
+                out.push(['', 'window', `<b>${Math.round(o)}°</b> outside, <b>${Math.round(i)}°</b> in · nice for an open window`]);
+
+            if (plantsHappy) out.push(['', 'plant', `All ${plants.length === 3 ? 'three' : plants.length} plants are happy`]);
+
             // Rain in the next 12 hours
             const hourStart = new Date(now); hourStart.setMinutes(0, 0, 0);
             const horizon = new Date(now.getTime() + 12 * 3600e3);
@@ -401,6 +495,14 @@ class Insights {
 
             if (this.data.earlyTomorrow)
                 out.push(['', 'cal', `First thing tomorrow at <b>${esc(hmFull(this.data.earlyTomorrow))}</b>`]);
+
+            // Full or new moon tonight (noon to noon) or tomorrow night
+            const noon = new Date(now); noon.setHours(12, 0, 0, 0);
+            const moonTonight = moonBetween(noon.getTime(), noon.getTime() + 86400e3);
+            const moonTomorrow = !moonTonight && moonBetween(noon.getTime() + 86400e3, noon.getTime() + 2 * 86400e3);
+            const mo = moonTonight || moonTomorrow;
+            if (mo) out.push(['', 'moon', mo.full ? `Full moon <b>${moonTonight ? 'tonight' : 'tomorrow night'}</b>`
+                : `New moon ${moonTonight ? 'tonight' : 'tomorrow night'} · the darkest skies of the month`]);
 
             if (sun?.next_rising) out.push(['', 'sunrise', `Sunrise tomorrow at <b>${esc(hm(new Date(sun.next_rising)))}</b>`]);
         }
