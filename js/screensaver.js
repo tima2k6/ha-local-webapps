@@ -68,10 +68,10 @@ class Clock {
     }
 }
 
-// ===== Weather (and the sun, which switches night mode) =====
+// ===== Weather =====
 class Weather {
-    constructor(haUrl, token, el, nightEl, onNight) {
-        Object.assign(this, { haUrl, token, el, nightEl, onNight });
+    constructor(haUrl, token, el, nightEl) {
+        Object.assign(this, { haUrl, token, el, nightEl });
     }
 
     async api(path, body) {
@@ -86,12 +86,10 @@ class Weather {
 
     async refresh() {
         try {
-            const [cur, sun, fc] = await Promise.all([
+            const [cur, fc] = await Promise.all([
                 this.api(`states/${WEATHER}`),
-                this.api('states/sun.sun').catch(() => null),
                 this.api('services/weather/get_forecasts?return_response', { entity_id: WEATHER, type: 'daily' })
             ]);
-            this.onNight(sun?.state === 'below_horizon');
 
             const days = fc.service_response?.[WEATHER]?.forecast || [];
             const today = days[0], next = days[1];
@@ -234,6 +232,19 @@ class TimerTag extends Timers {
     }
 }
 
+// ===== Night mode: a fixed window, not the sun =====
+// Day (date, weather, calendar) from 6:30 AM to 10 PM; the dim clock outside it.
+// Chosen 2026-10-08 so it no longer drifts with sunrise/sunset through the year.
+const DAY_STARTS = 6 * 60 + 30, NIGHT_STARTS = 22 * 60;
+function nightWatch(onNight) {
+    const check = () => {
+        const d = new Date(), m = d.getHours() * 60 + d.getMinutes();
+        onNight(m < DAY_STARTS || m >= NIGHT_STARTS);
+    };
+    check();
+    setInterval(check, 30000);
+}
+
 // ===== Burn-in guard =====
 function drift(el) {
     const nudge = () => {
@@ -248,8 +259,8 @@ export function startScreensaver(config) {
     const { haUrl, longLivedAccessToken: token } = config;
     const $ = id => document.getElementById(id);
     new Clock($('clock')).start();
-    new Weather(haUrl, token, $('weather'), $('night-weather'),
-        night => document.body.classList.toggle('night', night)).start();
+    new Weather(haUrl, token, $('weather'), $('night-weather')).start();
+    nightWatch(night => document.body.classList.toggle('night', night));
     new Agenda(haUrl, token, $('agenda')).start();
     new StatusTags(haUrl, token, $('tags'));
     new TimerTag(haUrl, token, $('timers')).start();

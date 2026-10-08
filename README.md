@@ -85,7 +85,7 @@ A fullscreen kiosk/screensaver for a wall-mounted OLED display ("Quiet Hours" de
 - Left: date, clock (hour and minute, no seconds) and below it the weather: now plus today's high/low and tomorrow from `weather.forecast_home` (met.no, the same source as the LED panel)
 - Right: the next three `calendar.family` events, each time above its name
 - Bottom: static status tags from the ticker's sensors (Zoey's feeding, open windows and doors, trash night), centered, on exactly the old ticker's conditions: teal when routine, amber or red when something needs attention; running Alexa/Google Home timers on the right
-- Night (`sun.sun` below the horizon): a dim clock and the temperature replace the weather and agenda; tags and timers show as by day
+- Night (10:00 PM to 6:30 AM, fixed times in `js/screensaver.js`, not the sun): a dim clock and the temperature replace the weather and agenda; tags and timers show as by day
 - Burn-in guard: the whole layout shifts by up to ~12 px every 3 minutes
 
 **Modules (`js/`):**
