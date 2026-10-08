@@ -166,32 +166,14 @@ class Agenda {
 
 // ===== Status tags: the ticker's sensors, rendered as static tags =====
 // tone: calm (teal), warn (amber), alert (red). Shown on the same
-// conditions as the old ticker, day and night, except that "Zoey's been
-// fed" is only a confirmation: it shows for FED_SHOW_MS after she's marked
-// fed, not for the rest of the feeding window. "Not fed" and "probably
-// hungry" stay up until handled. The time comes from the fed toggles
-// themselves: the status sensor's last_changed resets whenever template
-// sensors reload, which would bring the tag back.
-const FED_SHOW_MS = 30 * 60 * 1000;
+// conditions and in the same words as the old ticker, day and night.
+// "Zoey's been fed" stays up for the rest of the feeding window, so whoever
+// walks by knows not to feed her again.
 
 class StatusTags extends Ticker {
     constructor(haUrl, token, el) {
         super(haUrl, token, el);
         this.el = el;
-        this.fedOn = {};              // fed toggle -> when it was switched on (ms)
-        setInterval(() => this.updateTicker(), 60000);   // lets the fed tag expire
-    }
-
-    processEntityState(entityId, state, stateObj) {
-        if (/^input_boolean\.zoey_fed_(morning|afternoon)$/.test(entityId)) {
-            if (state === 'on') this.fedOn[entityId] = Date.parse(stateObj?.last_changed) || Date.now();
-            else delete this.fedOn[entityId];
-        }
-        return super.processEntityState(entityId, state, stateObj);
-    }
-
-    static pickup(v) {
-        return /^\d+\s+days?$/i.test(v) ? `in ${v}` : String(v).toLowerCase();
     }
 
     tags() {
@@ -201,17 +183,14 @@ class StatusTags extends Ticker {
             'not-fed': ['alert', 'Zoey has NOT been fed'],
             'overdue': ['warn', "Zoey's probably hungry!"]
         }[s.feedingState];
-        const fedAt = Math.max(0, ...Object.values(this.fedOn));
-        const fedTooLongAgo = s.feedingState === 'fed' && !(fedAt && Date.now() - fedAt < FED_SHOW_MS);
-        if (feed && !fedTooLongAgo) out.push(feed);
+        if (feed) out.push(feed);
 
-        // Same schedule as the old ticker: only while the waste reminder is on
-        // and the trash hasn't been marked as out
+        // Same schedule and words as the old ticker: only while the waste
+        // reminder is on and the trash hasn't been marked as out
         const g = s.garbageCollection, r = s.recyclingCollection;
         if (s.wasteReminder && !s.trashOut) {
-            const what = g && r && g === r ? `trash & recycling ${StatusTags.pickup(g)}`
-                : [g && `trash ${StatusTags.pickup(g)}`, r && `recycling ${StatusTags.pickup(r)}`].filter(Boolean).join(' · ');
-            out.push(['warn', what ? `Trash night — ${what}` : 'Trash night']);
+            const what = [g && `Trash: ${g}`, r && `Recycling: ${r}`].filter(Boolean).join(' · ');
+            out.push(['warn', what ? `Reminder: ${what}` : 'Reminder: Trash']);
         }
 
         const n = s.openWindowsCount, d = s.exteriorDoorCount;
