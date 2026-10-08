@@ -3,25 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#1a140d">
+<meta name="theme-color" content="#0c0c0c">
 <title>House Climate</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400&family=Figtree:wght@400;500;600&display=swap">
 <style>
-/* Same palette as the "Quiet Hours" screensaver: warm charcoal, paper-white
-   text, teal for "all is well", amber for heat. Landscape on the wall tablet
-   (1280x800), one column on a phone. */
+/* Neutral blacks matching the dashboard's Caule Black themes (#0c0c0c, faint
+   grey cards, #2c2c2c lines), teal for "all is well", amber for heat.
+   Landscape on the wall tablet (1280x800), one column on a phone. */
 :root {
-    --bg: #1a140d;
-    --card: #231b12;
-    --card-hi: #2b2117;
-    --line: #3a2f22;
-    --text-hi: #f0e6d6;
-    --text: #e6dccc;
-    --text-mid: #ccc4b8;
-    --text-dim: #a59e92;
+    --bg: #0c0c0c;
+    --card: #181818;
+    --card-hi: #222222;
+    --line: #2c2c2c;
+    --text-hi: #f2f2f2;
+    --text: #e5e5e5;
+    --text-mid: #c2c2c2;
+    --text-dim: #9a9a9a;
     --accent: #5fc9b4;
     --accent-bg: rgba(95, 201, 180, .12);
     --accent-border: #2c5a51;
@@ -92,7 +92,7 @@ main { max-width: 1280px; margin: 0 auto; }
     display: grid; place-items: center; flex: none;
     transition: background .15s, transform .08s;
 }
-.stepper button:active { transform: scale(.94); background: #3a2d1f; }
+.stepper button:active { transform: scale(.94); background: #303030; }
 .stepper button:disabled { opacity: .35; cursor: default; }
 .stepper button svg { width: 20px; height: 20px; stroke: var(--text-hi); stroke-width: 2; fill: none; stroke-linecap: round; }
 .stepper .val { min-width: 2.6ch; text-align: center; color: var(--text-hi); }
