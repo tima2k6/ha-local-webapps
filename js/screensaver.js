@@ -185,12 +185,15 @@ class StatusTags extends Ticker {
         }[s.feedingState];
         if (feed) out.push(feed);
 
-        // Same schedule and words as the old ticker: only while the waste
-        // reminder is on and the trash hasn't been marked as out
+        // Same schedule as the old ticker: only while the waste reminder is
+        // on and the trash hasn't been marked as out
         const g = s.garbageCollection, r = s.recyclingCollection;
         if (s.wasteReminder && !s.trashOut) {
-            const what = [g && `Trash: ${g}`, r && `Recycling: ${r}`].filter(Boolean).join(' · ');
-            out.push(['warn', what ? `Reminder: ${what}` : 'Reminder: Trash']);
+            // "Trash & recycling tomorrow", or "Trash today · Recycling in 3 days"
+            const when = v => /^\d+\s+days?$/i.test(v) ? `in ${v}` : String(v).toLowerCase();
+            const text = g && r && g === r ? `Trash & recycling ${when(g)}`
+                : [g && `Trash ${when(g)}`, r && `Recycling ${when(r)}`].filter(Boolean).join(' · ') || 'Trash';
+            out.push(['warn', text]);
         }
 
         const n = s.openWindowsCount, d = s.exteriorDoorCount;
