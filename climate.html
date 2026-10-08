@@ -142,6 +142,22 @@ main { max-width: 1280px; margin: 0 auto; }
 .room-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .room-name { font-size: 19px; font-weight: 600; color: var(--text-hi); }
 .room-kind { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+/* Warm up: a small pill beside the power button, and a one-row length picker */
+.head-btns { display: flex; align-items: center; gap: 8px; flex: none; }
+.warm {
+    display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: none; color: var(--text-mid); font-size: 13px; font-weight: 600;
+}
+.warm svg { width: 13px; height: 13px; fill: currentColor; }
+.warm.on { color: var(--heat); border-color: var(--heat-border); background: var(--heat-bg); }
+.warm-pick { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--text-dim); }
+.warm-pick[hidden] { display: none; }
+.warm-pick button {
+    min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--heat-border);
+    background: var(--heat-bg); color: var(--heat); font-weight: 600; font-size: 13px;
+}
+.warm-pick button.x { border-color: var(--line); background: none; color: var(--text-dim); }
+.house .warm { align-self: flex-start; margin-top: 8px; }
 .power {
     width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: none;
     display: grid; place-items: center; flex: none;
@@ -285,6 +301,7 @@ input[type="time"] {
 .act.person i { background: var(--accent); }
 .act.door i { background: var(--warn); }
 .act.away i { background: #8b85e0; }
+.act.warm i { background: var(--heat); }
 .act span { color: var(--text); }
 .activity .empty { color: var(--text-dim); font-size: 14px; margin: 0; }
 .activity .more-btn {
@@ -406,6 +423,8 @@ input[type="time"] {
                 <div class="head"><span class="dot"></span><span id="status-head">Connecting…</span></div>
                 <div class="sub" id="status-sub"></div>
                 <button class="btn" id="resume" hidden>Back to schedule now</button>
+                <button class="warm" data-warm="house" id="house-warm">Warm up the house</button>
+                <div class="warm-pick" data-pick="house" hidden></div>
             </div>
         </div>
         <div class="rooms" id="rooms"></div>
@@ -536,8 +555,12 @@ const ROOMS = [
       offset: 'input_number.climate_offset_office' },
 ];
 
+// Warm-up timers (script.climate_warm_up / "HVAC - Warm-up ends"), one per room and the House
+const BOOST = { house: 'timer.climate_boost_house', living: 'timer.climate_boost_living_room',
+                bedroom: 'timer.climate_boost_bedroom', liam: 'timer.climate_boost_liam', office: 'timer.climate_boost_office' };
+
 const WATCHED = new Set([
-    ...Object.values(E), ...BLOCKS.flatMap(b => [b.time, b.temp]),
+    ...Object.values(E), ...BLOCKS.flatMap(b => [b.time, b.temp]), ...Object.values(BOOST),
     ...ROOMS.flatMap(r => [r.id, r.sensor, r.offset, ...Object.keys(r.doors || {})]),
 ]);
 
@@ -766,6 +789,22 @@ function until(s) {
     return s.next === 'sleep' ? 'until bedtime' : `until ${fmtTime(s.nextTime)}`;
 }
 
+function warmPickHTML(key) {
+    return `Warmer by 2° for
+        <button data-warm-go="${key}" data-mins="30">30 min</button>
+        <button data-warm-go="${key}" data-mins="60">1 hour</button>
+        <button data-warm-go="${key}" data-mins="120">2 hours</button>
+        <button class="x" data-warm-close="${key}" aria-label="Never mind">✕</button>`;
+}
+
+// When a warm-up ends, or null if none is running
+function boostEnds(key) {
+    const t = S.get(BOOST[key]);
+    if (!t || (t.state !== 'active' && t.state !== 'paused')) return null;
+    const at = Date.parse(t.attributes.finishes_at || '');
+    return Number.isFinite(at) ? at : Date.now();
+}
+
 // ---------- build the static parts once (re-rendering never replaces a button mid-tap) ----------
 function roomCardHTML(r, i, id, more) {
     return `
@@ -773,8 +812,12 @@ function roomCardHTML(r, i, id, more) {
             <div class="room-head">
                 <div><div class="room-name">${r.name}${more ? '<span class="more" aria-hidden="true">›</span>' : ''}</div>
                      <div class="room-kind">${r.kind}</div></div>
-                <button class="power" data-power="${i}" aria-label="Turn ${r.name} on or off">${ICON.power}</button>
+                <div class="head-btns">
+                    <button class="warm" data-warm="${r.key}">${ICON.flame}Warm up</button>
+                    <button class="power" data-power="${i}" aria-label="Turn ${r.name} on or off">${ICON.power}</button>
+                </div>
             </div>
+            <div class="warm-pick" data-pick="${r.key}" hidden>${warmPickHTML(r.key)}</div>
             <div class="room-now">
                 <span class="room-temp num">--</span>
                 <span class="pill">--</span>
@@ -833,7 +876,11 @@ function render() {
     const blockName = BLOCKS.find(b => b.key === s.block).name;
     const nextName = BLOCKS.find(b => b.key === s.next).name;
     let head, sub, cls = '';
-    if (s.away) {
+    const houseBoost = boostEnds('house');
+    if (houseBoost && !s.away) {
+        cls = 'preheat'; head = 'Warming up';
+        sub = `Until ${fmtClock(houseBoost)}, then back to the schedule.`;
+    } else if (s.away) {
         cls = 'away'; head = 'Away';
         sub = 'Nobody home, so the house is kept cooler. The schedule starts again when the alarm is turned off.';
     } else if (hold) {
@@ -851,7 +898,11 @@ function render() {
     $('house-status').className = 'status ' + cls;
     $('status-head').textContent = head;
     $('status-sub').textContent = sub;
-    $('resume').hidden = !hold || s.away;
+    $('resume').hidden = !hold || s.away || !!houseBoost;
+    const hw = $('house-warm');
+    hw.classList.toggle('on', !!houseBoost);
+    hw.innerHTML = houseBoost ? `${ICON.flame}Warming · Undo` : `${ICON.flame}Warm up the house`;
+    hw.hidden = s.away;
 
     // Rooms (the grid on Now, and the open room page)
     ROOMS.forEach((r, i) => renderRoom($(`room-${i}`), r, i, s, house));
@@ -879,6 +930,10 @@ function renderRoom(el, r, i, s, house) {
         const [whole, tenth] = now == null ? [] : now.toFixed(1).split('.');
         el.querySelector('.room-temp').innerHTML = now == null ? '--'
             : `${whole}<span class="tenth">.${tenth}</span><small>°</small>`;
+        const wb = el.querySelector('.warm');
+        wb.classList.toggle('on', !!boostEnds(r.key));
+        wb.innerHTML = `${ICON.flame}${boostEnds(r.key) ? 'Warming' : 'Warm up'}`;
+        wb.hidden = !on;
         const pw = el.querySelector('.power');
         pw.classList.toggle('on', on);
         pw.disabled = !avail;
@@ -908,6 +963,10 @@ function renderRoom(el, r, i, s, house) {
         else if (!on && openDoor) note.textContent = 'Back on when the door closes';
         else if (!on && windowOpen) note.textContent = 'Back on when the window closes';
         else if (!on) note.textContent = 'Off until turned back on';
+        else if (boostEnds(r.key)) {
+            note.className = 'room-note manual';
+            note.innerHTML = `Warming up until ${fmtClock(boostEnds(r.key))}, then ${follows}° · <button class="link" data-warm-undo="${r.key}">Undo</button>`;
+        }
         else if (pending.has(key) || (follows != null && target !== follows)) {
             note.className = 'room-note manual';
             note.innerHTML = `Stays at ${Math.round(tShown)}° ${until(s)} · <button class="link" data-resume="${i}">Undo</button>`;
@@ -1251,9 +1310,17 @@ function roomActivity(r, entries, m) {
         const v = m ? valueAt(m.target, t + 20e3) : null;
         return v ?? clamp(Math.round(houseV + offsetNow), ROOM_MIN, ROOM_MAX);
     };
-    let lastRoomState = null;
+    let lastRoomState = null, lastWarm = -Infinity;
     for (const e of [...entries].sort((a, b) => a.when - b.when)) {
         const t = e.when * 1000;
+        // Warm-ups (logged by the script and the end automation), for this room or the House
+        if (e.message && (e.entity_id === r.id || e.entity_id === E.house)) {
+            const house = e.entity_id === E.house;
+            const wm = e.message.match(/^warming up for (.+) by (.+)$/);
+            if (wm) { out.push({ t, kind: 'warm', text: `${wm[2] === 'someone' ? 'Someone' : wm[2]} warmed ${house ? 'the house' : 'it'} up for ${wm[1]}` }); lastWarm = t; continue; }
+            if (e.message === 'warm-up ended') { out.push({ t, kind: 'warm', text: house ? 'House warm-up ended' : 'Warm-up ended' }); continue; }
+        }
+        if (t - lastWarm < 15e3) continue;          // the warm-up's own set-temperature lines
         if (e.entity_id === E.house) {
             const v = numOr(e.state);
             if (v == null) continue;
@@ -1686,7 +1753,7 @@ document.addEventListener('click', e => {
     const openBtn = e.target.closest('[data-open-room]');
     if (openBtn) { openRoom(Number(openBtn.dataset.openRoom)); return; }
     const card = e.target.closest('#rooms .room');
-    if (card && !e.target.closest('button, input, .stepper')) { openRoom(Number(card.dataset.idx)); return; }
+    if (card && !e.target.closest('button, input, .stepper, .warm-pick')) { openRoom(Number(card.dataset.idx)); return; }
     const roomChart = e.target.closest('.chart[data-room]');
     if (roomChart) { openRoom(Number(roomChart.dataset.room)); return; }
     if (e.target.closest('#room-back')) { closeRoom(); return; }
@@ -1765,6 +1832,35 @@ document.addEventListener('click', e => {
         return;
     }
 
+    // Warm up: open the picker / start / undo
+    const wOpen = e.target.closest('[data-warm]');
+    if (wOpen) {
+        const key = wOpen.dataset.warm;
+        if (key === 'house' && boostEnds('house')) { endWarm('house'); return; }
+        document.querySelectorAll(`[data-pick="${key}"]`).forEach(p => {
+            if (!p.innerHTML.trim()) p.innerHTML = warmPickHTML(key);
+            p.hidden = !p.hidden;
+        });
+        return;
+    }
+    const wClose = e.target.closest('[data-warm-close]');
+    if (wClose) { document.querySelectorAll(`[data-pick="${wClose.dataset.warmClose}"]`).forEach(p => { p.hidden = true; }); return; }
+    const wGo = e.target.closest('[data-warm-go]');
+    if (wGo) {
+        const key = wGo.dataset.warmGo, mins = Number(wGo.dataset.mins);
+        document.querySelectorAll(`[data-pick="${key}"]`).forEach(p => { p.hidden = true; });
+        const r = ROOMS.find(x => x.key === key);
+        const running = !!boostEnds(key);
+        const now = key === 'house' ? num(E.house) : attr(r.id, 'temperature');
+        const to = running ? now : Math.min((now ?? 70) + 2, key === 'house' ? (attr(E.house, 'max') ?? 78) : ROOM_MAX);
+        const label = mins === 30 ? '30 minutes' : mins === 60 ? '1 hour' : `${mins / 60} hours`;
+        call('script', 'climate_warm_up', { target: key, minutes: mins, by: HA?.user?.name || undefined })
+            .then(() => say(`${key === 'house' ? 'House' : r.name} warming up to ${Math.round(to)}° for ${label}.`)).catch(() => {});
+        return;
+    }
+    const wUndo = e.target.closest('[data-warm-undo]');
+    if (wUndo) { endWarm(wUndo.dataset.warmUndo); return; }
+
     if (e.target.closest('#tip-ok')) {
         $('first-tip').hidden = true;
         try { localStorage.setItem('climate-tip-ok', '1'); } catch (_) {}
@@ -1805,6 +1901,12 @@ document.addEventListener('change', e => {
 function tick() {
     const d = new Date();
     $('clock').textContent = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function endWarm(key) {
+    const r = ROOMS.find(x => x.key === key);
+    call('timer', 'cancel', {}, BOOST[key])
+        .then(() => say(`${key === 'house' ? 'House' : r.name} is back on the schedule.`)).catch(() => {});
 }
 
 // ---------- start ----------
