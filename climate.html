@@ -238,6 +238,7 @@ input[type="time"] {
     background: repeating-linear-gradient(45deg, rgba(255,255,255,.2) 0 1.5px, transparent 1.5px 5px); }
 .key.night { width: 16px; height: 12px; border: 0; border-radius: 4px; background: rgba(255,255,255,.08); }
 .key.temp { border-top-width: 2.5px; border-radius: 2px; }
+.key.warmup { width: 16px; height: 12px; border: 0; border-radius: 4px; background: rgba(240,166,86,.22); }
 .chart-sub { margin: 0 0 6px; color: var(--text-mid); font-size: 14px; }
 .chart-sub.big { font-size: 16px; color: var(--text); margin: 2px 0 10px; }
 .chart[data-room] { cursor: pointer; transition: background .15s; }
@@ -301,7 +302,7 @@ input[type="time"] {
 .act.person i { background: var(--accent); }
 .act.door i { background: var(--warn); }
 .act.away i { background: #8b85e0; }
-.act.warm i { background: var(--heat); }
+.act.boost i { background: var(--heat); }
 .act span { color: var(--text); }
 .activity .empty { color: var(--text-dim); font-size: 14px; margin: 0; }
 .activity .more-btn {
@@ -468,6 +469,7 @@ input[type="time"] {
                 <span><i class="key target"></i>Target</span>
                 <span><i class="key heat"></i>Heating</span>
                 <span><i class="key night"></i>Night / Away</span>
+                <span><i class="key warmup"></i>Warm-up</span>
             </div>
         </div>
         <div class="charts" id="charts"></div>
@@ -500,6 +502,7 @@ input[type="time"] {
                     <span><i class="key target"></i>Target</span>
                     <span><i class="key heat"></i>Heating</span>
                     <span><i class="key night"></i>Night / Away</span>
+                    <span><i class="key warmup"></i>Warm-up</span>
                 </div>
                 <div class="plot"></div>
                 <div class="stats" id="room-stats"></div>
@@ -1064,7 +1067,7 @@ async function loadHistory() {
     $('charts').classList.add('loading');
     const t1 = Date.now(), t0 = t1 - H.hours * 3600e3;
     const heaters = HIST_ROOMS.map(heaterOf);
-    const ids = [E.house, E.hsm, ...HIST_ROOMS.flatMap((r, i) => [r.sensor, r.target, r.offset, heaters[i]])].filter(Boolean);
+    const ids = [E.house, E.hsm, BOOST.house, ...HIST_ROOMS.flatMap((r, i) => [r.sensor, r.target, r.offset, heaters[i], BOOST[r.key]])].filter(Boolean);
     try {
         const res = await request({
             type: 'history/history_during_period', entity_ids: ids,
@@ -1086,6 +1089,8 @@ function historyModel(res, t0, t1, heaters, idxs = HIST_ROOMS.map((_, i) => i)) 
     const get = id => steps(res[id]);
     const house = get(E.house);
     let derivedAny = false;
+    const warming = v => v === 'active' || v === 'paused';
+    const houseBoost = spans(get(BOOST.house), warming, t0, t1);
     const rooms = idxs.map(i => {
         const r = HIST_ROOMS[i];
         const temp = get(r.sensor).map(p => ({ t: Math.max(p.t, t0), v: numOr(p.v) })).filter(p => p.v != null);
@@ -1106,6 +1111,7 @@ function historyModel(res, t0, t1, heaters, idxs = HIST_ROOMS.map((_, i) => i)) 
             name: r.name, temp, target: [...derived, ...measured],
             off: spans(measured, v => v == null, t0, t1, 3 * 60e3),      // blank target = thermostat off
             heat: spans(get(heaters[i]), v => v === 'on' || v === 'heat', t0, t1),
+            boost: mergeSpans([...spans(get(BOOST[r.key]), warming, t0, t1), ...houseBoost]),
         };
     });
 
@@ -1122,6 +1128,7 @@ function historyModel(res, t0, t1, heaters, idxs = HIST_ROOMS.map((_, i) => i)) 
             name: 'House', house: true, temp: avg, off: [],
             target: house.map(p => ({ t: Math.max(p.t, t0), v: numOr(p.v) })),
             heat: mergeSpans(rooms.flatMap(r => r.heat)),
+            boost: houseBoost,
         },
         bands: [
             ...spans(hsm, v => v === 'armedNight', t0, t1).map(s => [...s, 'Night']),
@@ -1172,7 +1179,7 @@ async function loadRoomHistory() {
     try {
         const res = await request({
             type: 'history/history_during_period',
-            entity_ids: [E.house, E.hsm, r.sensor, r.target, r.offset, heaters[i]].filter(Boolean),
+            entity_ids: [E.house, E.hsm, BOOST.house, r.sensor, r.target, r.offset, heaters[i], BOOST[r.key]].filter(Boolean),
             start_time: new Date(t0).toISOString(), end_time: new Date(t1).toISOString(),
             include_start_time_state: true, significant_changes_only: false,
             minimal_response: true, no_attributes: true,
@@ -1310,17 +1317,18 @@ function roomActivity(r, entries, m) {
         const v = m ? valueAt(m.target, t + 20e3) : null;
         return v ?? clamp(Math.round(houseV + offsetNow), ROOM_MIN, ROOM_MAX);
     };
-    let lastRoomState = null, lastWarm = -Infinity;
+    let lastRoomState = null;
+    const warmTimes = entries.filter(e => e.message && e.message.startsWith('warming up') && (e.entity_id === r.id || e.entity_id === E.house)).map(e => e.when * 1000);
     for (const e of [...entries].sort((a, b) => a.when - b.when)) {
         const t = e.when * 1000;
         // Warm-ups (logged by the script and the end automation), for this room or the House
         if (e.message && (e.entity_id === r.id || e.entity_id === E.house)) {
             const house = e.entity_id === E.house;
             const wm = e.message.match(/^warming up for (.+) by (.+)$/);
-            if (wm) { out.push({ t, kind: 'warm', text: `${wm[2] === 'someone' ? 'Someone' : wm[2]} warmed ${house ? 'the house' : 'it'} up for ${wm[1]}` }); lastWarm = t; continue; }
-            if (e.message === 'warm-up ended') { out.push({ t, kind: 'warm', text: house ? 'House warm-up ended' : 'Warm-up ended' }); continue; }
+            if (wm) { out.push({ t, kind: 'boost', text: `${wm[2] === 'someone' ? 'Someone' : wm[2]} warmed ${house ? 'the house' : 'it'} up for ${wm[1]}` }); continue; }
+            if (e.message === 'warm-up ended') { out.push({ t, kind: 'boost', text: house ? 'House warm-up ended' : 'Warm-up ended' }); continue; }
         }
-        if (t - lastWarm < 15e3) continue;          // the warm-up's own set-temperature lines
+        if (warmTimes.some(w => Math.abs(w - t) < 15e3)) continue;   // the warm-up's own set-temperature lines
         if (e.entity_id === E.house) {
             const v = numOr(e.state);
             if (v == null) continue;
@@ -1423,6 +1431,10 @@ const median = a => { const b = [...a].sort((x, y) => x - y); return b[Math.floo
 
 function findSuggestions(entries, now = Date.now()) {
     const since = now - SUG_DAYS * DAY;
+    // A warm-up logs "warming up for …" on the room (or House) it raised; the raise
+    // itself lands within a few seconds of it and isn't a sign the schedule is wrong.
+    const warmAt = entries.filter(e => e.message && e.message.startsWith('warming up'));
+    const fromWarm = (entity, t) => warmAt.some(w => (w.entity_id === entity || w.entity_id === E.house) && Math.abs(w.when * 1000 - t) < 20e3);
     const houseSteps = entries.filter(e => e.entity_id === E.house)
         .map(e => ({ t: e.when * 1000, v: numOr(e.state) })).filter(p => p.v != null).sort((a, b) => a.t - b.t);
     const out = [];
@@ -1430,7 +1442,7 @@ function findSuggestions(entries, now = Date.now()) {
     // House, by schedule block
     const byBlock = new Map();
     for (const e of entries) {
-        if (e.entity_id !== E.house || !e.context_user_id || e.when * 1000 < since) continue;
+        if (e.entity_id !== E.house || !e.context_user_id || e.when * 1000 < since || fromWarm(E.house, e.when * 1000)) continue;
         const v = numOr(e.state), b = blockAt(e.when * 1000), base = num(b.temp);
         if (v == null || base == null || v === base) continue;
         const key = `${b.key}:${v > base ? 'up' : 'down'}`;
@@ -1457,7 +1469,7 @@ function findSuggestions(entries, now = Date.now()) {
             if (e.entity_id !== r.id || !e.message) continue;
             const t = e.when * 1000;
             const mm = e.message.match(/^set to (\d+)° by /);
-            if (!mm || t < since || t < offChanged) continue;
+            if (!mm || t < since || t < offChanged || fromWarm(r.id, t)) continue;
             const h = valueAt(houseSteps, t);
             if (h == null) continue;
             const delta = Number(mm[1]) - clamp(Math.round(h + off), ROOM_MIN, ROOM_MAX);
@@ -1621,6 +1633,12 @@ function drawChart(card, m, d, lo, hi, idx, hours) {
         g += `<rect x="${f(x0)}" y="${M.t}" width="${f(Math.max(0, x1 - x0))}" height="${ph}" rx="6" fill="rgba(255,255,255,.035)"/>`;
         if (x1 - x0 > 44) g += `<text x="${f(x0 + 6)}" y="${M.t - 6}">${label}</text>`;
     }
+    // Warm-ups: a faint amber band
+    for (const [a, b] of m.boost || []) {
+        const x0 = X(a), x1 = X(b);
+        g += `<rect x="${f(x0)}" y="${M.t}" width="${f(Math.max(2, x1 - x0))}" height="${ph}" rx="6" fill="rgba(240,166,86,.10)"/>`;
+        if (x1 - x0 > 52) g += `<text x="${f(x0 + 6)}" y="${M.t + ph - 6}">Warm-up</text>`;
+    }
     for (const [a, b] of m.off) {
         g += `<rect x="${f(X(a))}" y="${M.t}" width="${f(Math.max(1, X(b) - X(a)))}" height="${ph}" fill="url(#hatch${idx})"/>`;
     }
@@ -1699,6 +1717,7 @@ function hoverChart(e) {
     const inSpan = list => list.some(([a, b]) => t >= a && t < b);
     const off = inSpan(m.off), heating = inSpan(m.periods);
     const band = d.bands.find(([a, b]) => t >= a && t < b);
+    const warm = (m.boost || []).some(([a, b]) => t >= a && t < b);
 
     const xh = plot.querySelector('.xh');
     xh.setAttribute('visibility', 'visible');
@@ -1712,7 +1731,7 @@ function hoverChart(e) {
     tip.replaceChildren();
     const head = document.createElement('div');
     head.className = 't';
-    head.textContent = fmtWhen(t) + (band ? ` \u00b7 ${band[2]}` : '');
+    head.textContent = fmtWhen(t) + (band ? ` \u00b7 ${band[2]}` : '') + (warm ? ' \u00b7 Warm-up' : '');
     tip.append(head);
     if (temp != null) tipRow(tip, { color: 'var(--c-temp)' }, `${temp.toFixed(1)}\u00b0`, m.house ? 'average inside' : 'in the room');
     if (off) tipRow(tip, { color: 'var(--off)' }, 'Off', 'thermostat');
