@@ -15,4 +15,5 @@ mkdir -p "$DEST/js"
 cp climate.html led-panel.html bedtime.html \
    led-icon.png led-icon.svg led-icon-apple.png apple-touch-icon.png "$DEST/"
 cp js/ha-app.js "$DEST/js/"
+cp "READ ME FIRST - where to edit.txt" "$DEST/"
 echo "Deployed to nginx and Home Assistant /local/webapps/"

@@ -1,5 +1,7 @@
 # HA Local Webapps
 
+> **Where to edit:** change pages in this folder on Tim's PC, then run `./deploy.sh`. The copies on the file server (192.168.2.119) and inside Home Assistant (`config/www/webapps`) get overwritten by every deploy. See `READ ME FIRST - where to edit.txt`.
+
 A collection of locally-hosted vanilla JS/HTML web apps for Home Assistant automation and display control. Served from an nginx web server on a Proxmox LXC at 192.168.2.119. All apps communicate directly with the HA REST API and MQTT broker.
 
 ---

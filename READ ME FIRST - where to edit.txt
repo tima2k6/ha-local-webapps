@@ -1,0 +1,28 @@
+READ ME FIRST - WHERE TO EDIT THESE PAGES
+=========================================
+
+The dashboard pages (climate.html, led-panel.html, bedtime.html) exist in
+THREE places. Only ONE of them is the real one to edit.
+
+  1. THE ORIGINAL - edit here
+     Tim's PC:  C:\Users\timan\Projects\ha-local-webapps
+     Change the files here, then run  ./deploy.sh  (or ask Claude to).
+
+  2. Copy inside Home Assistant - this is what the dashboard shows
+     \\192.168.2.125\config\www\webapps   (opened as /local/webapps/...)
+     Don't edit here: the next deploy overwrites it.
+
+  3. Copy on the file server - only used on the home network
+     192.168.2.119   /var/www/html
+     Don't edit here: the dashboard doesn't use these copies any more,
+     so changes here won't show up, and the next deploy overwrites them.
+     (Exception: the wall screensaver, index.html, still runs from here.)
+
+WHAT ./deploy.sh DOES
+  Saves the changes, updates copy 3 (file server) and copies the pages into
+  copy 2 (Home Assistant). One command, everything in step.
+
+AFTER A CHANGE
+  Phones and the tablet keep Home Assistant's copies cached for up to a
+  month. Bump the version at the end of the dashboard links (?v=...) so
+  devices load the new version. Claude does this as part of every deploy.
