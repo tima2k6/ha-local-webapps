@@ -119,7 +119,8 @@ export class FlightBackdrop {
                 'M'+points.map(p => p.map(n => n.toFixed(1)).join(',')).join('L'));
         }
         for (const kind of ['minor', 'major', 'water']) {
-            svg('path', { d: linework[kind].join(''), fill: 'none',
+            // Colors here are fallbacks: index.html's --road-* (season, golden hour) override them
+            svg('path', { class: `road ${kind}`, d: linework[kind].join(''), fill: 'none',
                 stroke: kind === 'water' ? '#495b57' : kind === 'major' ? '#56605c' : '#343b38',
                 'stroke-width': kind === 'water' ? 1.2 : kind === 'major' ? 1 : .65,
                 'stroke-opacity': kind === 'water' ? 1 : .9,
@@ -206,7 +207,7 @@ export class FlightBackdrop {
             points = points.slice(-45);
             if (!points.length || distance(points.at(-1)) > 1) points.push([x, y]);
             for (let i = 1; i < points.length; i++) {
-                svg('path', { d: `M${points[i-1].join(',')}L${points[i].join(',')}`, fill: 'none',
+                svg('path', { class: 'trail', d: `M${points[i-1].join(',')}L${points[i].join(',')}`, fill: 'none',
                     stroke: '#5fc9b4', 'stroke-width': 1.6, 'stroke-opacity': (.08+.55*i/points.length).toFixed(2) }, item.trails);
             }
         }

@@ -236,6 +236,10 @@ const THUNDER = new Set(['lightning', 'lightning-rainy']);
 const STRONG_WIND = 30;                         // mph, pinned
 const HOT = 90, HARD_FREEZE = 28;               // °F
 const UV_HIGH = 7;
+// Firsts of the season, from HA's long-term statistics (daily min/max outside)
+const OUTDOOR = 'sensor.outdoor_temperature';
+const FIRST_SNOW = 'input_datetime.first_snow_of_the_season';   // set by "Weather - First snow of the season"
+const FIRST_HOT = 80;                                       // °F: the year's first 80° day
 
 // ===== Moon: full and new moon times (Meeus, Astronomical Algorithms ch. 49,
 // main terms; good to a few minutes) =====
@@ -305,7 +309,10 @@ const INS_ICONS = {
     storm: '<path d="M7 15a4 4 0 0 1-.5-8A5.5 5.5 0 0 1 17 7.5a3.75 3.75 0 0 1 0 7.5"/><path d="M12.5 12L10 16.5h4L11.5 21"/>',
     drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
     fog: '<path d="M7 9.5a5 5 0 0 1 9.6-1.9A3.5 3.5 0 0 1 17.5 14M3 14h14M5 17.5h14M3 21h12"/>',
-    cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'
+    cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+    cake: '<path d="M4 21h16M5 21v-7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7M5 16.5c1.5 1 2.5 1 3.5 0s2-1 3.5 0 2.5 1 3.5 0 2-1 3.5 0M12 12V8.5M12 3.5c.9 1 1.2 1.9.9 2.6a1 1 0 0 1-1.8 0c-.3-.7 0-1.6.9-2.6z"/>',
+    heart: '<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/>',
+    sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>'
 };
 const insIcon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${INS_ICONS[name]}</svg>`;
@@ -317,10 +324,29 @@ const hmFull = d => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit
 const dayKey = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
+// One request over HA's websocket API, for what REST doesn't offer (statistics)
+function haWs(haUrl, token, msg, timeout = 15000) {
+    return new Promise((resolve, reject) => {
+        const ws = new WebSocket(`${haUrl.replace(/^http/, 'ws')}/api/websocket`);
+        const done = (settle, value) => { clearTimeout(timer); ws.close(); settle(value); };
+        const timer = setTimeout(() => done(reject, new Error('websocket timeout')), timeout);
+        ws.onmessage = ({ data }) => {
+            const m = JSON.parse(data);
+            if (m.type === 'auth_required') ws.send(JSON.stringify({ type: 'auth', access_token: token }));
+            else if (m.type === 'auth_ok') ws.send(JSON.stringify({ id: 1, ...msg }));
+            else if (m.type === 'auth_invalid') done(reject, new Error('HA authentication rejected'));
+            else if (m.type === 'result' && m.id === 1)
+                m.success ? done(resolve, m.result) : done(reject, new Error(m.error?.message || 'request failed'));
+        };
+        ws.onerror = () => done(reject, new Error('websocket error'));
+    });
+}
+
 class Insights {
-    constructor(haUrl, token, el) {
-        Object.assign(this, { haUrl, token, el });
+    constructor(haUrl, token, el, extraLines) {
+        Object.assign(this, { haUrl, token, el, extraLines });
         this.data = {};
+        this.firstPreview = new URLSearchParams(location.search).get('first');   // frost | snow | hot
         this.turn = 0;
         const preview = new URLSearchParams(location.search).get('commute_preview');
         this.commutePreview = ['tim', 'emily', 'both', 'emily-work', 'pickup', 'dropoff'].includes(preview) ? preview : null;
@@ -365,6 +391,7 @@ class Insights {
         'sync': states('${PICKUP.sync}'), 'syncOk': is_state('${PICKUP.status}', 'ok'),
         'parentAtSchool': is_state('person.tim', state_attr('${PICKUP.zone}', 'friendly_name'))
             or is_state('person.emily', state_attr('${PICKUP.zone}', 'friendly_name'))},
+    'first_snow': states('${FIRST_SNOW}'),
     'meds': states('${MEDS_TAKEN}'), 'hold': states('${HOLD}'), 'printers': ns.p, 'warm': ns.w,
     'aqi': states('${AQI}'), 'dew': state_attr('${WEATHER}', 'dew_point'),
     'humid': state_attr('${WEATHER}', 'humidity'),
@@ -403,7 +430,8 @@ class Insights {
                 plants: d.plants,
                 aqi: parseFloat(d.aqi),
                 dew: typeof d.dew === 'number' ? d.dew : null,
-                humidOut: typeof d.humid === 'number' ? d.humid : null
+                humidOut: typeof d.humid === 'number' ? d.humid : null,
+                firstSnow: Date.parse(String(d.first_snow).replace(' ', 'T')) || null
             });
         } catch (e) { console.error('Insights:', e); }
         this.render();
@@ -432,6 +460,49 @@ class Insights {
         this.render();
     }
 
+    // Has it already frosted this season (since July 1) or hit 80° this year? Daily
+    // min/max from the long-term statistics; null when the history doesn't reach
+    // back that far, so a line never claims a "first" it can't know.
+    async refreshFirsts() {
+        try {
+            const now = new Date();
+            const fall = new Date(now.getFullYear() - (now.getMonth() < 6 ? 1 : 0), 6, 1);
+            const year = new Date(now.getFullYear(), 0, 1);
+            const r = await haWs(this.haUrl, this.token, {
+                type: 'recorder/statistics_during_period', start_time: new Date(Math.min(fall, year)).toISOString(),
+                statistic_ids: [OUTDOOR], period: 'day', types: ['min', 'max'], units: { temperature: '°F' }
+            });
+            const midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
+            const days = (r[OUTDOOR] || []).map(d => ({ t: new Date(d.start), min: d.min, max: d.max }))
+                .filter(d => Number.isFinite(d.min) && Number.isFinite(d.max));
+            const before = days.filter(d => d.t < midnight), today = days.filter(d => d.t >= midnight);
+            const reaches = from => before.length > 0 && before[0].t - from < 7 * 86400e3;
+            // It never frosts here before October, so history from Oct 1 on is enough
+            // (the outdoor sensor's statistics only start 2026-09-22)
+            const frostKnown = before.length > 0 && before[0].t <= new Date(fall.getFullYear(), 9, 1);
+            this.data.firsts = {
+                frostSeen: frostKnown ? before.some(d => d.t >= fall && d.min <= FROST_AT) : null,
+                hotSeen: reaches(year) ? before.some(d => d.t >= year && d.max >= FIRST_HOT) : null,
+                todayMin: today.length ? Math.min(...today.map(d => d.min)) : null
+            };
+        } catch (e) { console.error('Insights firsts:', e); }
+        this.render();
+    }
+
+    // "First ..." lines: tone 'first' (the icon in the accent color)
+    firstLines(now, m) {
+        const f = this.data.firsts || {}, out = [], preview = this.firstPreview;
+        const snow = this.data.firstSnow && dayKey(new Date(this.data.firstSnow)) === dayKey(now);
+        if (snow || preview === 'snow') out.push(['first', 'cold', 'First snow of the season']);
+        const frostMorning = f.frostSeen === false && f.todayMin !== null && f.todayMin <= FROST_AT;
+        if (m < 12 * 60 && frostMorning || preview === 'frost')
+            out.push(['first', 'cold', `First frosty morning of the season · it got down to <b>${preview === 'frost' ? 31 : Math.round(f.todayMin)}°</b>`]);
+        const today = (this.data.daily || []).find(d => dayKey(d.t) === dayKey(now));
+        if (m < EVENING && f.hotSeen === false && today?.temperature >= FIRST_HOT || preview === 'hot')
+            out.push(['first', 'warm', `First ${FIRST_HOT}° day of the year · up to <b>${preview === 'hot' ? 82 : Math.round(today.temperature)}°</b>`]);
+        return out;
+    }
+
     hours(from, until) {
         return (this.data.hourly || []).filter(h => h.t >= from && h.t < until);
     }
@@ -456,6 +527,8 @@ class Insights {
         const m = now.getHours() * 60 + now.getMinutes();
         const { sun, daily } = this.data;
         const out = [];
+
+        out.push(...(this.extraLines?.(now) || []), ...this.firstLines(now, m));
 
         const dropoff = this.dropoffLine(now);
         if (dropoff) out.push(dropoff);
@@ -615,8 +688,14 @@ class Insights {
             // Frost tonight
             const tonight = this.hours(now, new Date(now.getTime() + 12 * 3600e3));
             const low = tonight.length ? Math.round(Math.min(...tonight.map(h => h.temperature))) : null;
-            if (low !== null && low <= HARD_FREEZE) out.push(['nudge', 'cold', `Hard freeze tonight · low <b>${low}°</b>, bring in the plants`]);
-            else if (low !== null && low <= FROST_AT) out.push(['', 'cold', `Frost likely tonight · low <b>${low}°</b>`]);
+            // The season's first, unless it already frosted this morning
+            const f = this.data.firsts || {};
+            const first = f.frostSeen === false && !(f.todayMin !== null && f.todayMin <= FROST_AT);
+            if (low !== null && low <= HARD_FREEZE) out.push(['nudge', 'cold', first
+                ? `First freeze of the season tonight · low <b>${low}°</b>, bring in the plants`
+                : `Hard freeze tonight · low <b>${low}°</b>, bring in the plants`]);
+            else if (low !== null && low <= FROST_AT) out.push(first ? ['first', 'cold', `First frost of the season likely tonight · low <b>${low}°</b>`]
+                : ['', 'cold', `Frost likely tonight · low <b>${low}°</b>`]);
 
             // How tomorrow will feel
             const tmr = new Date(now); tmr.setDate(tmr.getDate() + 1);
@@ -707,7 +786,7 @@ class Insights {
         const night = m < DAY_STARTS || m >= NIGHT_STARTS;
         const all = this.lines(now).filter(l => !night || l[0].includes('homeward'));
         this.el.classList.toggle('homeward', all.some(l => l[0].includes('homeward')));
-        const isPinned = l => l[0] === 'nudge' || l[0].includes('featured');
+        const isPinned = l => l[0] === 'nudge' || l[0] === 'celebrate' || l[0].includes('featured');
         let pinned = all.filter(isPinned), rest = all.filter(l => !isPinned(l));
         if (pinned.length > SHOWN) { rest = pinned; pinned = []; }      // several urgent ones take turns
         const room = Math.max(0, SHOWN - pinned.length);
@@ -754,7 +833,8 @@ class Insights {
     }
 
     start() {
-        this.refreshStates(); this.refreshForecast(); this.refreshCalendar();
+        this.refreshStates(); this.refreshForecast(); this.refreshCalendar(); this.refreshFirsts();
+        setInterval(() => this.refreshFirsts(), 3600000);
         setInterval(() => this.refreshStates(), 60000);
         setInterval(() => this.refreshForecast(), 900000);
         setInterval(() => this.refreshCalendar(), 900000);
@@ -860,14 +940,15 @@ function drift(el) {
     setInterval(nudge, DRIFT_MS);
 }
 
-export function startScreensaver(config) {
+// options.extraLines(now): more insight lines (js/ambience.js: birthdays, holidays)
+export function startScreensaver(config, options = {}) {
     const { haUrl, longLivedAccessToken: token } = config;
     const $ = id => document.getElementById(id);
     new Clock($('clock')).start();
     new Weather(haUrl, token, $('weather'), $('night-weather')).start();
     nightWatch(night => document.body.classList.toggle('night', night));
     new Agenda(haUrl, token, $('agenda')).start();
-    new Insights(haUrl, token, $('insights')).start();
+    new Insights(haUrl, token, $('insights'), options.extraLines).start();
     new StatusTags(haUrl, token, $('tags'));
     new TimerTag(haUrl, token, $('timers')).start();
     drift($('screen'));

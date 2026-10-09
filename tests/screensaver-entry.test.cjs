@@ -8,7 +8,7 @@ test('official screensaver imports resolve directly in the browser', () => {
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const modules = [...html.matchAll(/<script\b[^>]*type="module"[^>]*>([\s\S]*?)<\/script>/g)];
     const imports = modules.flatMap(m => [...m[1].matchAll(/\bfrom\s+['"]([^'"]+)['"]/g)].map(m => m[1]));
-    assert.equal(imports.length, 3);
+    assert.equal(imports.length, 4);
     for (const source of imports) {
         assert.ok(source.startsWith('./'), `Browser import must be relative: ${source}`);
         assert.ok(fs.existsSync(path.join(root, source.split('?')[0])), `Missing module: ${source}`);

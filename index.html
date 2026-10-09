@@ -23,7 +23,8 @@
             --text-dim: #b4b4b4;
             --text-low: #9e9e9e;
             --tag-border: #3a3a3a;
-            --accent: #5fc9b4;
+            --accent: #5fc9b4;      /* follows the season (js/ambience.js) */
+            --calm: #5fc9b4;        /* "all is well" tags: always teal, so they never read as amber */
             --accent-border: #2c5a51;
             --warn: #e0a64a;
             --warn-text: #f0bd68;
@@ -304,8 +305,8 @@
             background: #6a665f;
         }
 
-        .tag.calm { color: var(--accent); }
-        .tag.calm .dot { background: var(--accent); }
+        .tag.calm { color: var(--calm); }
+        .tag.calm .dot { background: var(--calm); }
         .tag.warn { color: var(--warn-text); }
         .tag.warn .dot { background: var(--warn); }
         .tag.alert { color: var(--alert-text); }
@@ -441,10 +442,23 @@
 <style>
 #screen{isolation:isolate}#flight-map{position:absolute;inset:0;width:100%;height:100%;z-index:-2;opacity:var(--map-opacity,.52);pointer-events:none}
 #screen::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(to top,var(--bg),transparent 25%),linear-gradient(to bottom,var(--bg),transparent 18%),linear-gradient(to right,var(--bg),transparent 15%),linear-gradient(to left,var(--bg),transparent 15%);pointer-events:none}
-.live-aircraft use{fill:#8de0cd}.live-aircraft text,.home text{font:14px Figtree,sans-serif;letter-spacing:1.4px;fill:#85b5aa}.live-aircraft .flight-route{font-size:11px;letter-spacing:1px;fill:#71958c;opacity:.8}.home{opacity:.5}.home text{font-size:12px}.live-marker{transition:transform 2s linear}
+.live-aircraft use{fill:var(--plane,#8de0cd)}.live-aircraft text,.home text{font:14px Figtree,sans-serif;letter-spacing:1.4px;fill:var(--map-label,#85b5aa)}.live-aircraft .flight-route{font-size:11px;letter-spacing:1px;fill:var(--map-route,#71958c);opacity:.8}.home{opacity:.5}.home text{font-size:12px}.live-marker{transition:transform 2s linear}
 body.night #flight-map,body.force-night #flight-map{opacity:calc(var(--map-opacity,.52)*.85)}body.night #screen::before,body.force-night #screen::before{background:linear-gradient(to top,var(--bg),transparent 25%),linear-gradient(to bottom,var(--bg),transparent 18%),linear-gradient(to right,var(--bg),transparent 15%),linear-gradient(to left,var(--bg),transparent 15%)}
 body.no-labels .live-aircraft text{display:none}#map-credit{position:absolute;bottom:8px;right:14px;z-index:1;font:10px Figtree,sans-serif;color:#666;opacity:.7;pointer-events:none}#map-credit a{color:inherit;text-decoration:none}body.night #map-credit,body.force-night #map-credit{opacity:.4}
 @media(prefers-reduced-motion:reduce){.live-marker{transition:none}}
+/* Ambience (js/ambience.js): season accent, golden hour, weather mood, sun/moon arc */
+.trail,.home circle{stroke:var(--accent)}.home .home-dot{fill:var(--accent);stroke:none}
+#local-roads .road{transition:stroke 60s linear}#local-roads .minor{stroke:var(--road-minor,#343b38)}#local-roads .major{stroke:var(--road-major,#56605c)}#local-roads .water{stroke:var(--road-water,#495b57)}
+#mood{position:absolute;inset:0;width:100%;height:100%;z-index:-2;pointer-events:none}
+#flight-map{transition:opacity 4s}#local-roads{transition:filter 4s}body.mood-fog #flight-map{opacity:calc(var(--map-opacity,.52)*.7)}body.mood-fog #local-roads{filter:blur(1.3px)}
+#sky{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;opacity:.7;transition:opacity 4s}body.night #sky,body.force-night #sky{opacity:.35}
+#sky .arc-track{fill:none;stroke:#8a8a8a;stroke-opacity:.22;stroke-width:1.2;stroke-dasharray:2 7;stroke-linecap:round}
+#sky .arc-done{fill:none;stroke:var(--accent);stroke-opacity:.35;stroke-width:1.4}
+#sky .arc-time{font:13px Figtree,sans-serif;letter-spacing:1px;fill:#8a8a8a;opacity:.7}
+#sky .moon-dark{fill:#1c1c1c;stroke:#5a5a5a;stroke-width:.8}#sky .moon-lit{fill:#d8d8d8}
+body.celebrate #clock .time{color:var(--celebrate);transition:color 4s}
+.ins.celebrate{color:var(--text-hi)}.ins.celebrate svg,.ins.first svg{color:var(--accent)}
+.ins.first.fresh svg{animation:firstGlow 3s ease-out both}@keyframes firstGlow{0%{transform:scale(.6);opacity:0}40%{transform:scale(1.25);opacity:1}100%{transform:scale(1)}}
 body.force-night { --bg: #050505; }
 
         #night-weather { display: none; }
@@ -505,7 +519,7 @@ body.force-night { --bg: #050505; }
 <body>
     <div id="screen"><svg id="flight-map" viewBox="0 0 1280 800" aria-label="Local streets and nearby aircraft from Home Assistant">
 <defs><radialGradient id="mapfade"><stop offset="0" stop-color="white"/><stop offset=".65" stop-color="white"/><stop offset="1" stop-color="white" stop-opacity=".25"/></radialGradient><mask id="fade"><rect width="1280" height="800" fill="url(#mapfade)"/></mask><path id="plane" d="M0 -12 3 -3 11 2 11 5 3 3 2 10 5 12 5 14 0 12 -5 14 -5 12 -2 10 -3 3 -11 5 -11 2 -3 -3Z"/></defs>
-<g id="local-roads" mask="url(#fade)"></g><g class="flights"></g><g class="home" transform="translate(640 480)"><circle r="23" fill="none" stroke="#5fc9b4" stroke-opacity=".15"/><circle r="4" fill="#5fc9b4"/><text x="14" y="5">HOME</text></g></svg><div id="map-credit"><a href="https://www.openstreetmap.org/copyright" tabindex="-1">&copy; OpenStreetMap contributors</a></div>
+<g id="local-roads" mask="url(#fade)"></g><g class="flights"></g><g class="home" transform="translate(640 480)"><circle r="23" fill="none" stroke="#5fc9b4" stroke-opacity=".15"/><circle class="home-dot" r="4" fill="#5fc9b4"/><text x="14" y="5">HOME</text></g></svg><div id="map-credit"><a href="https://www.openstreetmap.org/copyright" tabindex="-1">&copy; OpenStreetMap contributors</a></div>
         <div id="top">
             <div id="left">
                 <div id="clock">
@@ -535,15 +549,17 @@ body.force-night { --bg: #050505; }
 <script src="js/ha-config.js?v=20261009-flight-8"></script>
 <script type="module">
 import { config } from './js/config.js?v=20261009-flight-8';
-import { startScreensaver } from './js/screensaver.js?v=35';
-import { FlightBackdrop } from './js/flight-backdrop.js?v=7';
+import { startScreensaver } from './js/screensaver.js?v=36';
+import { FlightBackdrop } from './js/flight-backdrop.js?v=8';
+import { Ambience } from './js/ambience.js?v=1';
 // Display settings are configured by URL; the screensaver stays touchless.
 const params=new URLSearchParams(location.search);
 const brightness=Number(params.get('map'));
 if(params.has('map') && Number.isFinite(brightness))document.documentElement.style.setProperty('--map-opacity',Math.min(100,Math.max(0,brightness))/100);
 if(params.has('night'))document.body.classList.add('force-night');
 if(params.get('labels')==='0')document.body.classList.add('no-labels');
-startScreensaver(config);
+const ambience=new Ambience(config).start();
+startScreensaver(config,{extraLines:now=>ambience.lines(now)});
 const backdrop=new FlightBackdrop(config,document.querySelector('#flight-map'));
 window.flightBackdrop=backdrop;
 backdrop.start();
