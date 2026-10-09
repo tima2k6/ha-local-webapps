@@ -1,6 +1,6 @@
 // screensaver.js — the "Quiet Hours" screensaver (preview.html).
 // Black OLED-friendly layout: thin clock, met.no weather, the next three
-// family-calendar events and static status tags instead of a scrolling ticker.
+// family-calendar events (plus Liam's Brightwheel school events) and static status tags instead of a scrolling ticker.
 // After sunset the clock dims and the weather/agenda column goes; tags stay.
 // The ticker's and timers' HA logic is reused by subclassing them; only their
 // rendering changes.
@@ -10,6 +10,9 @@ import { Timers } from './timers.js?v=2';
 
 const WEATHER = 'weather.forecast_home';
 const CALENDAR = 'calendar.family';
+// Brightwheel is the whole school's feed: keep Liam's classroom (D105 Explorer) and
+// "All Rooms" events, skip ones Family already has (see similar()), and say they're Liam's.
+const SCHOOL = { entity: 'calendar.brightwheel_liam', room: 'D105', label: 'Liam' };
 const MAX_EVENTS = 3;
 const DRIFT_MS = 180000;     // burn-in guard: nudge the whole layout every 3 minutes
 
@@ -121,6 +124,34 @@ class Weather {
     }
 }
 
+// ===== Family calendar + Liam's school events =====
+const evDay = ev => (ev.start.date || ev.start.dateTime).slice(0, 10);
+const forLiam = ev => { const loc = ev.location || ''; return !loc || /all rooms/i.test(loc) || loc.includes(SCHOOL.room); };
+// "Similar" = within a day of each other and mostly the same words ("Picture Day!" on the
+// 14th vs Family's "Picture day" on the 13th), or one title contained in the other.
+const STOP = new Set(['the', 'a', 'an', 'and', 'of', 'for', 'at', 'to', 'in', 'on', 'liam', 'liams', 's']);
+const words = s => new Set(String(s || '').toLowerCase().replace(/[’']/g, '').split(/[^a-z0-9]+/).filter(w => w && !STOP.has(w)));
+function similar(a, b) {
+    if (Math.abs(Date.parse(evDay(a)) - Date.parse(evDay(b))) > 86400e3) return false;
+    const x = words(a.summary), y = words(b.summary);
+    if (!x.size || !y.size) return false;
+    const shared = [...x].filter(w => y.has(w)).length;
+    return shared === Math.min(x.size, y.size) || shared / new Set([...x, ...y]).size >= 0.5;
+}
+
+async function familyEvents(haUrl, token, start, end) {
+    const get = async cal => {
+        const r = await fetch(`${haUrl}/api/calendars/${cal}?start=${start.toISOString()}&end=${end.toISOString()}`,
+            { headers: { Authorization: `Bearer ${token}` } });
+        if (!r.ok) throw new Error(`${cal}: HTTP ${r.status}`);
+        return r.json();
+    };
+    const [family, school] = await Promise.all([get(CALENDAR), get(SCHOOL.entity).catch(e => { console.error('School calendar:', e); return []; })]);
+    const liam = school.filter(ev => forLiam(ev) && !family.some(f => similar(ev, f)))
+        .map(ev => ({ ...ev, summary: `${SCHOOL.label} · ${String(ev.summary || 'School event').trim()}` }));
+    return [...family, ...liam];
+}
+
 // ===== Next three calendar events =====
 class Agenda {
     constructor(haUrl, token, el) { Object.assign(this, { haUrl, token, el }); }
@@ -142,10 +173,7 @@ class Agenda {
         try {
             const start = new Date(), end = new Date();
             end.setDate(end.getDate() + 14);
-            const r = await fetch(`${this.haUrl}/api/calendars/${CALENDAR}?start=${start.toISOString()}&end=${end.toISOString()}`,
-                { headers: { Authorization: `Bearer ${this.token}` } });
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-            const events = (await r.json())
+            const events = (await familyEvents(this.haUrl, this.token, start, end))
                 .sort((a, b) => new Date(a.start.dateTime || a.start.date) - new Date(b.start.dateTime || b.start.date))
                 .slice(0, MAX_EVENTS);
             this.el.innerHTML = events.length
@@ -361,7 +389,7 @@ class Insights {
         try {
             const a = new Date(); a.setHours(24, 0, 0, 0);
             const b = new Date(a); b.setHours(12);
-            const evs = await this.api(`calendars/${CALENDAR}?start=${a.toISOString()}&end=${b.toISOString()}`);
+            const evs = await familyEvents(this.haUrl, this.token, a, b);
             const starts = evs.filter(e => e.start.dateTime).map(e => new Date(e.start.dateTime))
                 .filter(t => t >= a && t < b).sort((x, y) => x - y);
             this.data.earlyTomorrow = starts[0] || null;
