@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Quiet Hours layout verification</title><style>html,body{margin:0;background:#0c0c0c}body{min-width:0}</style></head><body>
+<quiet-hours-dashboard></quiet-hours-dashboard>
+<script>window.testReady = new Promise(resolve => window.readyResolve = resolve);</script>
+<script type="module">
+import '../../js/quiet-hours-dashboard.js';
+const [config, states] = await Promise.all([fetch('./dashboard-draft.json').then(r => r.json()), fetch('./preview-states.json').then(r => r.json())]);
+const page = new URLSearchParams(location.search).get('page') || 'overview';
+const card = document.querySelector('quiet-hours-dashboard');
+window.testCalls = [];
+window.testStates = states;
+window.testHass = {
+  states, connected: true,
+  callService: async (domain, service, data) => { window.testCalls.push({ domain, service, data }); },
+  callApi: async () => {
+    const now = new Date();
+    const start = new Date(now.getTime() + 3600000), end = new Date(now.getTime() + 7200000);
+    return [{ summary: 'Family calendar preview', start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } }];
+  },
+};
+window.loadCardHelpers = async () => ({ createCardElement: config => {
+  const div = document.createElement('div'); div.textContent = 'Native HA detail card: ' + config.type;
+  div.style.cssText = 'padding:24px;border:1px solid #303030;border-radius:16px;color:#b4b4b4'; return div;
+} });
+card.setConfig(config.views.find(v => v.path === page).cards[0]);
+card.hass = window.testHass;
+await document.fonts.ready;
+await new Promise(resolve => setTimeout(resolve, 1000));
+window.readyResolve();
+</script></body></html>

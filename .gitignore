@@ -13,3 +13,7 @@ index.nginx-debian.html
 # Private home location and tablet settings (deployed locally only)
 data/local-flight-map.json
 backups/**/tablet-screensaver-settings.json
+
+# Local dashboard verification state and browser profile
+previews/quiet-hours/.browser-cache/
+previews/quiet-hours/preview-states.json

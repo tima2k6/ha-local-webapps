@@ -1,0 +1,38 @@
+[
+  {
+    "page": "overview",
+    "live": true,
+    "connected": true,
+    "mainButtons": 13,
+    "horizontalOverflow": false,
+    "details": {
+      "count": 1,
+      "errors": 0,
+      "loading": false
+    }
+  },
+  {
+    "page": "liam",
+    "live": true,
+    "connected": true,
+    "mainButtons": 17,
+    "horizontalOverflow": false,
+    "details": {
+      "count": 11,
+      "errors": 0,
+      "loading": false
+    }
+  },
+  {
+    "page": "network",
+    "live": true,
+    "connected": true,
+    "mainButtons": 21,
+    "horizontalOverflow": false,
+    "details": {
+      "count": 1,
+      "errors": 0,
+      "loading": false
+    }
+  }
+]

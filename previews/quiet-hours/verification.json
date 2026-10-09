@@ -1,0 +1,56 @@
+[
+  {
+    "page": "overview",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "mainButtons": 13,
+    "contentHeight": 768.640625,
+    "brokenGroups": [],
+    "unavailableCount": 0
+  },
+  {
+    "page": "liam",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "mainButtons": 17,
+    "contentHeight": 873.8125,
+    "brokenGroups": [],
+    "unavailableCount": 0
+  },
+  {
+    "page": "network",
+    "width": 1280,
+    "horizontalOverflow": false,
+    "mainButtons": 21,
+    "contentHeight": 954.953125,
+    "brokenGroups": [],
+    "unavailableCount": 0
+  },
+  {
+    "page": "overview",
+    "width": 390,
+    "horizontalOverflow": false,
+    "mainButtons": 13,
+    "contentHeight": 1399.921875,
+    "brokenGroups": [],
+    "unavailableCount": 0
+  },
+  {
+    "page": "liam",
+    "width": 390,
+    "horizontalOverflow": false,
+    "mainButtons": 17,
+    "contentHeight": 1676.171875,
+    "brokenGroups": [],
+    "unavailableCount": 0
+  },
+  {
+    "page": "network",
+    "width": 390,
+    "horizontalOverflow": false,
+    "mainButtons": 21,
+    "contentHeight": 2258.71875,
+    "brokenGroups": [],
+    "unavailableCount": 0
+  }
+]
