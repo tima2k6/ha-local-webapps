@@ -609,6 +609,11 @@ class Insights {
         setInterval(() => this.refreshForecast(), 900000);
         setInterval(() => this.refreshCalendar(), 900000);
         setInterval(() => { this.turn++; this.render(); }, ROTATE_MS);
+        // Where the agenda and clock end depends on the calendar and the time, both of
+        // which change between renders: re-fit whenever either resizes, and once fonts load.
+        const ro = new ResizeObserver(() => this.fit());
+        for (const id of ['side', 'clock']) { const el = document.getElementById(id); if (el) ro.observe(el); }
+        document.fonts?.ready.then(() => this.fit());
     }
 }
 
