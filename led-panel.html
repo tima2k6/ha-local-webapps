@@ -437,6 +437,21 @@
             </div>
             <div class="sub" id="otherModeSub" style="margin-top:8px;font-size:12px;color:var(--faint);"></div>
         </div>
+
+        <!-- Now playing: music on Pup while the Home Theater activity is Echo -->
+        <div class="card">
+            <div class="card-head"><h2>Now Playing</h2><span class="hint">Pup · Echo activity</span></div>
+            <div class="seg three" role="group" aria-label="Now playing">
+                <button id="npmode-Takeover" onclick="setNowPlayingMode('Takeover')">Takeover</button>
+                <button id="npmode-Rotation" onclick="setNowPlayingMode('Rotation')">Rotation</button>
+                <button id="npmode-Off"      onclick="setNowPlayingMode('Off')">Off</button>
+            </div>
+            <div class="sub" id="npModeSub" style="margin-top:8px;font-size:12px;color:var(--faint);"></div>
+            <div class="timer-dur" id="npDurRow" hidden>
+                <div class="screen-name">Time on screen<small>Its turn in the rotation</small></div>
+                <div class="stepper"><button onclick="adjustDuration('nowplaying',-5,'durNpVal','durNp')">−</button><span><span class="stepper-val" id="durNpVal">20</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('nowplaying',5,'durNpVal','durNp')">+</button></div>
+            </div>
+        </div>
         </div>
     </div>
 
@@ -563,6 +578,12 @@ const HA = {
     timer_mode:    'input_select.panel_timer_mode',
     other_mode:    'input_select.panel_other_timers_mode',
     dur_timer:     'input_number.panel_duration_timer',
+    // Now playing ("Panel MQTT — Now playing"): mode, rotation time, and the
+    // two players it reads the song from
+    np_mode:       'input_select.panel_now_playing_mode',
+    dur_np:        'input_number.panel_duration_now_playing',
+    np_spotify:    'media_player.spotify_tim_annan',
+    np_pup:        'media_player.alexa_pup',
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -573,7 +594,7 @@ let hs = {
     zagsOn:false, marinersOn:false, seahawksOn:false, soundersOn:false, krakenOn:false,
     msg2:{text:'', color:{r:255,g:255,b:255}, image:'none', size:'medium'},
     durMsg:30, durMsg2:30, durZags:30, durIdle:10, durBed:30, durMariners:30, durSeahawks:30, durSounders:30, durKraken:30, durTimer:20,
-    timerMode:'Takeover', otherMode:'Corner',
+    timerMode:'Takeover', otherMode:'Corner', npMode:'Takeover', durNp:20, np:null,
     weather:{temp:0,condition:''},
     zags:{teamScore:0,oppScore:0,opponent:'TBD'},
     seahawks:{state:'',teamScore:0,oppScore:0,oppAbbr:'',oppName:'',quarter:0,clock:'',
@@ -651,6 +672,12 @@ async function sync() {
             fetchHA(HA.notif_text),fetchHA(HA.notif_red),fetchHA(HA.notif_green),fetchHA(HA.notif_blue),
             fetchHA(HA.other_mode)
         ]);
+        const [npM,dNp,npSp,npPup] = await Promise.all([
+            fetchHA(HA.np_mode),fetchHA(HA.dur_np),fetchHA(HA.np_spotify),fetchHA(HA.np_pup)
+        ]);
+        hs.npMode=npM?.state||'Takeover';
+        hs.durNp=parseFloat(dNp?.state)||20;
+        hs.np=nowPlayingFrom(npSp,npPup);
         hs.notif={text:nT?.state||'',color:{r:parseInt(nR?.state)||0,g:parseInt(nG?.state)||0,b:parseInt(nB?.state)||0}};
         hs.timer=parseAlexaTimer(tmr);
         hs.timerMode=tMode?.state||'Takeover';
@@ -811,6 +838,7 @@ function draw() {
     else if(!draft.active&&hs.mode==='message2') renderMessage(ctx,hs.msg2.text,hs.msg2.color,hs.msg2.image,hs.msg2.size);
     else if(!draft.active&&hs.mode==='alert')    renderAlert(ctx);
     else if(!draft.active&&hs.mode==='timer')    renderTimer(ctx);
+    else if(!draft.active&&hs.mode==='nowplaying') renderNowPlaying(ctx);
     else if(!draft.active&&hs.mode==='notification') renderNotification(ctx);
     else renderMessage(ctx,txt,col,img,sz);
     if(!draft.active&&hs.mode!=='timer'&&hs.mode!=='alert'&&['Rotation','Corner'].includes(hs.timerMode)) renderTimerChip(ctx);
@@ -939,6 +967,50 @@ function renderTimer(ctx) {
         ctx.fillStyle=done?GOLD:GREY;ctx.fillText(done?'DONE':at(t),26,y+15);
     });
     ctx.fillStyle='#282828';ctx.fillRect(4,37,120,1);
+}
+
+// Same choice as the HA automation: Spotify playing on Pup, else Pup's own
+// song (not its "Bluetooth" placeholder), else Spotify paused on Pup.
+function nowPlayingFrom(sp,pup) {
+    const spOnPup=sp?.attributes?.source==='Alexa Pup'&&sp?.attributes?.media_title;
+    const pick=(e,paused)=>({paused,title:attr(e,'media_title'),artist:attr(e,'media_artist'),album:attr(e,'media_album_name'),
+        dur:parseInt(attr(e,'media_duration',0))||0,pos:parseInt(attr(e,'media_position',0))||0,
+        at:Date.parse(attr(e,'media_position_updated_at',''))||Date.now()});
+    if(spOnPup&&sp.state==='playing') return pick(sp,false);
+    const pt=attr(pup,'media_title');
+    if(pup?.state==='playing'&&pt&&pt!=='Bluetooth') return pick(pup,false);
+    if(spOnPup&&sp.state==='paused') return pick(sp,true);
+    return null;
+}
+
+// Now playing — mirrors the firmware card: violet header, title, artist,
+// album, and the progress bar the panel advances on its own clock
+function renderNowPlaying(ctx) {
+    const n=hs.np;
+    if(!n){renderIdle(ctx);return;}
+    const VIOLET='#aa5fff', GREY='#969696', DIM='#5f5f5f';
+    ctx.fillStyle='#220e34';ctx.fillRect(0,0,128,9);
+    ctx.fillStyle=n.paused?DIM:VIOLET;ctx.fillRect(0,9,128,1);
+    ctx.textAlign='center';ctx.textBaseline='top';ctx.font='7px monospace';
+    ctx.fillStyle=n.paused?GREY:'#fff';ctx.fillText(n.paused?'PAUSED':'NOW PLAYING',64,1);
+    [3,6,4,7].forEach((h,i)=>{const hh=n.paused?2:h;ctx.fillStyle=n.paused?DIM:VIOLET;ctx.fillRect(115+i*3,8-hh,2,hh);});
+    ctx.fillStyle='#fff';ctx.font='bold 13px sans-serif';ctx.textBaseline='alphabetic';
+    const fits=ctx.measureText(n.title).width<=124;
+    ctx.textAlign=fits?'center':'left';ctx.fillText(n.title,fits?64:2,25);
+    ctx.textAlign='center';ctx.textBaseline='top';ctx.font='7px monospace';
+    ctx.fillStyle='#c8a0ff';ctx.fillText(n.artist,64,30);
+    ctx.fillStyle=GREY;ctx.fillText(n.album,64,39);
+    if(n.dur>0){
+        const fmt=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s/60)%60,ss=s%60;
+            return h?`${h}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`:`${m}:${String(ss).padStart(2,'0')}`;};
+        const e=Math.min(n.dur,n.pos+(n.paused?0:(Date.now()-n.at)/1000));
+        ctx.fillStyle='#282828';ctx.fillRect(2,49,124,2);
+        ctx.fillStyle=n.paused?GREY:VIOLET;ctx.fillRect(2,49,Math.round(124*e/n.dur),2);
+        ctx.fillStyle=GREY;ctx.textAlign='left';ctx.fillText(fmt(e),2,53);
+        ctx.textAlign='right';ctx.fillText(fmt(n.dur),126,53);
+    } else {
+        ctx.fillStyle=DIM;ctx.fillText('ALEXA PUP',64,53);
+    }
 }
 
 // Corner chip, as the panel draws it over other screens in rotation/corner mode
@@ -1349,7 +1421,7 @@ function selectTarget(n){msgTarget=n;document.querySelectorAll('.target-grid but
 // optimistically after a tap, so the UI never waits for the next poll.
 const SCREEN_NAMES={idle:'Clock',message:'Message 1',message2:'Message 2',notification:'Notification',zags:'Gonzaga',
     mariners:'Mariners',seahawks:'Seahawks',sounders:'Sounders',kraken:'Kraken',bedtime:'Bedtime',alert:'Pop-up alert',
-    timer:'Alexa timer',celebration:'Score celebration'};
+    timer:'Alexa timer',celebration:'Score celebration',nowplaying:'Now playing'};
 function paintControls() {
     const on=hs.power==='on';
     document.getElementById('pwrOnBtn').className =on?'active is-on':'';
@@ -1362,6 +1434,11 @@ function paintControls() {
     document.querySelectorAll('[id^="omode-"]').forEach(b=>b.classList.toggle('active',b.id===`omode-${om}`));
     document.getElementById('otherModeSub').textContent=OTHER_MODE_NOTES[om]||'';
     document.getElementById('timerDurRow').hidden=(tm!=='Rotation'&&om!=='Rotation');
+    const npm=hs.npMode||'Takeover';
+    document.querySelectorAll('[id^="npmode-"]').forEach(b=>b.classList.toggle('active',b.id===`npmode-${npm}`));
+    document.getElementById('npModeSub').textContent=NP_MODE_NOTES[npm]||'';
+    document.getElementById('npDurRow').hidden=(npm!=='Rotation');
+    document.getElementById('durNpVal').innerText=hs.durNp;
 
     document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
     document.getElementById(`mode-${hs.override}`)?.classList.add('active');
@@ -1481,7 +1558,7 @@ async function changeBrightness(v) {
 function adjustDuration(type,delta,valId,stateProp) {
     let v=hs[stateProp]+delta;v=Math.max(5,Math.min(120,v));hs[stateProp]=v;
     document.getElementById(valId).innerText=v;
-    const m={message:HA.dur_message,message2:HA.dur_message2,zags:HA.dur_zags,idle:HA.dur_idle,bedtime:HA.dur_bedtime,mariners:HA.dur_mariners,seahawks:HA.dur_seahawks,sounders:HA.dur_sounders,kraken:HA.dur_kraken,timer:HA.dur_timer};
+    const m={message:HA.dur_message,message2:HA.dur_message2,zags:HA.dur_zags,idle:HA.dur_idle,bedtime:HA.dur_bedtime,mariners:HA.dur_mariners,seahawks:HA.dur_seahawks,sounders:HA.dur_sounders,kraken:HA.dur_kraken,timer:HA.dur_timer,nowplaying:HA.dur_np};
     callService('input_number','set_value',{entity_id:m[type],value:v});
 }
 
@@ -1499,6 +1576,16 @@ async function setOtherTimerMode(mode) {
     hs.otherMode=mode;
     paintControls();
     await callService('input_select','select_option',{entity_id:HA.other_mode,option:mode});
+    setTimeout(sync,600);
+}
+const NP_MODE_NOTES={
+    Takeover:"On screen the whole time music plays. Pop-up alerts, score celebrations and Pup's timers go over it.",
+    Rotation:'A screen in the rotation. Jumps in once when a new song starts, then takes its turn like the others.',
+    Off:"The panel never shows what's playing."};
+async function setNowPlayingMode(mode) {
+    hs.npMode=mode;
+    paintControls();
+    await callService('input_select','select_option',{entity_id:HA.np_mode,option:mode});
     setTimeout(sync,600);
 }
 async function setTimerMode(mode) {
@@ -1694,7 +1781,7 @@ function toggleSync(on) {
 }
 
 // HA syncs every 2.5s; the timer preview and corner chip tick every second in between
-setInterval(()=>{if(!draft.active&&(hs.mode==='timer'||hs.mode==='alert'||(hs.timer&&['Rotation','Corner'].includes(hs.timerMode))))draw();},1000);
+setInterval(()=>{if(!draft.active&&(hs.mode==='timer'||hs.mode==='alert'||hs.mode==='nowplaying'||(hs.timer&&['Rotation','Corner'].includes(hs.timerMode))))draw();},1000);
 
 showTab(location.hash==='#alerts'?'alerts':'panel');
 toggleSync(true);
