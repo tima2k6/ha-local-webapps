@@ -104,13 +104,13 @@ A touchless fullscreen screensaver for the wall-mounted Galaxy Tab A9+ ("Quiet H
 - Morning reveal: the streets draw outward from HOME when the day layout returns at 6:15.
 - Holidays: a bat now and then on Halloween-week evenings, soft fireworks 9-10 PM on July 4 and just after midnight on New Year's, snow on Christmas Eve and Day, plus a "Happy ..." line on the day.
 - Household birthdays (Liam, Emily, Tim, Zoey) and "Anniversary" from `calendar.family`: the clock takes a soft tint, a pinned "Happy birthday, Liam" line, and a short confetti shower on the hour. Other people's birthdays are already in the agenda.
-- Sun/moon arc (trial, only with `?arc=1`): a faint arc across the top with the sun at how far through the daylight it is, or the moon (in its real phase) through the night.
+- Sun/moon arc: a faint arc across the top with the sun at how far through the daylight it is, or the moon (in its real phase) through the night.
 - Insights also mark firsts: "First frosty morning of the season", "First frost of the season likely tonight", "First 80° day of the year" (from the long-term statistics of `sensor.outdoor_temperature`, which start 2026-09-22) and "First snow of the season" (`input_datetime.first_snow_of_the_season`, stamped by the automation "Weather - First snow of the season").
-- Previews by URL: `?season=winter|spring|summer|fall`, `?golden=1`, `?arc=1&arcat=21:30`, `?reveal=1`, `?mood=rain|pouring|snow|fog`, `?holiday=halloween|july4|thanksgiving|christmas|newyear`, `?occasion=Liam` or `?occasion=anniversary`, `?first=frost|snow|hot`.
+- Previews by URL: `?season=winter|spring|summer|fall`, `?golden=1`, `?reveal=1`, `?mood=rain|pouring|snow|fog`, `?holiday=halloween|july4|thanksgiving|christmas|newyear`, `?occasion=Liam` or `?occasion=anniversary`, `?first=frost|snow|hot`.
 
 **Modules (`js/`):**
 - `screensaver.js` — the page: clock, weather, agenda, night mode and drift; renders the ticker and timers as tags
-- `ambience.js` — season accent, golden hour, weather mood, morning reveal, holidays, birthdays, the sun/moon arc trial
+- `ambience.js` — season accent, golden hour, weather mood, morning reveal, holidays, birthdays, the sun/moon arc
 - `ticker.js` — HA WebSocket feed of the status sensors (subclassed by `screensaver.js` for its tags)
 - `timers.js` — Alexa and Google Home timers from every speaker (subclassed by `screensaver.js` for its timer tag)
 

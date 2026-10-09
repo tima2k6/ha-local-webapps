@@ -1,11 +1,11 @@
 // ambience.js — mood, not information (2026-10-09).
 // The season's accent color, golden hour on the map, weather you can feel (rain,
 // snow, fog), the streets drawing in each morning, small holiday touches and
-// household birthdays. The sun/moon arc is a trial, shown only with ?arc=1.
+// household birthdays, and a faint sun/moon arc across the top.
 // Celebration lines (birthdays, holidays) reach the insights through lines(now).
 //
 // Preview by URL:
-//   ?season=winter|spring|summer|fall   ?golden=1   ?arc=1   ?reveal=1   ?arcat=21:30 (with ?arc)
+//   ?season=winter|spring|summer|fall   ?golden=1   ?reveal=1
 //   ?mood=rain|pouring|snow|fog         ?holiday=halloween|july4|thanksgiving|christmas|newyear
 //   ?occasion=Liam (a household birthday) or ?occasion=anniversary
 
@@ -90,7 +90,7 @@ export function occasionOf(summary) {
     return b ? b[1].trim() : null;
 }
 
-// ===== Sun/moon arc (trial) =====
+// ===== Sun/moon arc =====
 // How far through the day (sun) or the night (moon) it is, along a faint arc across
 // the top. Not the sun's real altitude; the moon is drawn in tonight's real phase.
 const ARC = { cx: 640, cy: 150, rx: 600, ry: 125 };   // the top band, above the date and agenda
@@ -341,9 +341,8 @@ export class Ambience {
         this.haUrl = config.haUrl;
         this.token = config.longLivedAccessToken;
         this.forced = {
-            season: params.get('season'), golden: params.has('golden'), arc: params.has('arc'),
-            mood: params.get('mood'), holiday: params.get('holiday'), occasion: params.get('occasion'),
-            arcAt: params.get('arcat')        // HH:MM: draw the arc as at that time today
+            season: params.get('season'), golden: params.has('golden'),
+            mood: params.get('mood'), holiday: params.get('holiday'), occasion: params.get('occasion')
         };
         this.occasions = [];
         this.sun = null;
@@ -430,12 +429,7 @@ export class Ambience {
         document.body.classList.toggle('celebrate', !!o);
         root.setProperty('--celebrate', mix('#f2f2f2', accent, .55));
 
-        let arcNow = now;
-        if (/^\d{1,2}:\d{2}$/.test(this.forced.arcAt || '')) {
-            const [h, mm] = this.forced.arcAt.split(':').map(Number);
-            arcNow = new Date(now); arcNow.setHours(h, mm, 0, 0);
-        }
-        this.arc?.update(arcNow, rise, set, warm);
+        this.arc?.update(now, rise, set, warm);
         this.mood.set(this.forced.mood || MOOD_OF[this.cond] || (this.holiday(now) === 'christmas' ? 'snow' : null));
         this.flourish(now, m, set, o);
     }
@@ -475,7 +469,7 @@ export class Ambience {
         const map = document.getElementById('flight-map');
         // Above the map, below the edge vignette (#screen::before) and the text
         this.mood = new Mood(screen, map.nextSibling);
-        if (this.forced.arc) this.arc = new SkyArc(screen, top);
+        this.arc = new SkyArc(screen, top);
 
         // Streets draw in from home when the day layout comes back in the morning
         let night = document.body.classList.contains('night');
