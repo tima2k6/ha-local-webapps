@@ -61,9 +61,17 @@
         .seg button.active.is-off { color: #fca5a5; }
         .seg.four { grid-template-columns: repeat(4, 1fr); }
         .seg.three { grid-template-columns: repeat(3, 1fr); }
-        .timer-dur { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
-        .timer-dur[hidden] { display: none; }
-        .timer-dur .stepper { width: 118px; }
+        /* Settings rows: name on the left, choice on the right, what it means under both */
+        .setting { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 16px; padding: 12px 4px; border-top: 1px solid var(--line); }
+        .setting[hidden] { display: none; }
+        .setting .screen-name { white-space: normal; }
+        .setting .seg { width: 300px; }
+        .setting .seg.three { width: 240px; }
+        .setting .stepper { width: 118px; }
+        .setting-note { grid-column: 1 / -1; font-size: 12px; color: var(--faint); }
+        .setting-note:empty { display: none; }
+        .setting-time { background: var(--surface-2); border-top: 0; border-radius: 10px; padding: 10px 12px; margin: 0 0 4px; }
+        h3.first { margin-top: 0; }
         .bri-row { display: flex; justify-content: space-between; font-size: 13px; font-weight: 650; color: var(--muted); margin-bottom: 6px; }
         .bri-row b { color: var(--text); }
         input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
@@ -140,7 +148,7 @@
         .col-heads span:nth-child(2) { text-align: left; }
 
         /* Pop-up alerts */
-        .tabs { max-width: 360px; margin-bottom: 16px; }
+        .tabs { max-width: 480px; margin-bottom: 16px; }
         .tab-pane[hidden] { display: none; }
         .alert-send { display: grid; grid-template-columns: minmax(0, 1fr) auto 104px 118px auto auto; gap: 10px; align-items: center; }
         .icon-select { background: var(--bg); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 7px 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; min-width: 0; }
@@ -185,6 +193,9 @@
             .screen-row .switch, .screen-row .chip { grid-area: tog; justify-self: end; }
             .screen-row .stepper, .screen-row .note-cell { grid-area: dur; justify-self: start; width: 118px; }
             .screen-row .mode-btn { grid-area: show; width: 70px; justify-self: end; }
+            .setting { grid-template-columns: 1fr; }
+            .setting .seg, .setting .seg.three { width: 100%; }
+            .setting-time { grid-template-columns: minmax(0, 1fr) auto; }
         }
     </style>
 </head>
@@ -233,9 +244,10 @@
         </div>
     </div>
 
-    <div class="seg tabs">
+    <div class="seg three tabs">
         <button id="tab-panel"  onclick="showTab('panel')">🖥 Panel</button>
         <button id="tab-alerts" onclick="showTab('alerts')">🚨 Alerts</button>
+        <button id="tab-settings" onclick="showTab('settings')">⚙ Settings</button>
     </div>
 
     <div class="main tab-pane" data-tab="panel">
@@ -306,7 +318,7 @@
             </div>
         </div>
 
-        <!-- RIGHT: every screen in one list, effect switches under it -->
+        <!-- RIGHT: every screen in one list -->
         <div class="stack">
         <div class="card">
             <div class="card-head"><h2>Screens</h2><span class="hint">Rotation · time on screen · show now</span></div>
@@ -389,9 +401,61 @@
             </div>
         </div>
 
+        </div>
+    </div>
+
+    <!-- Settings: how timers and music use the panel, and the effect switches.
+         Things set once and left alone, so they live off the everyday Panel tab. -->
+    <div class="main tab-pane" data-tab="settings" hidden>
+        <!-- Timers & music: every "something is happening" source gets the same
+             row: what it is, how much of the panel it gets, what that means -->
+        <div class="card">
+            <div class="card-head"><h2>Timers &amp; Music</h2><span class="hint">How much of the panel each one gets</span></div>
+
+            <h3 class="first">Timers</h3>
+            <div class="setting">
+                <div class="screen-name">⏱ Pup's timers<small>Timers set on Alexa Pup</small></div>
+                <div class="seg four" role="group" aria-label="Pup's timers">
+                    <button id="tmode-Takeover" onclick="setTimerMode('Takeover')">Takeover</button>
+                    <button id="tmode-Rotation" onclick="setTimerMode('Rotation')">Rotation</button>
+                    <button id="tmode-Corner"   onclick="setTimerMode('Corner')">Corner</button>
+                    <button id="tmode-Off"      onclick="setTimerMode('Off')">Off</button>
+                </div>
+                <p class="setting-note" id="timerModeSub"></p>
+            </div>
+            <div class="setting">
+                <div class="screen-name">🔊 Other speakers' timers<small>Other Echos and the Google displays</small></div>
+                <div class="seg three" role="group" aria-label="Other speakers' timers">
+                    <button id="omode-Corner"   onclick="setOtherTimerMode('Corner')">Corner</button>
+                    <button id="omode-Rotation" onclick="setOtherTimerMode('Rotation')">Rotation</button>
+                    <button id="omode-Off"      onclick="setOtherTimerMode('Off')">Off</button>
+                </div>
+                <p class="setting-note" id="otherModeSub"></p>
+            </div>
+            <div class="setting setting-time" id="timerDurRow" hidden>
+                <div class="screen-name">Timer screen time<small>Its turn in the rotation · shared by both</small></div>
+                <div class="stepper"><button onclick="adjustDuration('timer',-5,'durTimerVal','durTimer')">−</button><span><span class="stepper-val" id="durTimerVal">20</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('timer',5,'durTimerVal','durTimer')">+</button></div>
+            </div>
+
+            <h3>Music</h3>
+            <div class="setting">
+                <div class="screen-name">🎵 Now playing<small>Music on Pup with the Echo activity</small></div>
+                <div class="seg three" role="group" aria-label="Now playing">
+                    <button id="npmode-Takeover" onclick="setNowPlayingMode('Takeover')">Takeover</button>
+                    <button id="npmode-Rotation" onclick="setNowPlayingMode('Rotation')">Rotation</button>
+                    <button id="npmode-Off"      onclick="setNowPlayingMode('Off')">Off</button>
+                </div>
+                <p class="setting-note" id="npModeSub"></p>
+            </div>
+            <div class="setting setting-time" id="npDurRow" hidden>
+                <div class="screen-name">Now playing time<small>Its turn in the rotation</small></div>
+                <div class="stepper"><button onclick="adjustDuration('nowplaying',-5,'durNpVal','durNp')">−</button><span><span class="stepper-val" id="durNpVal">20</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('nowplaying',5,'durNpVal','durNp')">+</button></div>
+            </div>
+        </div>
+
         <!-- Effects: quiet a flourish without removing it -->
         <div class="card">
-            <div class="card-head"><h2>Effects</h2><span class="hint">Quiet a flourish without removing it</span></div>
+            <div class="card-head"><h2>Effects</h2><span class="hint">Off keeps the screen, drops the flourish</span></div>
             <div class="fx-row">
                 <div class="screen-name">Score celebrations<small>TOUCHDOWN / FIELD GOAL / GOAL! takeover when our team scores</small></div>
                 <button class="switch" id="fx-celebrations" onclick="toggleFx('celebrations')" aria-label="Score celebrations"></button>
@@ -412,46 +476,6 @@
                 <div class="screen-name">Alert border flash<small>Flashing border on pop-up alerts · off keeps it steady</small></div>
                 <button class="switch" id="fx-alert_flash" onclick="toggleFx('alert_flash')" aria-label="Alert border flash"></button>
             </div>
-        </div>
-
-        <!-- Timers: how much of the panel a running timer gets. Pup's Echo and
-             every other speaker are set separately; the others are quieter. -->
-        <div class="card">
-            <div class="card-head"><h2>Timers</h2><span class="hint">Pup's Echo</span></div>
-            <div class="seg four" role="group" aria-label="Timer priority">
-                <button id="tmode-Takeover" onclick="setTimerMode('Takeover')">Takeover</button>
-                <button id="tmode-Rotation" onclick="setTimerMode('Rotation')">Rotation</button>
-                <button id="tmode-Corner"   onclick="setTimerMode('Corner')">Corner</button>
-                <button id="tmode-Off"      onclick="setTimerMode('Off')">Off</button>
-            </div>
-            <div class="sub" id="timerModeSub" style="margin-top:8px;font-size:12px;color:var(--faint);"></div>
-            <div class="timer-dur" id="timerDurRow" hidden>
-                <div class="screen-name">Time on screen<small>Its turn in the rotation</small></div>
-                <div class="stepper"><button onclick="adjustDuration('timer',-5,'durTimerVal','durTimer')">−</button><span><span class="stepper-val" id="durTimerVal">20</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('timer',5,'durTimerVal','durTimer')">+</button></div>
-            </div>
-            <div class="card-head" style="margin-top:16px;"><h2 style="font-size:14px;">Other speakers</h2><span class="hint">Other Echos · Google displays</span></div>
-            <div class="seg three" role="group" aria-label="Other speakers' timers">
-                <button id="omode-Corner"   onclick="setOtherTimerMode('Corner')">Corner</button>
-                <button id="omode-Rotation" onclick="setOtherTimerMode('Rotation')">Rotation</button>
-                <button id="omode-Off"      onclick="setOtherTimerMode('Off')">Off</button>
-            </div>
-            <div class="sub" id="otherModeSub" style="margin-top:8px;font-size:12px;color:var(--faint);"></div>
-        </div>
-
-        <!-- Now playing: music on Pup while the Home Theater activity is Echo -->
-        <div class="card">
-            <div class="card-head"><h2>Now Playing</h2><span class="hint">Pup · Echo activity</span></div>
-            <div class="seg three" role="group" aria-label="Now playing">
-                <button id="npmode-Takeover" onclick="setNowPlayingMode('Takeover')">Takeover</button>
-                <button id="npmode-Rotation" onclick="setNowPlayingMode('Rotation')">Rotation</button>
-                <button id="npmode-Off"      onclick="setNowPlayingMode('Off')">Off</button>
-            </div>
-            <div class="sub" id="npModeSub" style="margin-top:8px;font-size:12px;color:var(--faint);"></div>
-            <div class="timer-dur" id="npDurRow" hidden>
-                <div class="screen-name">Time on screen<small>Its turn in the rotation</small></div>
-                <div class="stepper"><button onclick="adjustDuration('nowplaying',-5,'durNpVal','durNp')">−</button><span><span class="stepper-val" id="durNpVal">20</span><span class="stepper-unit">s</span></span><button onclick="adjustDuration('nowplaying',5,'durNpVal','durNp')">+</button></div>
-            </div>
-        </div>
         </div>
     </div>
 
@@ -1764,10 +1788,10 @@ async function testRule(i) {
 
 // Panel / Alerts tabs. The URL hash keeps the tab, so .../led-panel.html#alerts can be bookmarked.
 function showTab(t) {
-    if(t!=='alerts') t='panel';
+    if(t!=='alerts'&&t!=='settings') t='panel';
     document.querySelectorAll('.tab-pane').forEach(p=>p.hidden=p.dataset.tab!==t);
     document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.id===`tab-${t}`));
-    history.replaceState(null,'',t==='alerts'?'#alerts':location.pathname+location.search);
+    history.replaceState(null,'',t==='panel'?location.pathname+location.search:'#'+t);
     if(t==='alerts') discoverAlertRules();
 }
 
@@ -1783,7 +1807,7 @@ function toggleSync(on) {
 // HA syncs every 2.5s; the timer preview and corner chip tick every second in between
 setInterval(()=>{if(!draft.active&&(hs.mode==='timer'||hs.mode==='alert'||hs.mode==='nowplaying'||(hs.timer&&['Rotation','Corner'].includes(hs.timerMode))))draw();},1000);
 
-showTab(location.hash==='#alerts'?'alerts':'panel');
+showTab(location.hash.slice(1));
 toggleSync(true);
 draw();
 </script>
