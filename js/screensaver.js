@@ -840,7 +840,7 @@ class TimerTag extends Timers {
 // ===== Night mode: a fixed window, not the sun =====
 // Day (date, weather, calendar) from 6:30 AM to 10 PM; the dim clock outside it.
 // Chosen 2026-10-08 so it no longer drifts with sunrise/sunset through the year.
-const DAY_STARTS = 6 * 60 + 30, NIGHT_STARTS = 22 * 60;
+const DAY_STARTS = 6 * 60 + 15, NIGHT_STARTS = 22 * 60;
 function nightWatch(onNight) {
     const check = () => {
         const d = new Date(), m = d.getHours() * 60 + d.getMinutes();
