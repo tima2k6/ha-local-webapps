@@ -9,3 +9,7 @@ js/ha-config.js
 index2.html
 *.code-workspace
 index.nginx-debian.html
+
+# Private home location and tablet settings (deployed locally only)
+data/local-flight-map.json
+backups/**/tablet-screensaver-settings.json

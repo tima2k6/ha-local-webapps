@@ -27,6 +27,20 @@ test('pickup rotates with short, fresh drive time', () => {
     assert.equal(line[2], "Liam: at King's - <b>4 minutes</b> away");
 });
 
+test('away travel times do not imply a destination', () => {
+    const instance = insights();
+    instance.data.commutes.push(
+        { entity: 'sensor.emily_home_eta_waze_emily_eta', value: '6', at: now.toISOString(), active: true },
+        { entity: 'sensor.tim_eta_waze_tim_eta', value: '1', at: now.toISOString(), active: true }
+    );
+    const lines = instance.lines(now);
+    assert.equal(lines.find(line => line[2].startsWith('Emily:'))[2], 'Emily: <b>6 minutes</b> away');
+    assert.equal(lines.find(line => line[2].startsWith('Tim:'))[2], 'Tim: <b>1 minute</b> away');
+    assert.ok(!lines.some(line => line[2].includes('drive home')));
+    instance.data.commutes[1].value = 'unavailable';
+    assert.equal(instance.lines(now).find(line => line[2].startsWith('Emily:'))[2], 'Emily: travel time unavailable');
+});
+
 test('pickup respects both time boundaries', () => {
     for (const [time, visible] of [['14:29:59', false], ['14:30:00', true], ['17:59:59', true], ['18:00:00', false]]) {
         const at = new Date(`2026-10-08T${time}-07:00`);
@@ -114,6 +128,21 @@ test('morning drop-off replaces the unconditional King\'s commute', () => {
     const instance = morning(at);
     assert.equal(instance.dropoffLine(at)[2], "King's: drop-off - <b>4 minutes</b> away");
     assert.equal(instance.lines(at).filter(line => line[2].includes("King's")).length, 1);
+});
+
+test('morning commute and drop-off rotate even during heavy traffic', () => {
+    const at = new Date('2026-10-08T07:00:00-07:00');
+    for (const heavy of [false, true]) {
+        const instance = morning(at);
+        instance.data.commutes[0].value = heavy ? '10' : '4';
+        instance.data.commutes.push({ entity: 'sensor.wazeemily_commute_emily_commute', value: heavy ? '25' : '15', at: at.toISOString(), active: true });
+        const lines = instance.lines(at).filter(line => line[2].includes("King's") || line[2].startsWith('Emily:'));
+        assert.equal(lines.length, 2);
+        for (const line of lines) {
+            assert.equal(line[0], '');
+            assert.equal(line[2].includes('HEAVY TRAFFIC'), heavy);
+        }
+    }
 });
 
 test('check-in, any same-day attendance, stale feed, or parent at school hides drop-off', () => {

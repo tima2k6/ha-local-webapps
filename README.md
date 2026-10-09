@@ -81,14 +81,21 @@ A full control panel and live mirror for the 128×64 HUB75 LED matrix scoreboard
 
 ### 3. HA Dashboard Screensaver (`index.html`)
 
-A fullscreen kiosk/screensaver for a wall-mounted OLED display ("Quiet Hours" design). Pure black background, light warm grey text and one teal accent, sized to read from across the room. Everything is sized from a 1280×800 layout to fit the 16:10 Galaxy Tab A9+ (1920×1200) and scales to any screen.
+A touchless fullscreen screensaver for the wall-mounted Galaxy Tab A9+ ("Quiet Hours" design). Dark neutral background, local street linework and nearby aircraft behind the clock, weather, agenda and status. Everything is sized from a 1280×800 layout to fit the 16:10 Galaxy Tab A9+ (1920×1200) and scales to any screen.
 
 **Layout:**
 - Left: date, clock (hour and minute, no seconds) and below it the weather: now plus today's high/low and tomorrow from `weather.forecast_home` (met.no, the same source as the LED panel)
 - Right: the next three `calendar.family` events, each time above its name
 - Bottom: static status tags from the ticker's sensors (Zoey's feeding, open windows and doors, trash night), centered, on exactly the old ticker's conditions: teal when routine, amber or red when something needs attention; running Alexa/Google Home timers on the right
-- Night (10:00 PM to 6:30 AM, fixed times in `js/screensaver.js`, not the sun): a dim clock and the temperature replace the weather and agenda; tags and timers show as by day
+- Night (10:00 PM to 6:15 AM, fixed times in `js/screensaver.js`, not the sun): a dim clock and the temperature replace the weather and agenda; tags and timers show as by day
 - Burn-in guard: the whole layout shifts by up to ~12 px every 3 minutes
+
+**Flight backdrop:**
+- The official tablet URL is `http://192.168.2.119/?v=20261009-official-1`. There are no tablet controls.
+- Existing HA Flightradar24 sensor updates every 10 seconds. WebSocket events redraw immediately; a 30-second fallback checks freshness. Aircraft animate to each reported position for two seconds; positions are not extrapolated.
+- To/from airport codes appear beneath flight labels. Stale positions or paused tracking clear the aircraft.
+- Local streets are cached in `data/local-flight-map.json`; refresh them with `python tools/fetch-flight-map.py`. The cache contains the home coordinates and is gitignored; deploy it locally after generating it. OpenStreetMap attribution appears on the display.
+- The previous screensaver remains available at `screensaver-backup-20261009.html`, with frozen modules under `backups/screensaver-before-flight-trial-20261009/`.
 
 **Modules (`js/`):**
 - `screensaver.js` — the page: clock, weather, agenda, night mode and drift; renders the ticker and timers as tags
