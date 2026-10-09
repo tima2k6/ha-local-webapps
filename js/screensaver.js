@@ -221,7 +221,9 @@ const WARMUPS = { house: 'the whole house', living_room: 'the living room', bedr
 const HOLD = 'input_boolean.climate_manual_override_active';
 const ROOMS = ['living_room', 'bedroom', 'liam_s_room', 'office'].map(r => `climate.${r}_thermostat`);
 const OPEN_WINDOWS = 'sensor.open_windows_count';
-// Plants: soil moisture vs each plant's own "too dry" number (set in the plant card)
+// Plants: soil moisture vs each plant's own range (set in the plant card), plus any other
+// problem the plant integration reports (plant.*: too cold, too dark, ...). "All happy" only
+// when every plant.* is ok: the mimosa once read 97% soil (too wet) under "all happy" (2026-10-09).
 const PLANTS = { snake_plant: 'The snake plant', dracaena: 'The dracaena', mimosa_pudica: 'The mimosa' };
 const PLANT_SOON = 5;            // % above too-dry that counts as "soon"
 const PLANT_STALE = 2 * 86400e3; // ignore readings older than this (dead battery)
@@ -372,6 +374,8 @@ class Insights {
   'left': states('sensor.' ~ id ~ '_remaining_time')}] %}{% endif %}{% endfor %}
 {% set ns2 = namespace(pl=[]) %}{% for id in ${JSON.stringify(Object.keys(PLANTS))} %}{% set sm = states['sensor.' ~ id ~ '_soil_moisture'] %}
 {% if sm and sm.state | is_number %}{% set ns2.pl = ns2.pl + [{'id': id, 'v': sm.state | float, 'min': states('number.' ~ id ~ '_min_soil_moisture') | float(0),
+  'max': states('number.' ~ id ~ '_max_soil_moisture') | float(0), 'status': states('plant.' ~ id),
+  'problems': state_attr('plant.' ~ id, 'problems') or [],
   'at': sm.last_updated.isoformat()}] %}{% endif %}{% endfor %}
 {% for k in ${JSON.stringify(Object.keys(WARMUPS))} %}{% set t = states['timer.climate_boost_' ~ k] %}
 {% if t and t.state == 'active' %}{% set ns.w = ns.w + [{'room': k, 'ends': t.attributes.finishes_at}] %}{% endif %}{% endfor %}
@@ -610,10 +614,21 @@ class Insights {
         // Plants: dry ones any time of day; "all happy" now and then by day
         const plants = (this.data.plants || []).filter(p => now - new Date(p.at) < PLANT_STALE && p.min > 0);
         for (const p of plants) {
-            if (p.v < p.min) out.push(['', 'plant', `${esc(PLANTS[p.id])} needs water · soil at <b>${Math.round(p.v)}%</b>`]);
-            else if (p.v < p.min + PLANT_SOON) out.push(['', 'plant', `${esc(PLANTS[p.id])} will want water soon`]);
+            const name = esc(PLANTS[p.id]);
+            if (p.v < p.min) out.push(['', 'plant', `${name} needs water · soil at <b>${Math.round(p.v)}%</b>`]);
+            else if (p.max > 0 && p.v > p.max) out.push(['', 'plant', `${name}'s soil is very wet · <b>${Math.round(p.v)}%</b>`]);
+            else if (p.v < p.min + PLANT_SOON) out.push(['', 'plant', `${name} will want water soon`]);
+            for (const pr of p.problems || []) {
+                if (pr.sensor_type === 'moisture') continue;       // said above, from the same numbers
+                const low = String(pr.status).toLowerCase() === 'low';
+                const what = { temperature: low ? 'is too cold' : 'is too warm', illuminance: low ? 'needs more light' : 'is getting too much sun',
+                    dli: low ? 'needs more light' : 'is getting too much sun', humidity: low ? 'wants more humid air' : 'has very humid air',
+                    conductivity: low ? 'could use some fertilizer' : 'has too much fertilizer' }[pr.sensor_type];
+                out.push(['', 'plant', `${name} ${what || 'needs a look'}`]);
+            }
         }
-        const plantsHappy = plants.length === Object.keys(PLANTS).length && plants.every(p => p.v >= p.min + PLANT_SOON);
+        const plantsHappy = plants.length === Object.keys(PLANTS).length
+            && plants.every(p => p.status === 'ok' && p.v >= p.min + PLANT_SOON && !(p.max > 0 && p.v > p.max));
 
         // Clocks: the week before a change, and the morning after
         const cc = clockChange(now);
