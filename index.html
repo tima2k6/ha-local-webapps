@@ -400,6 +400,19 @@
             gap: calc(var(--u) * 40);
         }
 
+        body.night #insights.homeward {
+            display: flex;
+            align-items: center;
+            width: auto;
+            max-width: 100%;
+            min-height: 0;
+            margin-top: 0;
+            padding-top: 0;
+            border-top: 0;
+        }
+        body.night #insights .ins { color: var(--night-low); }
+        body.night #insights .ins b { color: var(--night-text); }
+
         body.night #clock .time {
             font-size: calc(var(--u) * 260);
             color: var(--night-text);
@@ -455,7 +468,7 @@
     <script src="js/ha-config.js?v=20261005"></script>
     <script type="module">
         import { config } from './js/config.js?v=20261005';
-        import { startScreensaver } from './js/screensaver.js?v=19';
+        import { startScreensaver } from './js/screensaver.js?v=32';
 
         document.addEventListener('DOMContentLoaded', () => startScreensaver(config));
     </script>

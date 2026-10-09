@@ -198,6 +198,20 @@ class Agenda {
 // rest of the day layout. Mail was left out on purpose: its sensors aren't
 // accurate enough (2026-10-08).
 const SUN = 'sun.sun';
+const COMMUTES = [
+    { entity: 'sensor.wazeemily_commute_emily_commute', label: 'Emily', detail: 'to work', people: ['person.emily'], normal: 15 },
+    { entity: 'sensor.waze_kings_commute', label: "King's", people: ['person.tim', 'person.emily'], normal: 4 },
+    { entity: 'sensor.tim_eta_waze_tim_eta', label: 'Tim', detail: 'drive home', people: ['person.tim'], away: true },
+    { entity: 'sensor.emily_home_eta_waze_emily_eta', label: 'Emily', detail: 'drive home', people: ['person.emily'], away: true,
+        workZone: 'zone.emily_s_hotel', workFrom: 15 * 60 + 30, workNormal: 15 }
+];
+const COMMUTE_WINDOW = { from: 6 * 60 + 30, until: 8 * 60, stale: 15 * 60e3 };
+const PICKUP = {
+    from: 14 * 60 + 30, until: 18 * 60, stale: 15 * 60e3, snapshotStale: 2 * 60e3,
+    attendance: 'sensor.brightwheel_liam_attendance', zone: 'zone.king_s', route: 'sensor.waze_kings_commute',
+    sync: 'sensor.brightwheel_a2096536_45d9_4eaf_aa19_38c985d5e450_last_sync',
+    status: 'sensor.brightwheel_a2096536_45d9_4eaf_aa19_38c985d5e450_status'
+};
 const MEDS_TAKEN = 'binary_sensor.prozac_taken_today';   // same sensor as the 6 PM reminder
 const MEDS_FROM = 14 * 60;                                // meds line from 2 PM until night
 const EVENING = 18 * 60;
@@ -308,6 +322,8 @@ class Insights {
         Object.assign(this, { haUrl, token, el });
         this.data = {};
         this.turn = 0;
+        const preview = new URLSearchParams(location.search).get('commute_preview');
+        this.commutePreview = ['tim', 'emily', 'both', 'emily-work', 'pickup', 'dropoff'].includes(preview) ? preview : null;
     }
 
     async api(path, body) {
@@ -333,7 +349,22 @@ class Insights {
   'at': sm.last_updated.isoformat()}] %}{% endif %}{% endfor %}
 {% for k in ${JSON.stringify(Object.keys(WARMUPS))} %}{% set t = states['timer.climate_boost_' ~ k] %}
 {% if t and t.state == 'active' %}{% set ns.w = ns.w + [{'room': k, 'ends': t.attributes.finishes_at}] %}{% endif %}{% endfor %}
+{% set nc = namespace(items=[]) %}{% for route in ${JSON.stringify(COMMUTES)} %}
+{% set commute = states[route.entity] %}{% set presence = namespace(active=false, work=false) %}
+{% for person in route.people %}
+{% if route.away | default(false) %}
+{% if states(person) not in ['home', 'unknown', 'unavailable'] and state_attr(person, 'latitude') is number and state_attr(person, 'longitude') is number %}{% set presence.active = true %}{% endif %}
+{% if route.workZone is defined and is_state(person, state_attr(route.workZone, 'friendly_name')) %}{% set presence.work = true %}{% endif %}
+{% elif is_state(person, 'home') %}{% set presence.active = true %}{% endif %}{% endfor %}
+{% set nc.items = nc.items + [{'entity': route.entity, 'value': states(route.entity), 'active': presence.active, 'work': presence.work,
+  'at': commute.last_reported.isoformat() if commute else none}] %}{% endfor %}
 {{ {'rise': state_attr('${SUN}', 'next_rising'), 'set': state_attr('${SUN}', 'next_setting'),
+    'commutes': nc.items,
+    'viewer_home': is_state('person.tim', 'home') or is_state('person.emily', 'home'),
+    'attendance': {'status': states('${PICKUP.attendance}'), 'at': state_attr('${PICKUP.attendance}', 'timestamp'),
+        'sync': states('${PICKUP.sync}'), 'syncOk': is_state('${PICKUP.status}', 'ok'),
+        'parentAtSchool': is_state('person.tim', state_attr('${PICKUP.zone}', 'friendly_name'))
+            or is_state('person.emily', state_attr('${PICKUP.zone}', 'friendly_name'))},
     'meds': states('${MEDS_TAKEN}'), 'hold': states('${HOLD}'), 'printers': ns.p, 'warm': ns.w,
     'aqi': states('${AQI}'), 'dew': state_attr('${WEATHER}', 'dew_point'),
     'humid': state_attr('${WEATHER}', 'humidity'),
@@ -357,6 +388,10 @@ class Insights {
             }
             Object.assign(this.data, {
                 sun: { next_rising: d.rise, next_setting: d.set },
+                commutes: d.commutes,
+                viewerHome: d.viewer_home === true,
+                attendance: d.attendance,
+                statesAt: Date.now(),
                 medsTaken: d.meds !== 'off',
                 hold: d.hold === 'on',
                 printers: d.printers,
@@ -421,6 +456,40 @@ class Insights {
         const m = now.getHours() * 60 + now.getMinutes();
         const { sun, daily } = this.data;
         const out = [];
+
+        const dropoff = this.dropoffLine(now);
+        if (dropoff) out.push(dropoff);
+        const pickup = this.pickupLine(now);
+        if (pickup) out.push(pickup);
+
+        for (const route of COMMUTES) {
+            if (route.entity === PICKUP.route) continue;
+            if (!this.commutePreview && this.data.viewerHome !== true) continue;
+            const commute = route.away && this.commutePreview
+                ? { active: this.commutePreview === 'both' || this.commutePreview === route.label.toLowerCase()
+                        || (this.commutePreview === 'emily-work' && !!route.workZone),
+                    work: this.commutePreview === 'emily-work' && !!route.workZone,
+                    value: this.commutePreview === 'emily-work' ? 15 : route.label === 'Tim' ? 18 : 25, at: now.toISOString() }
+                : (this.data.commutes || []).find(c => c.entity === route.entity);
+            if (!commute?.active || (!route.away && (m < COMMUTE_WINDOW.from || m >= COMMUTE_WINDOW.until))) continue;
+            const minutes = Number(commute.value), age = now - new Date(commute.at);
+            if (commute.work) {
+                if (m < route.workFrom && !this.commutePreview) continue;
+                const workStart = new Date(now); workStart.setHours(Math.floor(route.workFrom / 60), route.workFrom % 60, 0, 0);
+                const sampled = Number.isFinite(minutes) && minutes > 0 && commute.at
+                    && new Date(commute.at) >= workStart && age >= 0;
+                const estimate = sampled ? Math.round(minutes) : route.workNormal;
+                out.push([this.commutePreview ? 'homeward featured' : 'homeward', 'clock', `Emily: at work - <b>${plural(estimate, 'minute')}</b> away`]);
+                continue;
+            }
+            const fresh = commute.value !== '' && Number.isFinite(minutes) && minutes > 0
+                && commute.at && age >= 0 && age < COMMUTE_WINDOW.stale;
+            const heavy = fresh && route.normal > 0 && minutes - route.normal >= 5 && minutes >= route.normal * 1.3;
+            out.push([route.away ? this.commutePreview ? 'homeward featured' : 'homeward' : heavy ? 'featured nudge' : 'featured', 'clock', fresh
+                ? route.away ? `${esc(route.label)}: <b>${Math.round(minutes)}-minute</b> drive home`
+                    : `${esc(route.label)}: <b>${plural(Math.round(minutes), 'minute')}</b>${route.detail ? ' ' + esc(route.detail) : ''}${heavy ? ' - HEAVY TRAFFIC' : ''}`
+                : `${esc(route.label)}: ${route.away ? 'drive home' : 'commute'} unavailable`]);
+        }
 
         if (this.data.medsTaken === false && m >= MEDS_FROM)
             out.push(['nudge', 'pill', "Tim hasn't taken his meds yet"]);
@@ -583,11 +652,63 @@ class Insights {
         return out;
     }
 
+    attendanceForTrip(now) {
+        const attendance = this.data.attendance;
+        const syncAge = now - new Date(attendance?.sync);
+        const snapshotAge = now - this.data.statesAt;
+        if (this.data.viewerHome !== true || attendance?.syncOk !== true || attendance.parentAtSchool
+            || !Number.isFinite(syncAge) || syncAge < 0 || syncAge >= PICKUP.stale
+            || !Number.isFinite(snapshotAge) || snapshotAge < 0 || snapshotAge >= PICKUP.snapshotStale) return null;
+        return attendance;
+    }
+
+    dropoffLine(now) {
+        const preview = this.commutePreview === 'dropoff';
+        const m = now.getHours() * 60 + now.getMinutes();
+        if (!preview && (now.getDay() === 0 || now.getDay() === 6
+            || m < COMMUTE_WINDOW.from || m >= COMMUTE_WINDOW.until)) return null;
+        const attendance = preview ? { status: 'checked_out', at: new Date(now - 86400e3).toISOString() }
+            : this.attendanceForTrip(now);
+        const event = new Date(attendance?.at), age = now - event;
+        // A recent prior-day checkout covers weekends, but not missing or old attendance.
+        if (attendance?.status !== 'checked_out' || !Number.isFinite(age) || age < 0 || age >= 4 * 86400e3
+            || dayKey(event) === dayKey(now)) return null;
+        const commute = preview ? { value: 4, at: now.toISOString(), active: true }
+            : (this.data.commutes || []).find(c => c.entity === PICKUP.route);
+        const minutes = Number(commute?.value), routeAge = now - new Date(commute?.at);
+        const fresh = commute?.active && Number.isFinite(minutes) && minutes > 0
+            && commute.at && routeAge >= 0 && routeAge < COMMUTE_WINDOW.stale;
+        const heavy = fresh && minutes - 4 >= 5 && minutes >= 4 * 1.3;
+        return [preview ? 'homeward featured' : heavy ? 'featured nudge' : 'featured', 'clock', `King's: drop-off${fresh
+            ? ` - <b>${plural(Math.round(minutes), 'minute')}</b> away${heavy ? ' - HEAVY TRAFFIC' : ''}` : ''}`];
+    }
+
+    pickupLine(now) {
+        const preview = this.commutePreview === 'pickup';
+        const m = now.getHours() * 60 + now.getMinutes();
+        if (!preview && (m < PICKUP.from || m >= PICKUP.until)) return null;
+        const attendance = preview ? { status: 'checked_in', at: now.toISOString() } : this.attendanceForTrip(now);
+        const event = new Date(attendance?.at);
+        if (attendance?.status !== 'checked_in' || dayKey(event) !== dayKey(now) || event > now) return null;
+        const commute = preview ? { value: 4, at: now.toISOString(), active: true }
+            : (this.data.commutes || []).find(c => c.entity === PICKUP.route);
+        const minutes = Number(commute?.value), age = now - new Date(commute?.at);
+        const fresh = commute?.active && Number.isFinite(minutes) && minutes > 0
+            && commute.at && age >= 0 && age < COMMUTE_WINDOW.stale;
+        const heavy = fresh && minutes - 4 >= 5 && minutes >= 4 * 1.3;
+        return [preview ? 'homeward featured' : '', 'clock', `Liam: at King's${fresh
+            ? ` - <b>${plural(Math.round(minutes), 'minute')}</b> away${heavy ? ' - HEAVY TRAFFIC' : ''}` : ''}`];
+    }
+
     // Pinned lines, then the rest taking turns in the space left. Lines that stay
     // on screen keep their element, so only the ones that change fade in.
     render() {
-        const all = this.lines();
-        let pinned = all.filter(l => l[0] === 'nudge'), rest = all.filter(l => l[0] !== 'nudge');
+        const now = new Date(), m = now.getHours() * 60 + now.getMinutes();
+        const night = m < DAY_STARTS || m >= NIGHT_STARTS;
+        const all = this.lines(now).filter(l => !night || l[0].includes('homeward'));
+        this.el.classList.toggle('homeward', all.some(l => l[0].includes('homeward')));
+        const isPinned = l => l[0] === 'nudge' || l[0].includes('featured');
+        let pinned = all.filter(isPinned), rest = all.filter(l => !isPinned(l));
         if (pinned.length > SHOWN) { rest = pinned; pinned = []; }      // several urgent ones take turns
         const room = Math.max(0, SHOWN - pinned.length);
         let shown = rest;
@@ -615,6 +736,7 @@ class Insights {
     // the agenda: never cut off, never below 80%. Re-run every render, since the clock's
     // width (and so where the lines start) changes with the time.
     fit() {
+        if (document.body.classList.contains('night')) return;
         const side = document.getElementById('side');
         const screen = document.getElementById('screen');
         if (!side || !screen || !this.el.children.length) return;
