@@ -185,8 +185,13 @@
         }
 
         /* ===== Insights: a few quiet, rotating lines under the weather ===== */
-        /* Two lines tall at all times, so the clock above never shifts as lines come and go */
+        /* Two lines tall at all times, so the clock above never shifts as lines come and go.
+           width 0 / min-width 100%: a long line must not widen #left, or the centered block
+           (and the clock with it) slides left. Long lines run right; any that would reach the
+           agenda are shrunk to fit (never cut off). */
         #insights {
+            width: 0;
+            min-width: 100%;
             display: flex;
             flex-direction: column;
             gap: calc(var(--u) * 14);
@@ -204,6 +209,7 @@
             line-height: 1.25;
             color: var(--text-mid);
             white-space: nowrap;
+            width: max-content;    /* measured by fitInsights() in screensaver.js */
         }
         .ins.fresh { animation: insFade 2.5s ease-out both; }
         @keyframes insFade { from { opacity: 0; } to { opacity: 1; } }
@@ -449,7 +455,7 @@
     <script src="js/ha-config.js?v=20261005"></script>
     <script type="module">
         import { config } from './js/config.js?v=20261005';
-        import { startScreensaver } from './js/screensaver.js?v=16';
+        import { startScreensaver } from './js/screensaver.js?v=17';
 
         document.addEventListener('DOMContentLoaded', () => startScreensaver(config));
     </script>

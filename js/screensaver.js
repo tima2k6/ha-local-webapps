@@ -577,8 +577,30 @@ class Insights {
             d.innerHTML = `${insIcon(w.ic)}<span>${w.text}</span>`;
             return d;
         });
-        if (els.length === this.el.children.length && els.every((e, i) => e === this.el.children[i])) return;
-        this.el.replaceChildren(...els);
+        if (!(els.length === this.el.children.length && els.every((e, i) => e === this.el.children[i])))
+            this.el.replaceChildren(...els);
+        this.fit();
+    }
+
+    // Lines never widen the clock's block (see #insights in index.html), so a long one
+    // runs right toward the agenda. Shrink just that line's text until it stops short of
+    // the agenda: never cut off, never below 80%. Re-run every render, since the clock's
+    // width (and so where the lines start) changes with the time.
+    fit() {
+        const side = document.getElementById('side');
+        const screen = document.getElementById('screen');
+        if (!side || !screen || !this.el.children.length) return;
+        const u = screen.getBoundingClientRect().width / 1280;
+        const limit = side.getBoundingClientRect().left - 40 * u;
+        for (const line of this.el.children) {
+            const text = line.querySelector('span');
+            if (!text) continue;
+            text.style.fontSize = '';
+            const over = line.getBoundingClientRect().right - limit;
+            if (over <= 0) continue;
+            const w = text.getBoundingClientRect().width;
+            text.style.fontSize = `calc(var(--u) * ${(29 * Math.max(0.8, (w - over) / w)).toFixed(2)})`;
+        }
     }
 
     start() {
