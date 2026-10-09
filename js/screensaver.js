@@ -224,7 +224,7 @@ const OPEN_WINDOWS = 'sensor.open_windows_count';
 // Plants: soil moisture vs each plant's own range (set in the plant card), plus any other
 // problem the plant integration reports (plant.*: too cold, too dark, ...). "All happy" only
 // when every plant.* is ok: the mimosa once read 97% soil (too wet) under "all happy" (2026-10-09).
-const PLANTS = { snake_plant: 'The snake plant', dracaena: 'The dracaena', mimosa_pudica: 'The mimosa' };
+const PLANTS = { snake_plant: 'Lowe', dracaena: 'Dracaena', mimosa_pudica: 'Tickle Plant' };   // the names the family uses
 const PLANT_SOON = 5;            // % above too-dry that counts as "soon"
 const PLANT_STALE = 2 * 86400e3; // ignore readings older than this (dead battery)
 const FRESH_AIR = { from: 10 * 60, until: 19 * 60, low: 60, high: 75, warmer: 4 };   // °F
