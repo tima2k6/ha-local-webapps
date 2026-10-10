@@ -206,6 +206,9 @@ const COMMUTES = [
         workZone: 'zone.emily_s_hotel', workFrom: 15 * 60 + 30, workNormal: 15 }
 ];
 const COMMUTE_WINDOW = { from: 6 * 60 + 30, until: 8 * 60, stale: 15 * 60e3 };
+// Work and school trips (morning commutes, drop-off, pickup, Emily at work) are weekdays
+// only (2026-10-10); plain "drive home" times still show any day
+const weekend = d => d.getDay() === 0 || d.getDay() === 6;
 const PICKUP = {
     from: 14 * 60 + 30, until: 18 * 60, stale: 15 * 60e3, snapshotStale: 2 * 60e3,
     attendance: 'sensor.brightwheel_liam_attendance', zone: 'zone.king_s', route: 'sensor.waze_kings_commute',
@@ -582,6 +585,7 @@ class Insights {
                     value: this.commutePreview === 'emily-work' ? 15 : route.label === 'Tim' ? 18 : 25, at: now.toISOString() }
                 : (this.data.commutes || []).find(c => c.entity === route.entity);
             if (!commute?.active || (!route.away && (m < COMMUTE_WINDOW.from || m >= COMMUTE_WINDOW.until))) continue;
+            if (!this.commutePreview && weekend(now) && (!route.away || commute.work)) continue;
             const minutes = Number(commute.value), age = now - new Date(commute.at);
             if (commute.work) {
                 if (m < route.workFrom && !this.commutePreview) continue;
@@ -836,8 +840,7 @@ class Insights {
     dropoffLine(now) {
         const preview = this.commutePreview === 'dropoff';
         const m = now.getHours() * 60 + now.getMinutes();
-        if (!preview && (now.getDay() === 0 || now.getDay() === 6
-            || m < COMMUTE_WINDOW.from || m >= COMMUTE_WINDOW.until)) return null;
+        if (!preview && (weekend(now) || m < COMMUTE_WINDOW.from || m >= COMMUTE_WINDOW.until)) return null;
         const attendance = preview ? { status: 'checked_out', at: new Date(now - 86400e3).toISOString() }
             : this.attendanceForTrip(now);
         const event = new Date(attendance?.at), age = now - event;
@@ -857,7 +860,7 @@ class Insights {
     pickupLine(now) {
         const preview = this.commutePreview === 'pickup';
         const m = now.getHours() * 60 + now.getMinutes();
-        if (!preview && (m < PICKUP.from || m >= PICKUP.until)) return null;
+        if (!preview && (weekend(now) || m < PICKUP.from || m >= PICKUP.until)) return null;
         const attendance = preview ? { status: 'checked_in', at: now.toISOString() } : this.attendanceForTrip(now);
         const event = new Date(attendance?.at);
         if (attendance?.status !== 'checked_in' || dayKey(event) !== dayKey(now) || event > now) return null;
