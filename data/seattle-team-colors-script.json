@@ -1,0 +1,204 @@
+{
+  "alias": "Seattle Team Colors",
+  "icon": "mdi:palette",
+  "mode": "restart",
+  "description": "Each Living Room lamp rotates through a different offset in the Seattle team palette. Reads saved helpers each step. Default: 20-second fades, 10-second holds, 10-35% brightness. Stop the script or turn the entire Living Room off to end it.",
+  "fields": {
+    "fade_seconds": {
+      "name": "Fade time",
+      "description": "Seconds to blend into each color.",
+      "default": 20,
+      "selector": {
+        "number": {
+          "min": 10,
+          "max": 300,
+          "step": 5,
+          "unit_of_measurement": "s",
+          "mode": "box"
+        }
+      }
+    },
+    "hold_seconds": {
+      "name": "Hold time",
+      "description": "Seconds to rest on each color after fading.",
+      "default": 10,
+      "selector": {
+        "number": {
+          "min": 0,
+          "max": 600,
+          "step": 5,
+          "unit_of_measurement": "s",
+          "mode": "box"
+        }
+      }
+    },
+    "brightness_limit": {
+      "name": "Maximum brightness",
+      "description": "Keep the rotation softly lit. Dark colors remain dimmer.",
+      "default": 35,
+      "selector": {
+        "number": {
+          "min": 10,
+          "max": 100,
+          "step": 1,
+          "unit_of_measurement": "%",
+          "mode": "slider"
+        }
+      }
+    },
+    "start_color": {
+      "name": "Starting color",
+      "description": "Optional helper to show first on TV Color for at least one minute; other lamps stay staggered, then the usual timing resumes.",
+      "selector": {
+        "entity": {
+          "domain": "input_text"
+        }
+      }
+    }
+  },
+  "sequence": [
+    {
+      "variables": {
+        "fade": "{{ [[fade_seconds | default(20) | float(20), 10] | max, 300] | min }}",
+        "hold": "{{ [[hold_seconds | default(10) | float(10), 0] | max, 600] | min }}",
+        "ceiling": "{{ (([[brightness_limit | default(35) | float(35), 10] | max, 100] | min) * 2.55) | round(0) | int }}",
+        "palette": [
+          "input_text.sports_mariners_northwest_green",
+          "input_text.sports_kraken_ice_blue",
+          "input_text.sports_torrent_slate_green",
+          "input_text.sports_torrent_shadow_blue",
+          "input_text.sports_kraken_shadow_blue",
+          "input_text.sports_torrent_glacier_blue",
+          "input_text.sports_kraken_boundless_blue",
+          "input_text.sports_mariners_silver",
+          "input_text.sports_kraken_deep_sea_blue",
+          "input_text.sports_seahawks_college_navy",
+          "input_text.sports_mariners_navy_blue",
+          "input_text.sports_sounders_pacific_blue",
+          "input_text.sports_reign_reign_blue",
+          "input_text.sports_reign_blackened_blue",
+          "input_text.sports_uw_purple",
+          "input_text.sports_kraken_red_alert",
+          "input_text.sports_reign_gold",
+          "input_text.sports_uw_metallic_gold",
+          "input_text.sports_uw_gold",
+          "input_text.sports_supersonics_yellow",
+          "input_text.sports_storm_lightning_yellow",
+          "input_text.sports_torrent_foam",
+          "input_text.sports_storm_bolt_green",
+          "input_text.sports_seahawks_action_green",
+          "input_text.sports_sounders_rave_green",
+          "input_text.sports_storm_storm_green",
+          "input_text.sports_supersonics_green",
+          "input_text.sports_sounders_heritage_aqua",
+          "input_text.sports_seahawks_wolf_grey",
+          "input_text.sports_seahawks_white",
+          "input_text.sports_torrent_haze_grey",
+          "input_text.sports_uw_gray"
+        ],
+        "lamps": "{{ [\"light.tv_color\"] + ((state_attr(\"light.living_room\", \"entity_id\") or []) | reject(\"eq\", \"light.tv_color\") | list) }}",
+        "start_offset": "{{ palette.index(start_color) if start_color is defined and start_color in palette else 0 }}"
+      }
+    },
+    {
+      "if": [
+        {
+          "condition": "template",
+          "value_template": "{{ lamps | length == 0 }}"
+        }
+      ],
+      "then": [
+        {
+          "stop": "Living Room has no member lights.",
+          "error": true
+        }
+      ]
+    },
+    {
+      "repeat": {
+        "while": [
+          {
+            "condition": "template",
+            "value_template": "{{ true }}"
+          }
+        ],
+        "sequence": [
+          {
+            "variables": {
+              "step_number": "{{ (repeat.index - 1 + start_offset) % (palette | length) }}"
+            }
+          },
+          {
+            "repeat": {
+              "for_each": "{{ lamps | list }}",
+              "sequence": [
+                {
+                  "variables": {
+                    "lamp": "{{ repeat.item }}",
+                    "color_helper": "{{ palette[(step_number + ((repeat.index - 1) * (palette | length) / (lamps | length)) | int) % (palette | length)] }}"
+                  }
+                },
+                {
+                  "if": [
+                    {
+                      "condition": "template",
+                      "value_template": "{{ states(color_helper) | regex_match('^\\d{1,3},\\d{1,3},\\d{1,3}$') and states(lamp) not in ['unknown','unavailable'] }}"
+                    }
+                  ],
+                  "then": [
+                    {
+                      "variables": {
+                        "rgb": "{{ states(color_helper).split(\",\") | map(\"int\") | list }}"
+                      }
+                    },
+                    {
+                      "if": [
+                        {
+                          "condition": "template",
+                          "value_template": "{{ (rgb | min) >= 0 and (rgb | max) <= 255 }}"
+                        }
+                      ],
+                      "then": [
+                        {
+                          "action": "light.turn_on",
+                          "target": {
+                            "entity_id": "{{ lamp }}"
+                          },
+                          "data": {
+                            "rgb_color": "{{ rgb }}",
+                            "brightness": "{{ [[rgb | max, 26] | max, ceiling] | min }}",
+                            "transition": "{{ fade }}"
+                          },
+                          "continue_on_error": true
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "delay": {
+              "seconds": "{{ fade + ([hold, 60] | max if repeat.index == 1 and start_color is defined else hold) }}"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "state",
+                "entity_id": "light.living_room",
+                "state": "off"
+              }
+            ],
+            "then": [
+              {
+                "stop": "Living Room was switched off."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

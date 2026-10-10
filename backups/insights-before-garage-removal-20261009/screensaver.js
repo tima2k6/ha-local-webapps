@@ -212,7 +212,7 @@ const PICKUP = {
     sync: 'sensor.brightwheel_a2096536_45d9_4eaf_aa19_38c985d5e450_last_sync',
     status: 'sensor.brightwheel_a2096536_45d9_4eaf_aa19_38c985d5e450_status'
 };
-const MEDS_TAKEN = 'binary_sensor.prozac_taken_today';   // same sensor as the 6 PM insight
+const MEDS_TAKEN = 'binary_sensor.prozac_taken_today';   // same sensor as the 6 PM reminder
 const MEDS_FROM = 14 * 60;                                // meds line from 2 PM until night
 const EVENING = 18 * 60;
 const PRINTERS = { x1c_00m00a2c0618544: 'Rainier', p1s_01p00c611801219: 'Baker' };
@@ -233,10 +233,11 @@ const HOME_OPENINGS = [
     ['binary_sensor.kitchen_window_contact', 'Den window', 'window', null],
     ['binary_sensor.guest_bath_window_contact', 'Guest bathroom window', 'window', null],
     ['binary_sensor.front_door_contact', 'Front door', 'door', 'living_room'],
-    ['binary_sensor.slider_door_sensor_contact', 'Patio door', 'door', 'living_room']
+    ['binary_sensor.slider_door_sensor_contact', 'Patio door', 'door', 'living_room'],
+    ['cover.garage_door_opener_door', 'Garage door', 'garage', null]
 ].map(([entity, label, kind, room]) => ({ entity, label, kind, room }));
 const HOME_CLIMATES = [...ROOMS, 'climate.living_room', 'climate.liams_air_con_portableac'];
-const HOME_INSIGHTS = { stale: 2 * 60e3, showFor: 3 * 60e3, repeatAfter: 30 * 60e3 };
+const HOME_REMINDERS = { stale: 2 * 60e3, showFor: 3 * 60e3, repeatAfter: 30 * 60e3 };
 // Plants: soil moisture vs each plant's own range (set in the plant card), plus any other
 // problem the plant integration reports (plant.*: too cold, too dark, ...). "All happy" only
 // when every plant.* is ok: the mimosa once read 97% soil (too wet) under "all happy" (2026-10-09).
@@ -565,7 +566,7 @@ class Insights {
         const { sun, daily } = this.data;
         const out = [];
 
-        out.push(...(this.extraLines?.(now) || []), ...this.firstLines(now, m), ...this.homeInsightLines(now));
+        out.push(...(this.extraLines?.(now) || []), ...this.firstLines(now, m), ...this.homeReminderLines(now));
 
         const dropoff = this.dropoffLine(now);
         if (dropoff) out.push(dropoff);
@@ -779,19 +780,19 @@ class Insights {
         return out;
     }
 
-    homeInsightLines(now) {
+    homeReminderLines(now) {
         const snapshotAge = now - this.data.statesAt;
-        if (!Number.isFinite(snapshotAge) || snapshotAge < 0 || snapshotAge >= HOME_INSIGHTS.stale) return [];
-        this.homeInsightEpisodes ||= new Map();
+        if (!Number.isFinite(snapshotAge) || snapshotAge < 0 || snapshotAge >= HOME_REMINDERS.stale) return [];
+        this.homeReminderEpisodes ||= new Map();
         const contacts = new Map((this.data.homeOpenings || []).map(c => [c.entity, c]));
         const climates = new Map((this.data.homeClimates || []).map(c => [c.entity, c]));
-        const out = [];
+        const out = [], m = now.getHours() * 60 + now.getMinutes();
         for (const opening of HOME_OPENINGS) {
             const contact = contacts.get(opening.entity);
-            const open = contact?.state === 'on';
-            if (!open) { this.homeInsightEpisodes.delete(opening.entity); continue; }
+            const open = contact?.state === (opening.kind === 'garage' ? 'open' : 'on');
+            if (!open) { this.homeReminderEpisodes.delete(opening.entity); continue; }
             const age = now - new Date(contact.changed);
-            const grace = (opening.kind === 'window' ? 15 : 5) * 60e3;
+            const grace = (opening.kind === 'window' ? 15 : opening.kind === 'garage' ? 30 : 5) * 60e3;
             if (!contact.changed || !Number.isFinite(age) || age < grace) continue;
             const climate = climates.get(`climate.${opening.room}_thermostat`);
             const roomClimates = [climate, ...[opening.room === 'living_room' ? 'climate.living_room'
@@ -801,7 +802,9 @@ class Insights {
             const inside = climate?.temperature ?? this.data.inside, outside = this.data.outside;
             let reason = null;
             if (this.data.everyoneAway === true) reason = 'Tim and Emily are away';
-            else if (Number.isFinite(this.data.aqi) && this.data.aqi >= AQI_POOR) reason = 'poor air outside';
+            else if (opening.kind === 'garage') {
+                if (m >= 21 * 60 || m < DAY_STARTS) reason = 'it\'s late';
+            } else if (Number.isFinite(this.data.aqi) && this.data.aqi >= AQI_POOR) reason = 'poor air outside';
             else if (WET.has(this.data.outsideCond)) reason = 'rain or snow outside';
             else if (Number.isFinite(this.data.outsideWind) && this.data.outsideWind >= STRONG_WIND) reason = 'strong wind outside';
             else if (active) reason = active.action === 'heating' ? 'the heat is running' : 'the AC is running';
@@ -810,13 +813,13 @@ class Insights {
                 && outside <= 50 && inside >= 65 && inside - outside >= 8) reason = `${Math.round(outside)}° outside`;
             if (!reason) continue;
             // Brief appearances, at most once per half-hour per open episode. A changed
-            // reason does not restart the insight; closing and reopening does.
-            let episode = this.homeInsightEpisodes.get(opening.entity);
+            // reason does not restart the reminder; closing and reopening does.
+            let episode = this.homeReminderEpisodes.get(opening.entity);
             if (!episode || episode.changed !== contact.changed) {
                 episode = { changed: contact.changed, since: now.getTime() };
-                this.homeInsightEpisodes.set(opening.entity, episode);
+                this.homeReminderEpisodes.set(opening.entity, episode);
             }
-            if ((now - episode.since) % HOME_INSIGHTS.repeatAfter >= HOME_INSIGHTS.showFor) continue;
+            if ((now - episode.since) % HOME_REMINDERS.repeatAfter >= HOME_REMINDERS.showFor) continue;
             out.push(['', opening.kind === 'window' ? 'window' : 'door',
                 `Close ${esc(opening.label.startsWith('Liam') ? opening.label : 'the ' + opening.label.toLowerCase())} · ${esc(reason)}`]);
         }
@@ -960,11 +963,11 @@ class StatusTags extends Ticker {
         }[s.feedingState];
         if (feed) out.push(feed);
 
-        // Same schedule as the old ticker: only while the waste insight is
+        // Same schedule as the old ticker: only while the waste reminder is
         // on and the trash hasn't been marked as out
         const g = s.garbageCollection, r = s.recyclingCollection;
         if (s.wasteReminder && !s.trashOut) {
-            // Only what's due (today or tomorrow, as the insight sensor
+            // Only what's due (today or tomorrow, as the reminder sensor
             // counts it): "Trash & recycling tomorrow", "Trash tomorrow"
             const due = v => ['today', 'tomorrow'].includes(String(v).toLowerCase()) ? String(v).toLowerCase() : null;
             const gd = due(g), rd = due(r);

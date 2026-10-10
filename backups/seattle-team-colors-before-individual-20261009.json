@@ -1,0 +1,167 @@
+{
+  "alias": "Seattle Team Colors",
+  "icon": "mdi:palette",
+  "mode": "restart",
+  "description": "Slow Living Room color rotation through Seattle pro teams, SuperSonics and UW. Reads RGB helpers each pass. Default: 60-second fades, 60-second holds, 10-35% brightness. Stop the script or turn the entire Living Room off to end it.",
+  "fields": {
+    "fade_seconds": {
+      "name": "Fade time",
+      "description": "Seconds to blend into each color.",
+      "default": 60,
+      "selector": {
+        "number": {
+          "min": 10,
+          "max": 300,
+          "step": 5,
+          "unit_of_measurement": "s",
+          "mode": "box"
+        }
+      }
+    },
+    "hold_seconds": {
+      "name": "Hold time",
+      "description": "Seconds to rest on each color after fading.",
+      "default": 60,
+      "selector": {
+        "number": {
+          "min": 0,
+          "max": 600,
+          "step": 5,
+          "unit_of_measurement": "s",
+          "mode": "box"
+        }
+      }
+    },
+    "brightness_limit": {
+      "name": "Maximum brightness",
+      "description": "Keep the rotation softly lit. Dark colors remain dimmer.",
+      "default": 35,
+      "selector": {
+        "number": {
+          "min": 10,
+          "max": 100,
+          "step": 1,
+          "unit_of_measurement": "%",
+          "mode": "slider"
+        }
+      }
+    }
+  },
+  "sequence": [
+    {
+      "variables": {
+        "fade": "{{ [[fade_seconds | default(60) | float(60), 10] | max, 300] | min }}",
+        "hold": "{{ [[hold_seconds | default(60) | float(60), 0] | max, 600] | min }}",
+        "ceiling": "{{ (([[brightness_limit | default(35) | float(35), 10] | max, 100] | min) * 2.55) | round(0) | int }}",
+        "palette": [
+          "input_text.sports_mariners_northwest_green",
+          "input_text.sports_kraken_ice_blue",
+          "input_text.sports_torrent_slate_green",
+          "input_text.sports_torrent_shadow_blue",
+          "input_text.sports_kraken_shadow_blue",
+          "input_text.sports_torrent_glacier_blue",
+          "input_text.sports_kraken_boundless_blue",
+          "input_text.sports_mariners_silver",
+          "input_text.sports_kraken_deep_sea_blue",
+          "input_text.sports_seahawks_college_navy",
+          "input_text.sports_mariners_navy_blue",
+          "input_text.sports_sounders_pacific_blue",
+          "input_text.sports_reign_reign_blue",
+          "input_text.sports_reign_blackened_blue",
+          "input_text.sports_uw_purple",
+          "input_text.sports_kraken_red_alert",
+          "input_text.sports_reign_gold",
+          "input_text.sports_uw_metallic_gold",
+          "input_text.sports_uw_gold",
+          "input_text.sports_supersonics_yellow",
+          "input_text.sports_storm_lightning_yellow",
+          "input_text.sports_torrent_foam",
+          "input_text.sports_storm_bolt_green",
+          "input_text.sports_seahawks_action_green",
+          "input_text.sports_sounders_rave_green",
+          "input_text.sports_storm_storm_green",
+          "input_text.sports_supersonics_green",
+          "input_text.sports_sounders_heritage_aqua",
+          "input_text.sports_seahawks_wolf_grey",
+          "input_text.sports_seahawks_white",
+          "input_text.sports_torrent_haze_grey",
+          "input_text.sports_uw_gray"
+        ]
+      }
+    },
+    {
+      "repeat": {
+        "while": [
+          {
+            "condition": "template",
+            "value_template": "{{ true }}"
+          }
+        ],
+        "sequence": [
+          {
+            "repeat": {
+              "for_each": "{{ palette }}",
+              "sequence": [
+                {
+                  "if": [
+                    {
+                      "condition": "template",
+                      "value_template": "{{ states(repeat.item) | regex_match('^\\d{1,3},\\d{1,3},\\d{1,3}$') }}"
+                    }
+                  ],
+                  "then": [
+                    {
+                      "variables": {
+                        "rgb": "{{ states(repeat.item).split(\",\") | map(\"int\") | list }}"
+                      }
+                    },
+                    {
+                      "if": [
+                        {
+                          "condition": "template",
+                          "value_template": "{{ (rgb | min) >= 0 and (rgb | max) <= 255 }}"
+                        }
+                      ],
+                      "then": [
+                        {
+                          "action": "light.turn_on",
+                          "target": {
+                            "entity_id": "light.living_room"
+                          },
+                          "data": {
+                            "rgb_color": "{{ rgb }}",
+                            "brightness": "{{ [[rgb | max, 26] | max, ceiling] | min }}",
+                            "transition": "{{ fade }}"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "delay": {
+                    "seconds": "{{ fade + hold }}"
+                  }
+                },
+                {
+                  "if": [
+                    {
+                      "condition": "state",
+                      "entity_id": "light.living_room",
+                      "state": "off"
+                    }
+                  ],
+                  "then": [
+                    {
+                      "stop": "Living Room was switched off."
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

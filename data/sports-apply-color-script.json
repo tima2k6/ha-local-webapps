@@ -1,0 +1,104 @@
+{
+  "alias": "Sports - Apply color",
+  "description": "Apply an RGB color helper to lights, including brightness derived from the highest RGB channel. Bulb gamut and room conditions affect the visual match.",
+  "icon": "mdi:palette",
+  "mode": "parallel",
+  "max": 10,
+  "fields": {
+    "color_helper": {
+      "name": "Sports color",
+      "description": "Text helper containing R,G,B, such as Sports SuperSonics Green.",
+      "required": true,
+      "selector": {
+        "entity": {
+          "domain": "input_text"
+        }
+      }
+    },
+    "light_entities": {
+      "name": "Lights",
+      "description": "Light or light group to color.",
+      "required": true,
+      "selector": {
+        "entity": {
+          "domain": "light",
+          "multiple": true
+        }
+      }
+    }
+  },
+  "sequence": [
+    {
+      "if": [
+        {
+          "condition": "template",
+          "value_template": "{{ not (states(color_helper) | regex_match('^\\d{1,3},\\d{1,3},\\d{1,3}$')) }}"
+        }
+      ],
+      "then": [
+        {
+          "stop": "Color helper must contain three comma-separated RGB channels.",
+          "error": true
+        }
+      ]
+    },
+    {
+      "variables": {
+        "rgb": "{{ states(color_helper).split(\",\") | map(\"int\") | list }}"
+      }
+    },
+    {
+      "if": [
+        {
+          "condition": "template",
+          "value_template": "{{ (rgb | min) < 0 or (rgb | max) > 255 }}"
+        }
+      ],
+      "then": [
+        {
+          "stop": "RGB channels must be between 0 and 255.",
+          "error": true
+        }
+      ]
+    },
+    {
+      "action": "script.turn_off",
+      "target": {
+        "entity_id": "script.seattle_team_colors"
+      }
+    },
+    {
+      "variables": {
+        "color_brightness": "{{ rgb | max }}"
+      }
+    },
+    {
+      "if": [
+        {
+          "condition": "template",
+          "value_template": "{{ color_brightness == 0 }}"
+        }
+      ],
+      "then": [
+        {
+          "action": "light.turn_off",
+          "target": {
+            "entity_id": "{{ light_entities }}"
+          }
+        }
+      ],
+      "else": [
+        {
+          "action": "light.turn_on",
+          "target": {
+            "entity_id": "{{ light_entities }}"
+          },
+          "data": {
+            "rgb_color": "{{ rgb }}",
+            "brightness": "{{ color_brightness }}"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,656 @@
+{
+  "created": "2026-10-09",
+  "format": "comma-separated RGB for Home Assistant rgb_color templates",
+  "colors": [
+    {
+      "entity_id": "input_text.sports_seahawks_college_navy",
+      "name": "Sports Seahawks College Navy",
+      "hex": "#002244",
+      "rgb": [
+        0,
+        34,
+        68
+      ],
+      "value": "0,34,68",
+      "source": "https://teamcolorcodes.com/seattle-seahawks-color-codes/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_seahawks_action_green",
+      "name": "Sports Seahawks Action Green",
+      "hex": "#69BE28",
+      "rgb": [
+        105,
+        190,
+        40
+      ],
+      "value": "105,190,40",
+      "source": "https://teamcolorcodes.com/seattle-seahawks-color-codes/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_seahawks_wolf_grey",
+      "name": "Sports Seahawks Wolf Grey",
+      "hex": "#A5ACAF",
+      "rgb": [
+        165,
+        172,
+        175
+      ],
+      "value": "165,172,175",
+      "source": "https://teamcolorcodes.com/seattle-seahawks-color-codes/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_seahawks_white",
+      "name": "Sports Seahawks White",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "value": "255,255,255",
+      "source": "https://teamcolorcodes.com/seattle-seahawks-color-codes/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_mariners_navy_blue",
+      "name": "Sports Mariners Navy Blue",
+      "hex": "#0C2C56",
+      "rgb": [
+        12,
+        44,
+        86
+      ],
+      "value": "12,44,86",
+      "source": "https://usteamcolors.com/seattle-mariners-team-colors/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_mariners_northwest_green",
+      "name": "Sports Mariners Northwest Green",
+      "hex": "#005C5C",
+      "rgb": [
+        0,
+        92,
+        92
+      ],
+      "value": "0,92,92",
+      "source": "https://usteamcolors.com/seattle-mariners-team-colors/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_mariners_silver",
+      "name": "Sports Mariners Silver",
+      "hex": "#C4CED4",
+      "rgb": [
+        196,
+        206,
+        212
+      ],
+      "value": "196,206,212",
+      "source": "https://usteamcolors.com/seattle-mariners-team-colors/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_mariners_white",
+      "name": "Sports Mariners White",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "value": "255,255,255",
+      "source": "https://usteamcolors.com/seattle-mariners-team-colors/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_kraken_deep_sea_blue",
+      "name": "Sports Kraken Deep Sea Blue",
+      "hex": "#001628",
+      "rgb": [
+        0,
+        22,
+        40
+      ],
+      "value": "0,22,40",
+      "source": "https://colorcodeguide.com/official/seattle-kraken",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_kraken_ice_blue",
+      "name": "Sports Kraken Ice Blue",
+      "hex": "#99D9D9",
+      "rgb": [
+        153,
+        217,
+        217
+      ],
+      "value": "153,217,217",
+      "source": "https://colorcodeguide.com/official/seattle-kraken",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_kraken_boundless_blue",
+      "name": "Sports Kraken Boundless Blue",
+      "hex": "#355464",
+      "rgb": [
+        53,
+        84,
+        100
+      ],
+      "value": "53,84,100",
+      "source": "https://colorcodeguide.com/official/seattle-kraken",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_kraken_shadow_blue",
+      "name": "Sports Kraken Shadow Blue",
+      "hex": "#68A2B9",
+      "rgb": [
+        104,
+        162,
+        185
+      ],
+      "value": "104,162,185",
+      "source": "https://colorcodeguide.com/official/seattle-kraken",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_kraken_red_alert",
+      "name": "Sports Kraken Red Alert",
+      "hex": "#E9072B",
+      "rgb": [
+        233,
+        7,
+        43
+      ],
+      "value": "233,7,43",
+      "source": "https://colorcodeguide.com/official/seattle-kraken",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_kraken_white",
+      "name": "Sports Kraken White",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "value": "255,255,255",
+      "source": "https://colorcodeguide.com/official/seattle-kraken",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_sounders_rave_green",
+      "name": "Sports Sounders Rave Green",
+      "hex": "#4FB84F",
+      "rgb": [
+        79,
+        184,
+        79
+      ],
+      "value": "79,184,79",
+      "source": "https://images.mlssoccer.com/image/upload/v1702319240/assets/sea/logos/SEA2023-Full_Color-480x480_fk6mpu.png",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_sounders_pacific_blue",
+      "name": "Sports Sounders Pacific Blue",
+      "hex": "#0033A1",
+      "rgb": [
+        0,
+        51,
+        161
+      ],
+      "value": "0,51,161",
+      "source": "https://images.mlssoccer.com/image/upload/v1702319240/assets/sea/logos/SEA2023-Full_Color-480x480_fk6mpu.png",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_sounders_heritage_aqua",
+      "name": "Sports Sounders Heritage Aqua",
+      "hex": "#78DED4",
+      "rgb": [
+        120,
+        222,
+        212
+      ],
+      "value": "120,222,212",
+      "source": "https://images.mlssoccer.com/image/upload/v1702319240/assets/sea/logos/SEA2023-Full_Color-480x480_fk6mpu.png",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_sounders_white",
+      "name": "Sports Sounders White",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "value": "255,255,255",
+      "source": "https://images.mlssoccer.com/image/upload/v1702319240/assets/sea/logos/SEA2023-Full_Color-480x480_fk6mpu.png",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_storm_storm_green",
+      "name": "Sports Storm Storm Green",
+      "hex": "#2C5235",
+      "rgb": [
+        44,
+        82,
+        53
+      ],
+      "value": "44,82,53",
+      "source": "https://bestcolorcodes.com/seattle-storm-colors/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_storm_lightning_yellow",
+      "name": "Sports Storm Lightning Yellow",
+      "hex": "#FEE11A",
+      "rgb": [
+        254,
+        225,
+        26
+      ],
+      "value": "254,225,26",
+      "source": "https://bestcolorcodes.com/seattle-storm-colors/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_storm_bolt_green",
+      "name": "Sports Storm Bolt Green",
+      "hex": "#78BE20",
+      "rgb": [
+        120,
+        190,
+        32
+      ],
+      "value": "120,190,32",
+      "source": "https://bestcolorcodes.com/seattle-storm-colors/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_storm_white",
+      "name": "Sports Storm White",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "value": "255,255,255",
+      "source": "https://bestcolorcodes.com/seattle-storm-colors/",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_reign_blackened_blue",
+      "name": "Sports Reign Blackened Blue",
+      "hex": "#1E1A25",
+      "rgb": [
+        30,
+        26,
+        37
+      ],
+      "value": "30,26,37",
+      "source": "https://images.squarespace-cdn.com/content/v1/65823d9021b93e044e237270/5001384e-e1ec-43a8-adf5-b1cb25229ae0/SRFC-primary.png?format=1500w",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_reign_reign_blue",
+      "name": "Sports Reign Reign Blue",
+      "hex": "#243067",
+      "rgb": [
+        36,
+        48,
+        103
+      ],
+      "value": "36,48,103",
+      "source": "https://images.squarespace-cdn.com/content/v1/65823d9021b93e044e237270/5001384e-e1ec-43a8-adf5-b1cb25229ae0/SRFC-primary.png?format=1500w",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_reign_gold",
+      "name": "Sports Reign Gold",
+      "hex": "#9A7648",
+      "rgb": [
+        154,
+        118,
+        72
+      ],
+      "value": "154,118,72",
+      "source": "https://images.squarespace-cdn.com/content/v1/65823d9021b93e044e237270/5001384e-e1ec-43a8-adf5-b1cb25229ae0/SRFC-primary.png?format=1500w",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_reign_summit_white",
+      "name": "Sports Reign Summit White",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "value": "255,255,255",
+      "source": "https://images.squarespace-cdn.com/content/v1/65823d9021b93e044e237270/5001384e-e1ec-43a8-adf5-b1cb25229ae0/SRFC-primary.png?format=1500w",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_torrent_slate_green",
+      "name": "Sports Torrent Slate Green",
+      "hex": "#0A5458",
+      "rgb": [
+        10,
+        84,
+        88
+      ],
+      "value": "10,84,88",
+      "source": "https://res.cloudinary.com/pwhl-low/image/upload/v1762305836/SEA-t-11.4.25-logo-RGB-Lock-up-Primary_qhe8r8.png",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_torrent_shadow_blue",
+      "name": "Sports Torrent Shadow Blue",
+      "hex": "#6AA2B8",
+      "rgb": [
+        106,
+        162,
+        184
+      ],
+      "value": "106,162,184",
+      "source": "https://res.cloudinary.com/pwhl-low/image/upload/v1762305836/SEA-t-11.4.25-logo-RGB-Lock-up-Primary_qhe8r8.png",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_torrent_glacier_blue",
+      "name": "Sports Torrent Glacier Blue",
+      "hex": "#8CB7C9",
+      "rgb": [
+        140,
+        183,
+        201
+      ],
+      "value": "140,183,201",
+      "source": "https://res.cloudinary.com/pwhl-low/image/upload/v1762305836/SEA-t-11.4.25-logo-RGB-Lock-up-Primary_qhe8r8.png",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_torrent_foam",
+      "name": "Sports Torrent Foam",
+      "hex": "#E8E6D7",
+      "rgb": [
+        232,
+        230,
+        215
+      ],
+      "value": "232,230,215",
+      "source": "https://res.cloudinary.com/pwhl-low/image/upload/v1762305836/SEA-t-11.4.25-logo-RGB-Lock-up-Primary_qhe8r8.png",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_torrent_haze_grey",
+      "name": "Sports Torrent Haze Grey",
+      "hex": "#BBBBBB",
+      "rgb": [
+        187,
+        187,
+        187
+      ],
+      "value": "187,187,187",
+      "source": "https://res.cloudinary.com/pwhl-low/image/upload/v1762305836/SEA-t-11.4.25-logo-RGB-Lock-up-Primary_qhe8r8.png",
+      "source_note": "RGB sampled from solid fills in current official logo"
+    },
+    {
+      "entity_id": "input_text.sports_gonzaga_athletic_blue",
+      "name": "Sports Gonzaga Athletic Blue",
+      "hex": "#041E42",
+      "rgb": [
+        4,
+        30,
+        66
+      ],
+      "value": "4,30,66",
+      "source": "https://www.gonzaga.edu/-/media/Website/Documents/About/Offices-and-Services/Marcom/Brand-Trademark/Trademark/AthleticLogoGuide-FINAL.ashx?hash=E983398C0E85206A02E6D992E3D76D68516A2A0F&la=en",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_gonzaga_athletic_red",
+      "name": "Sports Gonzaga Athletic Red",
+      "hex": "#C8102E",
+      "rgb": [
+        200,
+        16,
+        46
+      ],
+      "value": "200,16,46",
+      "source": "https://www.gonzaga.edu/-/media/Website/Documents/About/Offices-and-Services/Marcom/Brand-Trademark/Trademark/AthleticLogoGuide-FINAL.ashx?hash=E983398C0E85206A02E6D992E3D76D68516A2A0F&la=en",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_gonzaga_athletic_gray",
+      "name": "Sports Gonzaga Athletic Gray",
+      "hex": "#C1C6C8",
+      "rgb": [
+        193,
+        198,
+        200
+      ],
+      "value": "193,198,200",
+      "source": "https://www.gonzaga.edu/-/media/Website/Documents/About/Offices-and-Services/Marcom/Brand-Trademark/Trademark/AthleticLogoGuide-FINAL.ashx?hash=E983398C0E85206A02E6D992E3D76D68516A2A0F&la=en",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_gonzaga_white",
+      "name": "Sports Gonzaga White",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "value": "255,255,255",
+      "source": "https://www.gonzaga.edu/-/media/Website/Documents/About/Offices-and-Services/Marcom/Brand-Trademark/Trademark/AthleticLogoGuide-FINAL.ashx?hash=E983398C0E85206A02E6D992E3D76D68516A2A0F&la=en",
+      "source_note": "Published digital palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_supersonics_green",
+      "name": "Sports SuperSonics Green",
+      "hex": "#00653A",
+      "rgb": [
+        0,
+        101,
+        58
+      ],
+      "value": "0,101,58",
+      "source": "https://teamcolorcodes.com/seattle-supersonics-colors/",
+      "source_note": "Published historical final-era palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_supersonics_yellow",
+      "name": "Sports SuperSonics Yellow",
+      "hex": "#FFC200",
+      "rgb": [
+        255,
+        194,
+        0
+      ],
+      "value": "255,194,0",
+      "source": "https://teamcolorcodes.com/seattle-supersonics-colors/",
+      "source_note": "Published historical final-era palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_supersonics_white",
+      "name": "Sports SuperSonics White",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "value": "255,255,255",
+      "source": "https://teamcolorcodes.com/seattle-supersonics-colors/",
+      "source_note": "Published historical final-era palette; RGB derived from hex"
+    },
+    {
+      "entity_id": "input_text.sports_uw_purple",
+      "name": "Sports UW Purple",
+      "hex": "#33006F",
+      "rgb": [
+        51,
+        0,
+        111
+      ],
+      "value": "51,0,111",
+      "source": "https://gohuskies.com/documents/download/2024/8/19/2024-UWATHBrandGuide.pdf",
+      "source_note": "Official athletics guide; RGB derived from listed hex or RGB"
+    },
+    {
+      "entity_id": "input_text.sports_uw_gold",
+      "name": "Sports UW Gold",
+      "hex": "#E8D3A2",
+      "rgb": [
+        232,
+        211,
+        162
+      ],
+      "value": "232,211,162",
+      "source": "https://gohuskies.com/documents/download/2024/8/19/2024-UWATHBrandGuide.pdf",
+      "source_note": "Official athletics guide; RGB derived from listed hex or RGB"
+    },
+    {
+      "entity_id": "input_text.sports_uw_metallic_gold",
+      "name": "Sports UW Metallic Gold",
+      "hex": "#917B4C",
+      "rgb": [
+        145,
+        123,
+        76
+      ],
+      "value": "145,123,76",
+      "source": "https://gohuskies.com/documents/download/2024/8/19/2024-UWATHBrandGuide.pdf",
+      "source_note": "Official athletics guide; RGB derived from listed hex or RGB"
+    },
+    {
+      "entity_id": "input_text.sports_uw_gray",
+      "name": "Sports UW Gray",
+      "hex": "#D8D9DA",
+      "rgb": [
+        216,
+        217,
+        218
+      ],
+      "value": "216,217,218",
+      "source": "https://gohuskies.com/documents/download/2024/8/19/2024-UWATHBrandGuide.pdf",
+      "source_note": "Official athletics guide; RGB derived from listed hex or RGB"
+    },
+    {
+      "entity_id": "input_text.sports_uw_white",
+      "name": "Sports UW White",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "value": "255,255,255",
+      "source": "https://gohuskies.com/documents/download/2024/8/19/2024-UWATHBrandGuide.pdf",
+      "source_note": "Official athletics guide; RGB derived from listed hex or RGB"
+    },
+    {
+      "entity_id": "input_text.sports_wsu_cougar_crimson",
+      "name": "Sports WSU Cougar Crimson",
+      "hex": "#981E32",
+      "rgb": [
+        152,
+        30,
+        50
+      ],
+      "value": "152,30,50",
+      "source": "https://static.wsucougars.com/old_site/pdf/genrel/wsu-brand-manual_single.pdf",
+      "source_note": "Official athletics guide; RGB derived from listed hex or RGB"
+    },
+    {
+      "entity_id": "input_text.sports_wsu_dark_steel_grey",
+      "name": "Sports WSU Dark Steel Grey",
+      "hex": "#53565A",
+      "rgb": [
+        83,
+        86,
+        90
+      ],
+      "value": "83,86,90",
+      "source": "https://static.wsucougars.com/old_site/pdf/genrel/wsu-brand-manual_single.pdf",
+      "source_note": "Official athletics guide; RGB derived from listed hex or RGB"
+    },
+    {
+      "entity_id": "input_text.sports_wsu_white",
+      "name": "Sports WSU White",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "value": "255,255,255",
+      "source": "https://static.wsucougars.com/old_site/pdf/genrel/wsu-brand-manual_single.pdf",
+      "source_note": "Official athletics guide; RGB derived from listed hex or RGB"
+    },
+    {
+      "entity_id": "input_text.sports_georgia_bulldog_red",
+      "name": "Sports Georgia Bulldog Red",
+      "hex": "#BA0C2F",
+      "rgb": [
+        186,
+        12,
+        47
+      ],
+      "value": "186,12,47",
+      "source": "https://georgiadogs.com/documents/download/2026/3/16/GG_BrandManual_online26.pdf",
+      "source_note": "2026 Georgia Athletics brand guide, page 14; official primary and secondary digital colors"
+    },
+    {
+      "entity_id": "input_text.sports_georgia_black",
+      "name": "Sports Georgia Black",
+      "hex": "#2C2A29",
+      "rgb": [
+        44,
+        42,
+        41
+      ],
+      "value": "44,42,41",
+      "source": "https://georgiadogs.com/documents/download/2026/3/16/GG_BrandManual_online26.pdf",
+      "source_note": "2026 Georgia Athletics brand guide, page 14; official primary and secondary digital colors"
+    },
+    {
+      "entity_id": "input_text.sports_georgia_white",
+      "name": "Sports Georgia White",
+      "hex": "#FFFFFF",
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "value": "255,255,255",
+      "source": "https://georgiadogs.com/documents/download/2026/3/16/GG_BrandManual_online26.pdf",
+      "source_note": "2026 Georgia Athletics brand guide, page 14; official primary and secondary digital colors"
+    },
+    {
+      "entity_id": "input_text.sports_georgia_grey",
+      "name": "Sports Georgia Grey",
+      "hex": "#A2AAAD",
+      "rgb": [
+        162,
+        170,
+        173
+      ],
+      "value": "162,170,173",
+      "source": "https://georgiadogs.com/documents/download/2026/3/16/GG_BrandManual_online26.pdf",
+      "source_note": "2026 Georgia Athletics brand guide, page 14; official primary and secondary digital colors"
+    }
+  ]
+}

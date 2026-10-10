@@ -90,6 +90,8 @@ A touchless fullscreen screensaver for the wall-mounted Galaxy Tab A9+ ("Quiet H
 - Night (10:00 PM to 6:15 AM, fixed times in `js/screensaver.js`, not the sun): a dim clock and the temperature replace the weather and agenda; tags and timers show as by day
 - Burn-in guard: the whole layout shifts by up to ~12 px every 3 minutes
 
+**Home insights:** daytime insights suggest closing a specific window or exterior door only when there is a reason: poor air, precipitation, strong wind, active heating/cooling in its room, heating paused by window detection, both adults away, or prolonged opening in cold weather (30 minutes, at most 50°F outside and at least 65°F inside). Physical contacts are explicitly listed in `HOME_OPENINGS`; interior doors, pet flaps and thermostat proxy sensors are excluded. Windows have a 15-minute grace period, front/patio doors 5 minutes. Unknown presence never counts as away. Snapshots older than two minutes suppress these insights; each qualifying insight appears for three minutes per half-hour and clears when closed. These lines rotate with other insights and follow the existing daytime layout.
+
 **Flight backdrop:**
 - The official tablet URL is `http://192.168.2.119/?v=20261009-official-1`. There are no tablet controls.
 - Existing HA Flightradar24 sensor updates every 10 seconds. WebSocket events redraw immediately; a 30-second fallback checks freshness. Aircraft animate to each reported position for two seconds; positions are not extrapolated.

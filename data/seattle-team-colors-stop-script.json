@@ -1,0 +1,14 @@
+{
+  "alias": "Seattle Team Colors - Stop",
+  "description": "Stop future color changes; the current fade can finish and the lights stay on.",
+  "icon": "mdi:stop-circle-outline",
+  "mode": "single",
+  "sequence": [
+    {
+      "action": "script.turn_off",
+      "target": {
+        "entity_id": "script.seattle_team_colors"
+      }
+    }
+  ]
+}

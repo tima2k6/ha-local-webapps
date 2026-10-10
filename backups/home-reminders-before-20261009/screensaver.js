@@ -212,7 +212,7 @@ const PICKUP = {
     sync: 'sensor.brightwheel_a2096536_45d9_4eaf_aa19_38c985d5e450_last_sync',
     status: 'sensor.brightwheel_a2096536_45d9_4eaf_aa19_38c985d5e450_status'
 };
-const MEDS_TAKEN = 'binary_sensor.prozac_taken_today';   // same sensor as the 6 PM insight
+const MEDS_TAKEN = 'binary_sensor.prozac_taken_today';   // same sensor as the 6 PM reminder
 const MEDS_FROM = 14 * 60;                                // meds line from 2 PM until night
 const EVENING = 18 * 60;
 const PRINTERS = { x1c_00m00a2c0618544: 'Rainier', p1s_01p00c611801219: 'Baker' };
@@ -221,22 +221,6 @@ const WARMUPS = { house: 'the whole house', living_room: 'the living room', bedr
 const HOLD = 'input_boolean.climate_manual_override_active';
 const ROOMS = ['living_room', 'bedroom', 'liam_s_room', 'office'].map(r => `climate.${r}_thermostat`);
 const OPEN_WINDOWS = 'sensor.open_windows_count';
-// Physical contacts only: no interior doors, pet flaps or thermostat proxy sensors.
-const HOME_OPENINGS = [
-    ['binary_sensor.living_room_window_1_contact', 'Living room window 1', 'window', 'living_room'],
-    ['binary_sensor.living_room_window_2_new_contact', 'Living room window 2', 'window', 'living_room'],
-    ['binary_sensor.bedroom_window_1_contact', 'Bedroom window 1', 'window', 'bedroom'],
-    ['binary_sensor.bedroom_window_2_contact', 'Bedroom window 2', 'window', 'bedroom'],
-    ['binary_sensor.liams_window_contact', "Liam's window", 'window', 'liam_s_room'],
-    ['binary_sensor.office_window_true_contact', 'Office window', 'window', 'office'],
-    ['binary_sensor.kitchen_window_new_contact', 'Kitchen window', 'window', null],
-    ['binary_sensor.kitchen_window_contact', 'Den window', 'window', null],
-    ['binary_sensor.guest_bath_window_contact', 'Guest bathroom window', 'window', null],
-    ['binary_sensor.front_door_contact', 'Front door', 'door', 'living_room'],
-    ['binary_sensor.slider_door_sensor_contact', 'Patio door', 'door', 'living_room']
-].map(([entity, label, kind, room]) => ({ entity, label, kind, room }));
-const HOME_CLIMATES = [...ROOMS, 'climate.living_room', 'climate.liams_air_con_portableac'];
-const HOME_INSIGHTS = { stale: 2 * 60e3, showFor: 3 * 60e3, repeatAfter: 30 * 60e3 };
 // Plants: soil moisture vs each plant's own range (set in the plant card), plus any other
 // problem the plant integration reports (plant.*: too cold, too dark, ...). "All happy" only
 // when every plant.* is ok: the mimosa once read 97% soil (too wet) under "all happy" (2026-10-09).
@@ -322,7 +306,6 @@ const INS_ICONS = {
     clock: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2.5h6"/>',
     moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
     window: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M12 3v18M4 12h16"/>',
-    door: '<path d="M5 21V3h14v18M3 21h18M15 12h.01"/>',
     plant: '<path d="M12 21v-9M12 12c0-4 3-7 8-7 0 4.5-3 7-8 7zM12 15c0-3-2.5-5.5-7-5.5 0 3.5 2.5 5.5 7 5.5zM8 21h8"/>',
     air: '<path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/>',
     storm: '<path d="M7 15a4 4 0 0 1-.5-8A5.5 5.5 0 0 1 17 7.5a3.75 3.75 0 0 1 0 7.5"/><path d="M12.5 12L10 16.5h4L11.5 21"/>',
@@ -405,18 +388,7 @@ class Insights {
 {% elif is_state(person, 'home') %}{% set presence.active = true %}{% endif %}{% endfor %}
 {% set nc.items = nc.items + [{'entity': route.entity, 'value': states(route.entity), 'active': presence.active, 'work': presence.work,
   'at': commute.last_reported.isoformat() if commute else none}] %}{% endfor %}
-{% set nh = namespace(openings=[], climates=[]) %}
-{% for opening in ${JSON.stringify(HOME_OPENINGS)} %}{% set contact = states[opening.entity] %}
-{% if contact %}{% set nh.openings = nh.openings + [{'entity': opening.entity, 'state': contact.state,
-    'changed': contact.last_changed.isoformat()}] %}{% endif %}{% endfor %}
-{% for id in ${JSON.stringify(HOME_CLIMATES)} %}{% set climate = states[id] %}
-{% if climate %}{% set nh.climates = nh.climates + [{'entity': id, 'state': climate.state,
-    'action': climate.attributes.get('hvac_action'), 'temperature': climate.attributes.get('current_temperature'),
-    'offReason': (climate.attributes.get('specific_states') or {}).get('hvac_off_reason')}] %}{% endif %}{% endfor %}
 {{ {'rise': state_attr('${SUN}', 'next_rising'), 'set': state_attr('${SUN}', 'next_setting'),
-    'home_openings': nh.openings, 'home_climates': nh.climates,
-    'everyone_away': states('person.tim') not in ['home', 'unknown', 'unavailable']
-        and states('person.emily') not in ['home', 'unknown', 'unavailable'],
     'commutes': nc.items,
     'viewer_home': is_state('person.tim', 'home') or is_state('person.emily', 'home'),
     'attendance': {'status': states('${PICKUP.attendance}'), 'at': state_attr('${PICKUP.attendance}', 'timestamp'),
@@ -427,7 +399,6 @@ class Insights {
     'meds': states('${MEDS_TAKEN}'), 'hold': states('${HOLD}'), 'printers': ns.p, 'warm': ns.w,
     'aqi': states('${AQI}'), 'dew': state_attr('${WEATHER}', 'dew_point'),
     'humid': state_attr('${WEATHER}', 'humidity'),
-    'wind': state_attr('${WEATHER}', 'wind_speed'),
     'out': state_attr('${WEATHER}', 'temperature'), 'cond': states('${WEATHER}'), 'windows': states('${OPEN_WINDOWS}'), 'plants': ns2.pl,
     'inside': (${JSON.stringify(ROOMS)} | map('state_attr', 'current_temperature') | select('is_number') | list) } | tojson }}`;
         try {
@@ -452,16 +423,12 @@ class Insights {
                 viewerHome: d.viewer_home === true,
                 attendance: d.attendance,
                 statesAt: Date.now(),
-                homeOpenings: d.home_openings,
-                homeClimates: d.home_climates,
-                everyoneAway: d.everyone_away === true,
                 medsTaken: d.meds !== 'off',
                 hold: d.hold === 'on',
                 printers: d.printers,
                 warm: d.warm,
                 outside: typeof d.out === 'number' ? d.out : null,
                 outsideCond: d.cond,
-                outsideWind: typeof d.wind === 'number' ? d.wind : null,
                 inside: d.inside.length ? d.inside.reduce((a, b) => a + b, 0) / d.inside.length : null,
                 windowsOpen: parseInt(d.windows, 10) || 0,
                 plants: d.plants,
@@ -565,7 +532,7 @@ class Insights {
         const { sun, daily } = this.data;
         const out = [];
 
-        out.push(...(this.extraLines?.(now) || []), ...this.firstLines(now, m), ...this.homeInsightLines(now));
+        out.push(...(this.extraLines?.(now) || []), ...this.firstLines(now, m));
 
         const dropoff = this.dropoffLine(now);
         if (dropoff) out.push(dropoff);
@@ -779,50 +746,6 @@ class Insights {
         return out;
     }
 
-    homeInsightLines(now) {
-        const snapshotAge = now - this.data.statesAt;
-        if (!Number.isFinite(snapshotAge) || snapshotAge < 0 || snapshotAge >= HOME_INSIGHTS.stale) return [];
-        this.homeInsightEpisodes ||= new Map();
-        const contacts = new Map((this.data.homeOpenings || []).map(c => [c.entity, c]));
-        const climates = new Map((this.data.homeClimates || []).map(c => [c.entity, c]));
-        const out = [];
-        for (const opening of HOME_OPENINGS) {
-            const contact = contacts.get(opening.entity);
-            const open = contact?.state === 'on';
-            if (!open) { this.homeInsightEpisodes.delete(opening.entity); continue; }
-            const age = now - new Date(contact.changed);
-            const grace = (opening.kind === 'window' ? 15 : 5) * 60e3;
-            if (!contact.changed || !Number.isFinite(age) || age < grace) continue;
-            const climate = climates.get(`climate.${opening.room}_thermostat`);
-            const roomClimates = [climate, ...[opening.room === 'living_room' ? 'climate.living_room'
-                : opening.room === 'liam_s_room' ? 'climate.liams_air_con_portableac' : null].map(id => climates.get(id))];
-            const active = roomClimates.find(c => c && !['unknown', 'unavailable', 'off'].includes(c.state)
-                && ['heating', 'cooling'].includes(c.action));
-            const inside = climate?.temperature ?? this.data.inside, outside = this.data.outside;
-            let reason = null;
-            if (this.data.everyoneAway === true) reason = 'Tim and Emily are away';
-            else if (Number.isFinite(this.data.aqi) && this.data.aqi >= AQI_POOR) reason = 'poor air outside';
-            else if (WET.has(this.data.outsideCond)) reason = 'rain or snow outside';
-            else if (Number.isFinite(this.data.outsideWind) && this.data.outsideWind >= STRONG_WIND) reason = 'strong wind outside';
-            else if (active) reason = active.action === 'heating' ? 'the heat is running' : 'the AC is running';
-            else if (climate?.state === 'off' && climate.offReason === 'Window detection') reason = 'heating is paused for the open window';
-            else if (age >= 30 * 60e3 && Number.isFinite(outside) && Number.isFinite(inside)
-                && outside <= 50 && inside >= 65 && inside - outside >= 8) reason = `${Math.round(outside)}° outside`;
-            if (!reason) continue;
-            // Brief appearances, at most once per half-hour per open episode. A changed
-            // reason does not restart the insight; closing and reopening does.
-            let episode = this.homeInsightEpisodes.get(opening.entity);
-            if (!episode || episode.changed !== contact.changed) {
-                episode = { changed: contact.changed, since: now.getTime() };
-                this.homeInsightEpisodes.set(opening.entity, episode);
-            }
-            if ((now - episode.since) % HOME_INSIGHTS.repeatAfter >= HOME_INSIGHTS.showFor) continue;
-            out.push(['', opening.kind === 'window' ? 'window' : 'door',
-                `Close ${esc(opening.label.startsWith('Liam') ? opening.label : 'the ' + opening.label.toLowerCase())} · ${esc(reason)}`]);
-        }
-        return out;
-    }
-
     attendanceForTrip(now) {
         const attendance = this.data.attendance;
         const syncAge = now - new Date(attendance?.sync);
@@ -960,11 +883,11 @@ class StatusTags extends Ticker {
         }[s.feedingState];
         if (feed) out.push(feed);
 
-        // Same schedule as the old ticker: only while the waste insight is
+        // Same schedule as the old ticker: only while the waste reminder is
         // on and the trash hasn't been marked as out
         const g = s.garbageCollection, r = s.recyclingCollection;
         if (s.wasteReminder && !s.trashOut) {
-            // Only what's due (today or tomorrow, as the insight sensor
+            // Only what's due (today or tomorrow, as the reminder sensor
             // counts it): "Trash & recycling tomorrow", "Trash tomorrow"
             const due = v => ['today', 'tomorrow'].includes(String(v).toLowerCase()) ? String(v).toLowerCase() : null;
             const gd = due(g), rd = due(r);
