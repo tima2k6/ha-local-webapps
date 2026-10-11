@@ -19,3 +19,6 @@ previews/quiet-hours/.browser-cache/
 previews/quiet-hours/preview-states.json
 previews/flight-tally/
 backups/flight-tally-before-20261010/
+
+# Local Alexa MCP checkout, authentication, and home configuration backups
+tools/alexa-mcp/
