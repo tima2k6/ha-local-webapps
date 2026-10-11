@@ -448,7 +448,7 @@
   </div>
 </div>
 
-<script src="js/ha-app.js?v=1"></script>
+<script src="js/ha-app.js?v=20261010"></script>
 <script src="js/ha-config.js?v=20261005" onerror="this.remove()"></script>
 <script>
 // A function, not a constant: inside the HA app the token refreshes (js/ha-app.js)
@@ -480,12 +480,25 @@ let lastSlots = null;
 
 // ── HA API ────────────────────────────────────────────────────
 async function fetchState(id) {
-  return (await fetch(`${HA_URL}/api/states/${id}`, { headers: HEADERS() })).json();
+  if (window.HA_IN_APP) {
+    const state = window.HA_APP_HASS?.()?.states?.[id];
+    if (!state) throw new Error(`HA state unavailable: ${id}`);
+    return state;
+  }
+  const response = await fetch(`${HA_URL}/api/states/${id}`, { headers: HEADERS() });
+  if (!response.ok) throw new Error(`HA request failed: ${response.status}`);
+  return response.json();
 }
 async function callService(domain, service, data = {}) {
-  await fetch(`${HA_URL}/api/services/${domain}/${service}`, {
+  if (window.HA_IN_APP) {
+    const hass = window.HA_APP_HASS?.();
+    if (!hass?.callService) throw new Error('HA connection unavailable');
+    return hass.callService(domain, service, data);
+  }
+  const response = await fetch(`${HA_URL}/api/services/${domain}/${service}`, {
     method:'POST', headers: HEADERS(), body: JSON.stringify(data)
   });
+  if (!response.ok) throw new Error(`HA service failed: ${response.status}`);
 }
 async function callScript(id)           { await callService('script','turn_on',{ entity_id:id }); }
 async function setBoolean(id, v)        { await callService('input_boolean', v?'turn_on':'turn_off',{ entity_id:id }); }
@@ -707,6 +720,7 @@ async function confirmCancel() { hideConfirm(); await callScript('script.bedtime
 
 // ── Poll ──────────────────────────────────────────────────────
 async function poll() {
+  if (document.hidden) return;
   try {
     const ids = [
       'input_select.bedtime_routine_phase',
@@ -857,6 +871,9 @@ function updateUI(s) {
 renderDragList();
 poll();
 setInterval(poll, 2000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) poll();
+});
 
 // ── Client-side countdown tickers ──
 let autoStartEnabled = false;

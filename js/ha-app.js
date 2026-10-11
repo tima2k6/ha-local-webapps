@@ -19,6 +19,8 @@
     Object.defineProperty(window, 'HA_URL', { value: location.origin });
     Object.defineProperty(window, 'HA_TOKEN', { get: () => appHass()?.auth?.data?.access_token || '' });
     window.HA_IN_APP = true;
+    // Embedded dashboards can use HA's managed connection instead of REST tokens.
+    window.HA_APP_HASS = appHass;
 
     const keepFresh = () => {
         const auth = appHass()?.auth;
