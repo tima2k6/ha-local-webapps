@@ -17,3 +17,5 @@ backups/**/tablet-screensaver-settings.json
 # Local dashboard verification state and browser profile
 previews/quiet-hours/.browser-cache/
 previews/quiet-hours/preview-states.json
+previews/flight-tally/
+backups/flight-tally-before-20261010/

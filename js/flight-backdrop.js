@@ -1,6 +1,7 @@
 // Decorative renderer: reads the existing HA sensor; never calls FR24 directly.
 const NS = 'http://www.w3.org/2000/svg';
 const ENTITY = 'sensor.flightradar24_current_in_area';
+const TALLY_ENTITY = 'sensor.flightradar24_planes_today';
 export const finite = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 
 export function viewport(home, bounds) {
@@ -22,6 +23,16 @@ export function validFlights(flights) {
         && !f.on_ground && !f.has_landed);
 }
 
+export function dailyTallyText(state, now = new Date()) {
+    const zone = state?.attributes?.time_zone || 'America/Los_Angeles';
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+    const part = type => parts.find(p => p.type === type).value;
+    const day = `${part('year')}-${part('month')}-${part('day')}`;
+    const count = Number(state?.state);
+    if (!finite(state?.state) || !Number.isSafeInteger(count) || count < 0 || state?.attributes?.day !== day) return '';
+    return `${count.toLocaleString()} aircraft today`;
+}
+
 function svg(tag, attributes = {}, parent) {
     const el = document.createElementNS(NS, tag);
     for (const [key, value] of Object.entries(attributes)) el.setAttribute(key, value);
@@ -30,8 +41,8 @@ function svg(tag, attributes = {}, parent) {
 }
 
 export class FlightBackdrop {
-    constructor(config, map, status) {
-        Object.assign(this, { config, map, status: status || { textContent: '' } });
+    constructor(config, map, status, tally) {
+        Object.assign(this, { config, map, status: status || { textContent: '' }, tally });
         this.markers = new Map();
         this.layer = map.querySelector('.flights');
         this.layer.replaceChildren();
@@ -85,7 +96,7 @@ export class FlightBackdrop {
             if (message.type === 'auth_required') ws.send(JSON.stringify({ type: 'auth', access_token: this.config.longLivedAccessToken }));
             if (message.type === 'auth_ok') {
                 ws.send(JSON.stringify({ id: 1, type: 'subscribe_trigger', trigger: {
-                    platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching']
+                    platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching', TALLY_ENTITY]
                 } }));
             }
             if (message.type === 'auth_invalid') {
@@ -142,6 +153,12 @@ export class FlightBackdrop {
         if (this.busy) { this.pendingRefresh = true; return; }
         this.busy = true;
         try {
+            // An unavailable map feed must not erase a valid daily total.
+            if (this.tally) {
+                try { this.tally.textContent = dailyTallyText(await this.state(TALLY_ENTITY)); }
+                catch { this.tally.textContent = ''; }
+                this.tally.hidden = !this.tally.textContent;
+            }
             if (!this.center) {
                 const home = await this.state('zone.home');
                 if (!finite(home.attributes.latitude) || !finite(home.attributes.longitude)) throw new Error('Home location unavailable');
@@ -192,6 +209,7 @@ export class FlightBackdrop {
                 this.markers.set(id, item);
             }
             item.marker.style.transform = `translate(${x}px, ${y}px)`;
+            item.plane.setAttribute('href', String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? '#helicopter' : '#plane');
             item.plane.setAttribute('transform', `rotate(${finite(f.heading) ? Number(f.heading) : 0})`);
             item.label.textContent = f.flight_number || f.callsign || 'Aircraft';
             const origin = f.airport_origin_code_iata || f.airport_origin_code_icao;

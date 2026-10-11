@@ -1,0 +1,56 @@
+# Include this list item beneath Home Assistant's existing template: section.
+# The current FR24 radius is 8 km. The feed covers a bounding rectangle, so
+# calculate a circular distance explicitly. Flight IDs represent journeys,
+# rather than aircraft registrations or moving coordinates.
+- triggers:
+    - trigger: state
+      entity_id:
+        - sensor.flightradar24_current_in_area
+        - switch.flightradar24_api_data_fetching
+    - trigger: time_pattern
+      minutes: "/1"
+    - trigger: homeassistant
+      event: start
+  sensor:
+    - name: "FlightRadar24 Planes Today"
+      default_entity_id: sensor.flightradar24_planes_today
+      unique_id: flightradar24_planes_today
+      icon: mdi:airplane
+      unit_of_measurement: "planes"
+      variables:
+        tally_day: "{{ now().strftime('%Y-%m-%d') }}"
+        tally_ids: >-
+          {% set previous = (state_attr('sensor.flightradar24_planes_today', 'flight_ids') or []) if state_attr('sensor.flightradar24_planes_today', 'day') == tally_day else [] %}
+          {% set ns = namespace(ids=previous) %}
+          {% set source = states.sensor.flightradar24_current_in_area %}
+          {% set home_lat = state_attr('zone.home', 'latitude') %}
+          {% set home_lon = state_attr('zone.home', 'longitude') %}
+          {% if is_state('switch.flightradar24_api_data_fetching', 'on')
+                and source is defined and source.state not in ['unknown', 'unavailable']
+                and (as_timestamp(now()) - as_timestamp(source.last_updated, 0)) < 180
+                and is_number(home_lat) and is_number(home_lon) %}
+            {% set radians = pi / 180 %}
+            {% for f in source.attributes.get('flights', []) %}
+              {% if f.get('id') and not f.get('on_ground') and not f.get('has_landed')
+                    and is_number(f.get('latitude')) and is_number(f.get('longitude'))
+                    and (f.latitude | float | abs) <= 90 and (f.longitude | float | abs) <= 180 %}
+                {% set lat = f.latitude | float %}
+                {% set lon = f.longitude | float %}
+                {% set a = sin((lat - home_lat) * radians / 2) ** 2
+                       + cos(home_lat * radians) * cos(lat * radians)
+                       * sin((lon - home_lon) * radians / 2) ** 2 %}
+                {% set metres = 12742000 * asin(sqrt([1, [0, a] | max] | min)) %}
+                {% set id = f.id | string %}
+                {% if metres <= 8000 and id not in ns.ids %}
+                  {% set ns.ids = ns.ids + [id] %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {{ ns.ids }}
+      state: "{{ tally_ids | count }}"
+      attributes:
+        day: "{{ tally_day }}"
+        flight_ids: "{{ tally_ids }}"
+        radius_m: 8000
+        time_zone: "America/Los_Angeles"

@@ -5,6 +5,20 @@ const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../js/flight-backdrop.js'), 'utf8');
 const modulePromise = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 
+test('daily tally uses the HA local day and hides missing or previous-day totals', async () => {
+    const { dailyTallyText } = await modulePromise;
+    const now = new Date('2026-10-11T06:59:00Z'); // Still October 10 in Seattle.
+    const state = { state: '123', attributes: { day: '2026-10-10', time_zone: 'America/Los_Angeles' } };
+    assert.equal(dailyTallyText(state, now), '123 aircraft today');
+    assert.equal(dailyTallyText({ ...state, state: '1' }, now), '1 aircraft today');
+    assert.equal(dailyTallyText({ ...state, state: '0' }, now), '0 aircraft today');
+    assert.equal(dailyTallyText(state, new Date('2026-10-11T07:00:00Z')), '');
+    for (const invalid of [null, '', 'unknown', 'unavailable', '-1', '1.5']) {
+        assert.equal(dailyTallyText({ ...state, state: invalid }, now), '');
+    }
+    assert.equal(dailyTallyText(undefined, now), '');
+});
+
 test('home sits below center and the entire sensor area fits the wider 16:10 viewport', async () => {
     const { viewport, project } = await modulePromise;
     const home = [47.5, -122.3];
