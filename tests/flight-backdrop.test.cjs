@@ -37,11 +37,21 @@ test('airline labels and routes replace flight numbers; departed trails last two
             airline: 'Alaska Airlines', airline_short: 'Alaska', flight_number: 'AS123',
             airport_origin_code_iata: 'SEA', airport_destination_code_iata: 'YVR',
             coordinates: [[47.48, -122.31], [47.5, -122.3]] };
-        feed.draw([plane]);
+        feed.draw([plane], 100000);
         const item = feed.markers.get('journey');
+        assert.equal(item.marker.style.transitionDuration, '0ms'); // No flight from the corner on arrival.
         assert.equal(item.label.textContent, 'Alaska');
         assert.equal(item.route.textContent, 'SEA → YVR');
         assert.ok(item.trails.children.length > 0);
+        const moved = { ...plane, longitude: -122.29 };
+        feed.draw([moved], 110000);
+        assert.equal(item.marker.style.transitionDuration, '12000ms');
+        feed.draw([moved], 115000); // Duplicate polls must not alter the movement cadence.
+        assert.equal(item.position.reportedAt, 110000);
+        feed.draw([{ ...moved, longitude: -122.28 }], 130000);
+        assert.equal(item.marker.style.transitionDuration, '22000ms');
+        feed.draw([{ ...moved, longitude: -122.27 }], 170000);
+        assert.equal(item.marker.style.transitionDuration, '0ms'); // Recover promptly after a long gap.
         feed.draw([]);
         assert.equal(item.marker.style.display, 'none');
         assert.equal(feed.activeAircraftCount, 0);
@@ -53,6 +63,7 @@ test('airline labels and routes replace flight numbers; departed trails last two
         feed.draw([plane]);
         assert.equal(timers.has(firstTimer), false);
         assert.equal(item.marker.style.display, '');
+        assert.equal(item.marker.style.transitionDuration, '0ms');
         assert.equal(item.trails.style.opacity, '');
         feed.draw([]);
         timers.get(item.retireTimer).fn();

@@ -66,7 +66,7 @@ try {
         b.stopped=true;clearInterval(b.timer);clearTimeout(b.reconnectTimer);b.ws?.close();
         for(const item of b.markers.values())clearTimeout(item.retireTimer);
         b.markers.clear();b.layer.replaceChildren();
-        const draw=b.draw.bind(b);b.draw=()=>{};b.fail=()=>{};
+        const draw=b.draw.bind(b);window.fixtureDraw=draw;b.draw=()=>{};b.fail=()=>{};
         const box=b.box=[47.4,-122.45,47.6,-122.15];
         const flight=(id,x,category)=>({id,callsign:id,airline_short:category==='Airplane'?'Alaska':'',airport_origin_code_iata:'SEA',airport_destination_code_iata:'YVR',latitude:box[2]-(630/800)*(box[2]-box[0]),longitude:box[1]+(x/1280)*(box[3]-box[1]),heading:35,aircraft_category:category});
         const helicopter={...flight('HELICOPTER',850,'Helicopter'),altitude:1000}, plane={...flight('AIRPLANE',1030,'Airplane'),altitude:35000};
@@ -86,6 +86,25 @@ try {
     await new Promise(resolve => setTimeout(resolve, 2200));
     const iconShot = await call('Page.captureScreenshot', { format: 'png' }, sessionId);
     fs.writeFileSync(new URL('aircraft-icons.png', output), Buffer.from(iconShot.data, 'base64'));
+    const motion = await call('Runtime.evaluate', { expression: `(async()=>{
+        const b=window.flightBackdrop,p=b.markers.get('AIRPLANE'),box=b.box;
+        const x=()=>new DOMMatrix(getComputedStyle(p.marker).transform).m41;
+        const start=x(),lat=box[2]-(630/800)*(box[2]-box[0]),lon=px=>box[1]+(px/1280)*(box[3]-box[1]);
+        const flight={id:'AIRPLANE',latitude:lat,longitude:lon(start+120),airline_short:'Alaska',altitude:35000};
+        const stamp=p.position.reportedAt+10000;
+        fixtureDraw([flight],stamp);
+        const duration=getComputedStyle(p.marker).transitionDuration;
+        await new Promise(r=>setTimeout(r,2500));const afterTwoSeconds=x();
+        await new Promise(r=>setTimeout(r,800));const later=x();
+        fixtureDraw([{...flight,longitude:lon(start+240)}],stamp+10000);
+        const retarget=x();await new Promise(r=>setTimeout(r,800));const afterRetarget=x();
+        return {start,afterTwoSeconds,later,retarget,afterRetarget,duration};
+    })()`, awaitPromise: true, returnByValue: true }, sessionId);
+    const m=motion.result.value;
+    assert.equal(m.duration,'12s');
+    assert.ok(m.afterTwoSeconds>m.start && m.later>m.afterTwoSeconds+2, 'Flight stopped after two seconds');
+    assert.ok(Math.abs(m.retarget-m.later)<3 && m.afterRetarget>m.retarget+2, 'Retargeting jumped or stopped');
+    console.log(JSON.stringify({smoothMotion:true,...m}));
     console.log('Airline/route labels, helicopter icon, heading, and updated category verified.');
     assert.deepEqual(errors, []);
 } finally {

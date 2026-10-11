@@ -188,7 +188,7 @@ export class FlightBackdrop {
             this.box = viewport(this.center, state.attributes.bounds);
             const key = this.box.join(',');
             if (key !== this.lastMapBox) { this.renderMap(); this.lastMapBox = key; }
-            this.draw(validFlights(state.attributes.flights));
+            this.draw(validFlights(state.attributes.flights), updated);
             this.map.dataset.feed = 'live';
             this.map.dataset.sourceUpdated = state.last_updated;
             delete this.map.dataset.feedStatus;
@@ -203,7 +203,7 @@ export class FlightBackdrop {
         }
     }
 
-    draw(flights) {
+    draw(flights, reportedAt = Date.now()) {
         const active = new Set();
         for (const f of flights) {
             const id = String(f.id || f.aircraft_icao_24bit || f.callsign || f.flight_number || `${f.latitude},${f.longitude}`);
@@ -221,14 +221,26 @@ export class FlightBackdrop {
                 item = { group, trails, marker, plane, label, route };
                 this.markers.set(id, item);
             }
-            if (item.departed) {
+            const returning = item.departed;
+            if (returning) {
                 clearTimeout(item.retireTimer);
                 item.departed = false;
                 item.marker.style.display = '';
                 item.trails.style.transition = '';
                 item.trails.style.opacity = '';
             }
-            item.marker.style.transform = `translate(${x}px, ${y}px)`;
+            const previous = item.position;
+            if (!previous || returning || previous.x !== x || previous.y !== y) {
+                const gap = previous ? reportedAt - previous.reportedAt : 0;
+                // Span the observed update cadence, with two seconds of overlap.
+                // CSS retargets from the currently displayed position, avoiding
+                // the old two-second move followed by eight seconds at rest.
+                const duration = !previous || returning || gap > 30000 ? 0
+                    : Math.min(32000, Math.max(10000, gap) + 2000);
+                item.marker.style.transitionDuration = `${duration}ms`;
+                item.marker.style.transform = `translate(${x}px, ${y}px)`;
+                item.position = { x, y, reportedAt };
+            }
             item.plane.setAttribute('href', String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? '#helicopter' : '#plane');
             const scale = altitudeScale(f.altitude);
             item.plane.setAttribute('transform', `rotate(${finite(f.heading) ? Number(f.heading) : 0}) scale(${scale.toFixed(3)})`);
