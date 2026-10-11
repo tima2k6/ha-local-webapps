@@ -77,7 +77,7 @@ export class FlightBackdrop {
         } catch (error) { this.fail(error); }
         await mapRequest;
         // Reconcile missed updates and check freshness; websocket events draw immediately.
-        this.timer = setInterval(() => this.refresh(), 30000);
+        this.timer = setInterval(() => this.refresh(), 10000);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) this.refresh(); });
         window.addEventListener('pagehide', () => {
             this.stopped = true;
