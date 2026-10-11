@@ -4,6 +4,16 @@ const ENTITY = 'sensor.flightradar24_current_in_area';
 const TALLY_ENTITY = 'sensor.flightradar24_planes_today';
 export const finite = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 
+// FR24 altitude is reported in feet above sea level; this is a visual cue,
+// not an estimate of clearance above the terrain below the aircraft.
+export function altitudeScale(altitude) {
+    if (!finite(altitude) || Number(altitude) < 0) return 1;
+    const feet = Number(altitude);
+    if (feet <= 1000) return 1.6;
+    if (feet <= 10000) return 1.6 - .6 * (feet - 1000) / 9000;
+    return Math.max(.8, 1 - .2 * (feet - 10000) / 20000);
+}
+
 export function viewport(home, bounds) {
     const [north, south, west, east] = String(bounds).split(',').map(Number);
     if (![...home, north, south, west, east].every(Number.isFinite) || north <= south || east <= west) throw new Error('Invalid flight map bounds');
@@ -83,6 +93,7 @@ export class FlightBackdrop {
             this.stopped = true;
             clearInterval(this.timer);
             clearTimeout(this.reconnectTimer);
+            for (const item of this.markers.values()) clearTimeout(item.retireTimer);
             this.ws?.close();
         }, { once: true });
     }
@@ -141,8 +152,10 @@ export class FlightBackdrop {
     }
 
     fail(error) {
+        for (const item of this.markers.values()) clearTimeout(item.retireTimer);
         this.layer.replaceChildren();
         this.markers.clear();
+        this.activeAircraftCount = 0;
         this.status.textContent = `Flight feed unavailable (${error.message})`;
         this.map.dataset.feed = 'unavailable';
         this.map.dataset.feedStatus = error.message;
@@ -179,7 +192,7 @@ export class FlightBackdrop {
             this.map.dataset.feed = 'live';
             this.map.dataset.sourceUpdated = state.last_updated;
             delete this.map.dataset.feedStatus;
-            this.status.textContent = `HA flight snapshot · ${this.markers.size} aircraft · source updated ${new Date(state.last_updated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`;
+            this.status.textContent = `HA flight snapshot · ${this.activeAircraftCount ?? this.markers.size} aircraft · source updated ${new Date(state.last_updated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`;
         } catch (error) { this.fail(error); }
         finally {
             this.busy = false;
@@ -208,10 +221,21 @@ export class FlightBackdrop {
                 item = { group, trails, marker, plane, label, route };
                 this.markers.set(id, item);
             }
+            if (item.departed) {
+                clearTimeout(item.retireTimer);
+                item.departed = false;
+                item.marker.style.display = '';
+                item.trails.style.transition = '';
+                item.trails.style.opacity = '';
+            }
             item.marker.style.transform = `translate(${x}px, ${y}px)`;
             item.plane.setAttribute('href', String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? '#helicopter' : '#plane');
-            item.plane.setAttribute('transform', `rotate(${finite(f.heading) ? Number(f.heading) : 0})`);
-            item.label.textContent = f.flight_number || f.callsign || 'Aircraft';
+            const scale = altitudeScale(f.altitude);
+            item.plane.setAttribute('transform', `rotate(${finite(f.heading) ? Number(f.heading) : 0}) scale(${scale.toFixed(3)})`);
+            // Leave breathing room between the larger silhouette and its labels.
+            for (const label of [item.label, item.route]) label.setAttribute('x', Math.round(22 * Math.max(1, scale)));
+            item.label.textContent = f.airline_short || f.airline
+                || (String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? 'Helicopter' : 'Aircraft');
             const origin = f.airport_origin_code_iata || f.airport_origin_code_icao;
             const destination = f.airport_destination_code_iata || f.airport_destination_code_icao;
             item.route.textContent = origin || destination ? `${origin || '?'} → ${destination || '?'}` : '';
@@ -229,8 +253,19 @@ export class FlightBackdrop {
                     stroke: '#5fc9b4', 'stroke-width': 1.6, 'stroke-opacity': (.08+.55*i/points.length).toFixed(2) }, item.trails);
             }
         }
+        this.activeAircraftCount = active.size;
         for (const [id, item] of this.markers) if (!active.has(id)) {
-            item.group.remove(); this.markers.delete(id);
+            if (item.departed) continue;
+            item.departed = true;
+            item.marker.style.display = 'none';
+            // Keep only the observed path, fading gently for two minutes.
+            item.trails.style.transition = 'opacity 120s linear';
+            item.trails.style.opacity = '0';
+            item.retireTimer = setTimeout(() => {
+                if (item.departed && this.markers.get(id) === item) {
+                    item.group.remove(); this.markers.delete(id);
+                }
+            }, 120000);
         }
     }
 }

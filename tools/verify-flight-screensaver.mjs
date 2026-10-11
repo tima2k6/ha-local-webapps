@@ -64,10 +64,12 @@ try {
     const icons = await call('Runtime.evaluate', { expression: `(()=>{
         const b=window.flightBackdrop;
         b.stopped=true;clearInterval(b.timer);clearTimeout(b.reconnectTimer);b.ws?.close();
+        for(const item of b.markers.values())clearTimeout(item.retireTimer);
+        b.markers.clear();b.layer.replaceChildren();
         const draw=b.draw.bind(b);b.draw=()=>{};b.fail=()=>{};
         const box=b.box=[47.4,-122.45,47.6,-122.15];
-        const flight=(id,x,category)=>({id,callsign:id,latitude:box[2]-(630/800)*(box[2]-box[0]),longitude:box[1]+(x/1280)*(box[3]-box[1]),heading:35,aircraft_category:category});
-        const helicopter=flight('HELICOPTER',850,'Helicopter'), plane=flight('AIRPLANE',1030,'Airplane');
+        const flight=(id,x,category)=>({id,callsign:id,airline_short:category==='Airplane'?'Alaska':'',airport_origin_code_iata:'SEA',airport_destination_code_iata:'YVR',latitude:box[2]-(630/800)*(box[2]-box[0]),longitude:box[1]+(x/1280)*(box[3]-box[1]),heading:35,aircraft_category:category});
+        const helicopter={...flight('HELICOPTER',850,'Helicopter'),altitude:1000}, plane={...flight('AIRPLANE',1030,'Airplane'),altitude:35000};
         draw([helicopter,plane]);
         const first=b.markers.get('HELICOPTER').plane.getAttribute('href');
         const rotation=b.markers.get('HELICOPTER').plane.getAttribute('transform');
@@ -76,11 +78,15 @@ try {
         draw([helicopter,plane]);document.body.classList.remove('force-night');
         return {first,rotation,changed,plane:b.markers.get('AIRPLANE').plane.getAttribute('href'),symbol:!!document.querySelector('#helicopter')};
     })()`, returnByValue: true }, sessionId);
-    assert.deepEqual(icons.result.value, {first:'#helicopter',rotation:'rotate(35)',changed:'#plane',plane:'#plane',symbol:true});
+    assert.deepEqual(icons.result.value, {first:'#helicopter',rotation:'rotate(35) scale(1.600)',changed:'#plane',plane:'#plane',symbol:true});
+    const sizes = await call('Runtime.evaluate', { expression: `(()=>{const b=window.flightBackdrop;return {high:b.markers.get('AIRPLANE').plane.getAttribute('transform'),lowLabel:b.markers.get('HELICOPTER').label.getAttribute('x'),highLabel:b.markers.get('AIRPLANE').label.getAttribute('x')}})()`, returnByValue: true }, sessionId);
+    assert.deepEqual(sizes.result.value, {high:'rotate(35) scale(0.800)',lowLabel:'35',highLabel:'22'});
+    const labels = await call('Runtime.evaluate', { expression: `(()=>{const b=window.flightBackdrop,p=b.markers.get('AIRPLANE');return {airline:p.label.textContent,route:p.route.textContent,helicopter:b.markers.get('HELICOPTER').label.textContent}})()`, returnByValue: true }, sessionId);
+    assert.deepEqual(labels.result.value, {airline:'Alaska',route:'SEA → YVR',helicopter:'Helicopter'});
     await new Promise(resolve => setTimeout(resolve, 2200));
     const iconShot = await call('Page.captureScreenshot', { format: 'png' }, sessionId);
     fs.writeFileSync(new URL('aircraft-icons.png', output), Buffer.from(iconShot.data, 'base64'));
-    console.log('Helicopter icon, heading, and updated category verified.');
+    console.log('Airline/route labels, helicopter icon, heading, and updated category verified.');
     assert.deepEqual(errors, []);
 } finally {
     await call('Browser.close').catch(() => {});

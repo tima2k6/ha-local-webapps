@@ -5,6 +5,73 @@ const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../js/flight-backdrop.js'), 'utf8');
 const modulePromise = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 
+test('altitude scaling makes low flights larger, caps both ends, and keeps missing altitude neutral', async () => {
+    const { altitudeScale } = await modulePromise;
+    assert.equal(altitudeScale(0), 1.6);
+    assert.equal(altitudeScale('1000'), 1.6);
+    assert.equal(altitudeScale(10000), 1);
+    assert.equal(altitudeScale(30000), .8);
+    assert.equal(altitudeScale(60000), .8);
+    for (const invalid of [null, undefined, '', 'unknown', -100, Infinity]) assert.equal(altitudeScale(invalid), 1);
+    const scales = [1000, 2000, 5000, 10000, 20000, 30000].map(altitudeScale);
+    for (let i = 1; i < scales.length; i++) assert.ok(scales[i] < scales[i-1]);
+});
+
+test('airline labels and routes replace flight numbers; departed trails last two minutes and recover on re-entry', async () => {
+    const { FlightBackdrop } = await modulePromise;
+    const original = { document: global.document, setTimeout: global.setTimeout, clearTimeout: global.clearTimeout };
+    const timers = new Map(); let next = 0;
+    const element = () => ({ attrs: {}, style: {}, children: [],
+        setAttribute(key, value) { this.attrs[key] = value; },
+        append(child) { this.children.push(child); },
+        replaceChildren() { this.children = []; },
+        remove() { this.removed = true; }
+    });
+    global.document = { createElementNS: () => element() };
+    global.setTimeout = (fn, ms) => { const id = ++next; timers.set(id, { fn, ms }); return id; };
+    global.clearTimeout = id => timers.delete(id);
+    try {
+        const feed = Object.create(FlightBackdrop.prototype);
+        Object.assign(feed, { box: [47.4, -122.45, 47.6, -122.15], markers: new Map(), layer: element(), status: {}, map: { dataset: {} } });
+        const plane = { id: 'journey', latitude: 47.5, longitude: -122.3,
+            airline: 'Alaska Airlines', airline_short: 'Alaska', flight_number: 'AS123',
+            airport_origin_code_iata: 'SEA', airport_destination_code_iata: 'YVR',
+            coordinates: [[47.48, -122.31], [47.5, -122.3]] };
+        feed.draw([plane]);
+        const item = feed.markers.get('journey');
+        assert.equal(item.label.textContent, 'Alaska');
+        assert.equal(item.route.textContent, 'SEA → YVR');
+        assert.ok(item.trails.children.length > 0);
+        feed.draw([]);
+        assert.equal(item.marker.style.display, 'none');
+        assert.equal(feed.activeAircraftCount, 0);
+        assert.ok(item.trails.children.length > 0);
+        assert.equal(timers.get(item.retireTimer).ms, 120000);
+        const firstTimer = item.retireTimer;
+        feed.draw([]); // Polling must not extend the expiry.
+        assert.equal(item.retireTimer, firstTimer);
+        feed.draw([plane]);
+        assert.equal(timers.has(firstTimer), false);
+        assert.equal(item.marker.style.display, '');
+        assert.equal(item.trails.style.opacity, '');
+        feed.draw([]);
+        timers.get(item.retireTimer).fn();
+        assert.equal(item.group.removed, true);
+        assert.equal(feed.markers.size, 0);
+        feed.draw([{ ...plane, airline_short: '', airline: '', aircraft_category: 'Helicopter' }]);
+        assert.equal(feed.markers.get('journey').label.textContent, 'Helicopter');
+        feed.draw([]);
+        const retired = feed.markers.get('journey').retireTimer;
+        feed.fail(new Error('paused'));
+        assert.equal(timers.has(retired), false);
+        assert.equal(feed.markers.size, 0);
+    } finally {
+        for (const [key, value] of Object.entries(original)) {
+            if (value === undefined) delete global[key]; else global[key] = value;
+        }
+    }
+});
+
 test('daily tally uses the HA local day and hides missing or previous-day totals', async () => {
     const { dailyTallyText } = await modulePromise;
     const now = new Date('2026-10-11T06:59:00Z'); // Still October 10 in Seattle.
