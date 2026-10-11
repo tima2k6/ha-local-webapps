@@ -18,6 +18,9 @@ backups/**/tablet-screensaver-settings.json
 previews/quiet-hours/.browser-cache/
 previews/quiet-hours/preview-states.json
 previews/flight-tally/
+previews/activity-stats/.browser-cache/
+previews/activity-stats/inspect.json
+previews/activity-stats/dashboard-before-*.json
 backups/flight-tally-before-20261010/
 
 # Local Alexa MCP checkout, authentication, and home configuration backups

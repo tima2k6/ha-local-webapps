@@ -1,0 +1,384 @@
+{
+  "type": "custom:stack-in-card",
+  "title": "Activity stats",
+  "mode": "vertical",
+  "grid_options": {
+    "columns": 12,
+    "rows": "auto"
+  },
+  "cards": [
+    {
+      "type": "markdown",
+      "entity_id": [
+        "sensor.apple_tv_time_today",
+        "sensor.apple_tv_time_this_week",
+        "sensor.apple_tv_time_this_month",
+        "sensor.dvd_time_today",
+        "sensor.dvd_time_this_week",
+        "sensor.dvd_time_this_month",
+        "sensor.xbox_time_today",
+        "sensor.xbox_time_this_week",
+        "sensor.xbox_time_this_month",
+        "sensor.echo_time_today",
+        "sensor.echo_time_this_week",
+        "sensor.echo_time_this_month",
+        "sensor.record_player_time_today",
+        "sensor.record_player_time_this_week",
+        "sensor.record_player_time_this_month"
+      ],
+      "content": "{% macro duration(value) -%}\n{%- if is_number(value) and value | float >= 0 -%}\n{%- set minutes = (value | float * 60) | round(0) | int -%}\n{{ minutes // 60 }}h {{ '%02d' | format(minutes % 60) }}m\n{%- else -%}—{%- endif -%}\n{%- endmacro %}\n| Today | This week | This month |\n| :---: | :---: | :---: |\n| **{% set ns = namespace(total=0, valid=true) %}{% for activity in ['apple_tv','dvd','xbox','echo','record_player'] %}{% set value = states('sensor.' ~ activity ~ '_time_today') %}{% if is_number(value) and value | float >= 0 %}{% set ns.total = ns.total + value | float %}{% else %}{% set ns.valid=false %}{% endif %}{% endfor %}{{ duration(ns.total) if ns.valid else 'Unavailable' }}** | **{% set ns = namespace(total=0, valid=true) %}{% for activity in ['apple_tv','dvd','xbox','echo','record_player'] %}{% set value = states('sensor.' ~ activity ~ '_time_this_week') %}{% if is_number(value) and value | float >= 0 %}{% set ns.total = ns.total + value | float %}{% else %}{% set ns.valid=false %}{% endif %}{% endfor %}{{ duration(ns.total) if ns.valid else 'Unavailable' }}** | **{% set ns = namespace(total=0, valid=true) %}{% for activity in ['apple_tv','dvd','xbox','echo','record_player'] %}{% set value = states('sensor.' ~ activity ~ '_time_this_month') %}{% if is_number(value) and value | float >= 0 %}{% set ns.total = ns.total + value | float %}{% else %}{% set ns.valid=false %}{% endif %}{% endfor %}{{ duration(ns.total) if ns.valid else 'Unavailable' }}** |\n\n| Activity | Today | Week | Month |\n| :--- | ---: | ---: | ---: |\n| TV | {{ duration(states('sensor.apple_tv_time_today')) }} | {{ duration(states('sensor.apple_tv_time_this_week')) }} | {{ duration(states('sensor.apple_tv_time_this_month')) }} |\n| DVD | {{ duration(states('sensor.dvd_time_today')) }} | {{ duration(states('sensor.dvd_time_this_week')) }} | {{ duration(states('sensor.dvd_time_this_month')) }} |\n| Xbox | {{ duration(states('sensor.xbox_time_today')) }} | {{ duration(states('sensor.xbox_time_this_week')) }} | {{ duration(states('sensor.xbox_time_this_month')) }} |\n| Echo | {{ duration(states('sensor.echo_time_today')) }} | {{ duration(states('sensor.echo_time_this_week')) }} | {{ duration(states('sensor.echo_time_this_month')) }} |\n| Record player | {{ duration(states('sensor.record_player_time_today')) }} | {{ duration(states('sensor.record_player_time_this_week')) }} | {{ duration(states('sensor.record_player_time_this_month')) }} |\n\n<small>Hours & minutes · Calendar week (Mon–Sun) · Calendar month</small>",
+      "card_mod": {
+        "style": {
+          "ha-markdown$": "table { width: 100%; font-size: 13px; } th, td { padding: 6px 4px; }"
+        }
+      }
+    },
+    {
+      "type": "custom:tabbed-card",
+      "styles": {
+        "--mdc-tab-height": "44px"
+      },
+      "tabs": [
+        {
+          "attributes": {
+            "label": "Today"
+          },
+          "card": {
+            "type": "vertical-stack",
+            "cards": [
+              {
+                "type": "markdown",
+                "content": "{% set ns = namespace(total=0, missing=false) %}{% for activity in ['apple_tv','dvd','xbox','echo','record_player'] %}{% set v = states('sensor.' ~ activity ~ '_time_today') %}{% if is_number(v) and v | float >= 0 %}{% set ns.total = ns.total + v | float %}{% else %}{% set ns.missing=true %}{% endif %}{% endfor %}{% if ns.missing %}Some activity stats are unavailable; distribution shows available data.{% elif ns.total == 0 %}No activity recorded today.{% else %}**Activity distribution · today**{% endif %}"
+              },
+              {
+                "type": "custom:apexcharts-card",
+                "chart_type": "pie",
+                "update_interval": "1min",
+                "header": {
+                  "show": false
+                },
+                "apex_config": {
+                  "chart": {
+                    "height": 280
+                  },
+                  "legend": {
+                    "position": "bottom",
+                    "fontSize": "12px"
+                  },
+                  "stroke": {
+                    "width": 2
+                  },
+                  "plotOptions": {
+                    "pie": {
+                      "expandOnClick": false
+                    }
+                  },
+                  "dataLabels": {
+                    "enabled": true,
+                    "formatter": "EVAL:function(value) { return value.toFixed(1) + \"%\"; }"
+                  },
+                  "noData": {
+                    "text": "No activity recorded"
+                  }
+                },
+                "series": [
+                  {
+                    "entity": "sensor.apple_tv_time_today",
+                    "name": "TV",
+                    "color": "#60a5fa",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.dvd_time_today",
+                    "name": "DVD",
+                    "color": "#a78bfa",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.xbox_time_today",
+                    "name": "Xbox",
+                    "color": "#4ade80",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.echo_time_today",
+                    "name": "Echo",
+                    "color": "#fbbf24",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.record_player_time_today",
+                    "name": "Record player",
+                    "color": "#fb7185",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "attributes": {
+            "label": "This week"
+          },
+          "card": {
+            "type": "vertical-stack",
+            "cards": [
+              {
+                "type": "markdown",
+                "content": "{% set ns = namespace(total=0, missing=false) %}{% for activity in ['apple_tv','dvd','xbox','echo','record_player'] %}{% set v = states('sensor.' ~ activity ~ '_time_this_week') %}{% if is_number(v) and v | float >= 0 %}{% set ns.total = ns.total + v | float %}{% else %}{% set ns.missing=true %}{% endif %}{% endfor %}{% if ns.missing %}Some activity stats are unavailable; distribution shows available data.{% elif ns.total == 0 %}No activity recorded this week.{% else %}**Activity distribution · this week**{% endif %}"
+              },
+              {
+                "type": "custom:apexcharts-card",
+                "chart_type": "pie",
+                "update_interval": "1min",
+                "header": {
+                  "show": false
+                },
+                "apex_config": {
+                  "chart": {
+                    "height": 280
+                  },
+                  "legend": {
+                    "position": "bottom",
+                    "fontSize": "12px"
+                  },
+                  "stroke": {
+                    "width": 2
+                  },
+                  "plotOptions": {
+                    "pie": {
+                      "expandOnClick": false
+                    }
+                  },
+                  "dataLabels": {
+                    "enabled": true,
+                    "formatter": "EVAL:function(value) { return value.toFixed(1) + \"%\"; }"
+                  },
+                  "noData": {
+                    "text": "No activity recorded"
+                  }
+                },
+                "series": [
+                  {
+                    "entity": "sensor.apple_tv_time_this_week",
+                    "name": "TV",
+                    "color": "#60a5fa",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.dvd_time_this_week",
+                    "name": "DVD",
+                    "color": "#a78bfa",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.xbox_time_this_week",
+                    "name": "Xbox",
+                    "color": "#4ade80",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.echo_time_this_week",
+                    "name": "Echo",
+                    "color": "#fbbf24",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.record_player_time_this_week",
+                    "name": "Record player",
+                    "color": "#fb7185",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "attributes": {
+            "label": "This month"
+          },
+          "card": {
+            "type": "vertical-stack",
+            "cards": [
+              {
+                "type": "markdown",
+                "content": "{% set ns = namespace(total=0, missing=false) %}{% for activity in ['apple_tv','dvd','xbox','echo','record_player'] %}{% set v = states('sensor.' ~ activity ~ '_time_this_month') %}{% if is_number(v) and v | float >= 0 %}{% set ns.total = ns.total + v | float %}{% else %}{% set ns.missing=true %}{% endif %}{% endfor %}{% if ns.missing %}Some activity stats are unavailable; distribution shows available data.{% elif ns.total == 0 %}No activity recorded this month.{% else %}**Activity distribution · this month**{% endif %}"
+              },
+              {
+                "type": "custom:apexcharts-card",
+                "chart_type": "pie",
+                "update_interval": "1min",
+                "header": {
+                  "show": false
+                },
+                "apex_config": {
+                  "chart": {
+                    "height": 280
+                  },
+                  "legend": {
+                    "position": "bottom",
+                    "fontSize": "12px"
+                  },
+                  "stroke": {
+                    "width": 2
+                  },
+                  "plotOptions": {
+                    "pie": {
+                      "expandOnClick": false
+                    }
+                  },
+                  "dataLabels": {
+                    "enabled": true,
+                    "formatter": "EVAL:function(value) { return value.toFixed(1) + \"%\"; }"
+                  },
+                  "noData": {
+                    "text": "No activity recorded"
+                  }
+                },
+                "series": [
+                  {
+                    "entity": "sensor.apple_tv_time_this_month",
+                    "name": "TV",
+                    "color": "#60a5fa",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.dvd_time_this_month",
+                    "name": "DVD",
+                    "color": "#a78bfa",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.xbox_time_this_month",
+                    "name": "Xbox",
+                    "color": "#4ade80",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.echo_time_this_month",
+                    "name": "Echo",
+                    "color": "#fbbf24",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  },
+                  {
+                    "entity": "sensor.record_player_time_this_month",
+                    "name": "Record player",
+                    "color": "#fb7185",
+                    "unit": "h",
+                    "float_precision": 2,
+                    "data_generator": "const v = Number.parseFloat(entity.state); return [[Date.now(), Number.isFinite(v) && v >= 0 ? v : null]];",
+                    "show": {
+                      "legend_value": false,
+                      "as_duration": "hour",
+                      "datalabels": "percent"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

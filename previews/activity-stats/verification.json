@@ -1,0 +1,52 @@
+{
+  "reports": [
+    {
+      "index": 0,
+      "text": [
+        "\n\n\nToday\nThis week\nThis month\n\n\n\n4h 27m\n44h 40m\n77h 05m\n\n\n\n\n\nActivity\nToday\nWeek\nMonth\n\n\n\nTV\n2h 34m\n27h 43m\n51h 43m\n\n\nDVD\n0h 00m\n0h 00m\n0h 00m\n\n\nXbox\n1h 10m\n2h 26m\n9h 59m\n\n\nEcho\n0h 43m\n8h 09m\n8h 09m\n\n\nRecord player\n0h 00m\n6h 22m\n7h 14m\n\n\nHours & minutes · Calendar week (Mon–Sun) · Calendar month\n\n      \n        table { width: 100%; font-size: 13px; } th, td { padding: 6px 4px; }\n      \n    ",
+        "Activity distribution · today\n"
+      ],
+      "errors": [],
+      "piePaths": 5,
+      "charts": [
+        {}
+      ],
+      "width": 438,
+      "overflow": false
+    },
+    {
+      "index": 1,
+      "text": [
+        "\n\n\nToday\nThis week\nThis month\n\n\n\n4h 27m\n44h 40m\n77h 05m\n\n\n\n\n\nActivity\nToday\nWeek\nMonth\n\n\n\nTV\n2h 34m\n27h 43m\n51h 43m\n\n\nDVD\n0h 00m\n0h 00m\n0h 00m\n\n\nXbox\n1h 10m\n2h 26m\n9h 59m\n\n\nEcho\n0h 43m\n8h 09m\n8h 09m\n\n\nRecord player\n0h 00m\n6h 22m\n7h 14m\n\n\nHours & minutes · Calendar week (Mon–Sun) · Calendar month\n\n      \n        table { width: 100%; font-size: 13px; } th, td { padding: 6px 4px; }\n      \n    ",
+        "Activity distribution · this week\n"
+      ],
+      "errors": [],
+      "piePaths": 5,
+      "charts": [
+        {}
+      ],
+      "width": 438,
+      "overflow": false
+    },
+    {
+      "index": 2,
+      "text": [
+        "\n\n\nToday\nThis week\nThis month\n\n\n\n4h 27m\n44h 40m\n77h 05m\n\n\n\n\n\nActivity\nToday\nWeek\nMonth\n\n\n\nTV\n2h 34m\n27h 43m\n51h 43m\n\n\nDVD\n0h 00m\n0h 00m\n0h 00m\n\n\nXbox\n1h 10m\n2h 26m\n9h 59m\n\n\nEcho\n0h 43m\n8h 09m\n8h 09m\n\n\nRecord player\n0h 00m\n6h 22m\n7h 14m\n\n\nHours & minutes · Calendar week (Mon–Sun) · Calendar month\n\n      \n        table { width: 100%; font-size: 13px; } th, td { padding: 6px 4px; }\n      \n    ",
+        "Activity distribution · this month\n"
+      ],
+      "errors": [],
+      "piePaths": 5,
+      "charts": [
+        {}
+      ],
+      "width": 438,
+      "overflow": false
+    }
+  ],
+  "errors": [
+    "Uncaught (in promise)",
+    "Uncaught (in promise)",
+    "Uncaught (in promise)",
+    "Uncaught (in promise)"
+  ]
+}
