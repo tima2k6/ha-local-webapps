@@ -44,3 +44,9 @@ TV port and device-power confirmation do not independently prove audible output 
 - The final state was verified Off: TV, receiver power sensor, Xbox, Apple TV, Record Player plug, activity helpers, and DVD ownership helper.
 
 Raw captures and account/device context remain in ignored local backup/cache folders. These results verify the exercised paths, not every future HDMI handshake or manual-remote combination.
+
+Additional October 12 testing reproduced a cold Apple TV start where Sony rejected the initial HDMI-selection command with HTTP 404. Content-read retries could not recover a command that never succeeded. `retry-theater-hdmi-selection.mjs` adds bounded retries of the selection command itself before confirming the observed input. The failed start correctly returned the system to Off. Xbox remote wake also remained intermittent in this round.
+
+After that repair, eight physical repeat-request checks passed: initial and repeated Apple TV, DVD, and Echo requests; Off during Apple TV startup; and final shutdown. The recorded DVD power-button timestamp did not change on the repeated DVD request, and changed once when leaving DVD for Echo. Five observed-source/CEC-address scenarios also passed. Evidence: ignored firmware captures `activity-tests-20261012T072812Z` and `repeat-requests-20261012T073441Z`.
+
+Four further physical regression checks passed: rapid Apple TV to Echo cancellation, native tuner takeover clearing stale video activity, Apple TV sleep preserving native TV/receiver power, and final Off. Evidence: `regressions-20261012T074142Z`. This brings the post-repair round to 12 passed physical checks and five passed source-identity scenarios. Xbox remote wake, audible playback, and independent DVD power feedback remain outside those successes.
