@@ -422,7 +422,7 @@ export class Ambience {
         root.setProperty('--accent-border', mix(accent, '#0c0c0c', .55));
         root.setProperty('--plane', mix(accent, '#ffffff', .3));
         root.setProperty('--map-label', mix(accent, '#9a9a9a', .55));
-        root.setProperty('--map-route', mix(accent, '#7a7a7a', .6));
+        root.setProperty('--map-route', mix(accent, '#a9a9a9', .6));
         for (const k of Object.keys(ROAD)) root.setProperty(`--road-${k}`, mix(ROAD[k], GOLD, warm * ROAD_WARMTH[k]));
 
         const o = this.occasion();

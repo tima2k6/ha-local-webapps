@@ -14,6 +14,40 @@ export function altitudeScale(altitude) {
     return Math.max(.8, 1 - .2 * (feet - 10000) / 20000);
 }
 
+function distanceKm(lat, lon, otherLat, otherLon) {
+    if (![lat, lon, otherLat, otherLon].every(finite)
+        || Math.abs(Number(lat)) > 90 || Math.abs(Number(otherLat)) > 90
+        || Math.abs(Number(lon)) > 180 || Math.abs(Number(otherLon)) > 180) return Infinity;
+    const r = Math.PI / 180;
+    const a = Math.sin((otherLat-lat)*r/2)**2 + Math.cos(lat*r)*Math.cos(otherLat*r)*Math.sin((otherLon-lon)*r/2)**2;
+    return 12742 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, a))));
+}
+
+export function flightPhase(f, home, now = Date.now()) {
+    if (!Array.isArray(home) || home.length !== 2 || f.on_ground || f.has_landed
+        || !finite(f.altitude) || !finite(f.vertical_speed) || Number(f.altitude) < 0) return '';
+    const nearby = airport => {
+        const lat = f[`airport_${airport}_latitude`], lon = f[`airport_${airport}_longitude`];
+        // Restrict cues to local airports and their nearby airborne traffic.
+        return distanceKm(...home, lat, lon) <= 80 && distanceKm(f.latitude, f.longitude, lat, lon) <= 60;
+    };
+    if (Number(f.altitude) <= 12000 && Number(f.vertical_speed) <= -300 && nearby('destination') && finite(f.heading)) {
+        const r = Math.PI / 180, lat = Number(f.latitude)*r, destinationLat = Number(f.airport_destination_latitude)*r;
+        const lonDifference = (Number(f.airport_destination_longitude)-Number(f.longitude))*r;
+        const bearing = Math.atan2(Math.sin(lonDifference)*Math.cos(destinationLat),
+            Math.cos(lat)*Math.sin(destinationLat)-Math.sin(lat)*Math.cos(destinationLat)*Math.cos(lonDifference)) / r;
+        const difference = Math.abs(((Number(f.heading)-bearing)%360+540)%360-180);
+        if (difference <= 75) return '↘ Arriving';
+    }
+    const raw = f.time_real_departure;
+    const departure = finite(raw) ? Number(raw)*(Number(raw) < 1e12 ? 1000 : 1)
+        : typeof raw === 'string' ? Date.parse(raw) : NaN;
+    const age = now-departure;
+    if (Number(f.altitude) <= 15000 && Number(f.vertical_speed) >= 300 && nearby('origin')
+        && age >= 0 && age <= 20*60000) return '↗ Departing';
+    return '';
+}
+
 export function viewport(home, bounds) {
     const [north, south, west, east] = String(bounds).split(',').map(Number);
     if (![...home, north, south, west, east].every(Number.isFinite) || north <= south || east <= west) throw new Error('Invalid flight map bounds');
@@ -129,6 +163,10 @@ export class FlightBackdrop {
     }
 
     renderMap() {
+        if (this.center && this.box) {
+            const [x, y] = project(...this.center, this.box);
+            this.home.setAttribute('transform', `translate(${x} ${y})`);
+        }
         if (!this.roads || !this.mapData || !this.box) return;
         this.roads.replaceChildren();
         const major = /^(motorway|trunk|primary|secondary|tertiary)/;
@@ -250,7 +288,8 @@ export class FlightBackdrop {
                 || (String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? 'Helicopter' : 'Aircraft');
             const origin = f.airport_origin_code_iata || f.airport_origin_code_icao;
             const destination = f.airport_destination_code_iata || f.airport_destination_code_icao;
-            item.route.textContent = origin || destination ? `${origin || '?'} → ${destination || '?'}` : '';
+            const route = origin || destination ? `${origin || '?'} → ${destination || '?'}` : '';
+            item.route.textContent = [route, flightPhase(f, this.center)].filter(Boolean).join(' · ');
             item.trails.replaceChildren();
             let points = (Array.isArray(f.coordinates) ? f.coordinates : [])
                 .filter(p => Array.isArray(p) && finite(p[0]) && finite(p[1]))

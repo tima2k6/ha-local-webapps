@@ -112,7 +112,7 @@ class Weather {
                     </div>
                 </div>
                 ${tomorrow}`;
-            this.nightEl.innerHTML = `${icon(cond)}<span>${temp}°  ·  ${esc(label(cond))}</span>`;
+            this.nightEl.innerHTML = `${icon(cond)}<span>${temp}°  ${esc(label(cond))}</span>`;
         } catch (e) {
             console.error('Weather:', e);
         }

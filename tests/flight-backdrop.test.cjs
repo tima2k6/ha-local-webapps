@@ -5,6 +5,29 @@ const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../js/flight-backdrop.js'), 'utf8');
 const modulePromise = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 
+test('arrival/departure cues combine local airport proximity, altitude, trend, heading and actual departure time', async () => {
+    const { flightPhase } = await modulePromise;
+    const home = [47.5, -122.3], now = Date.parse('2026-10-11T18:00:00Z');
+    const arrival = { latitude: 47.5, longitude: -122.3, altitude: 5000, vertical_speed: -800, heading: 180,
+        airport_destination_latitude: 47.2, airport_destination_longitude: -122.3 };
+    assert.equal(flightPhase(arrival, home, now), '↘ Arriving');
+    for (const change of [{vertical_speed:0}, {vertical_speed:800}, {altitude:30000}, {heading:0},
+        {heading:null}, {airport_destination_latitude:45.5}, {airport_destination_latitude:null},
+        {latitude:null}, {on_ground:true}, {has_landed:true}, {altitude:null}]) {
+        assert.equal(flightPhase({...arrival,...change},home,now),'',JSON.stringify(change));
+    }
+    const departure = { latitude:47.5, longitude:-122.3, altitude:5000, vertical_speed:1000,
+        airport_origin_latitude:47.2, airport_origin_longitude:-122.3, time_real_departure:(now-5*60000)/1000 };
+    assert.equal(flightPhase(departure,home,now),'↗ Departing');
+    assert.equal(flightPhase({...departure,time_real_departure:new Date(now-5*60000).toISOString()},home,now),'↗ Departing');
+    for (const change of [{time_real_departure:null}, {time_real_departure:(now-21*60000)/1000},
+        {time_real_departure:(now+60000)/1000}, {vertical_speed:-500}, {vertical_speed:0},
+        {altitude:16000}, {airport_origin_latitude:45.5}, {airport_origin_longitude:null}]) {
+        assert.equal(flightPhase({...departure,...change},home,now),'',JSON.stringify(change));
+    }
+    assert.equal(flightPhase(arrival,undefined,now),'');
+});
+
 test('altitude scaling makes low flights larger, caps both ends, and keeps missing altitude neutral', async () => {
     const { altitudeScale } = await modulePromise;
     assert.equal(altitudeScale(0), 1.6);
@@ -128,11 +151,12 @@ test('missing positions are never converted to zero; grounded aircraft stay out 
 test('paused or stale HA data clears aircraft; fresh data recovers without reloading', async () => {
     const { FlightBackdrop } = await modulePromise;
     global.document = { hidden: false };
-    let cleared = 0, drawn = null, paused = false;
+    let cleared = 0, drawn = null, paused = false, homeTransform = '';
     const feed = Object.create(FlightBackdrop.prototype);
     Object.assign(feed, {
         center: [47.5, -122.3], status: {}, map: { dataset: {} },
         markers: new Map([['old', {}]]), layer: { replaceChildren: () => cleared++ },
+        home: { setAttribute: (name, value) => { if (name === 'transform') homeTransform = value; } },
         draw: flights => { drawn = flights; }
     });
     const state = { state: '1', last_updated: new Date(Date.now()-240000).toISOString(),
@@ -146,6 +170,8 @@ test('paused or stale HA data clears aircraft; fresh data recovers without reloa
     state.last_updated = new Date().toISOString();
     await feed.refresh();
     assert.equal(feed.map.dataset.feed, 'live');
+    const homeNumbers = homeTransform.match(/[\d.]+/g).map(Number);
+    assert.ok(Math.abs(homeNumbers[0]-640)<1e-8 && Math.abs(homeNumbers[1]-480)<1e-8);
     assert.equal(drawn[0].id, 'plane');
     paused = true;
     await feed.refresh();

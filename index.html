@@ -442,14 +442,16 @@
 <style>
 #screen{isolation:isolate}#flight-map{position:absolute;inset:0;width:100%;height:100%;z-index:-2;opacity:var(--map-opacity,.52);pointer-events:none}
 #screen::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(to top,var(--bg),transparent 25%),linear-gradient(to bottom,var(--bg),transparent 18%),linear-gradient(to right,var(--bg),transparent 15%),linear-gradient(to left,var(--bg),transparent 15%);pointer-events:none}
-.live-aircraft use{fill:var(--plane,#8de0cd)}.live-aircraft text,.home text{font:14px Figtree,sans-serif;letter-spacing:1.4px;fill:var(--map-label,#85b5aa)}.live-aircraft .flight-route{font-size:11px;letter-spacing:1px;fill:var(--map-route,#71958c);opacity:.8}.home{opacity:.5}.home text{font-size:12px}.live-marker{transition:transform 12s linear}
+.live-aircraft use{fill:var(--plane,#8de0cd)}.live-aircraft text,.home text{font:14px Figtree,sans-serif;letter-spacing:1.4px;fill:var(--map-label,#85b5aa)}.live-aircraft .flight-route{font-size:11px;letter-spacing:1px;fill:var(--map-route,#9fbab1);opacity:1}.home{opacity:.85}.home text{font-size:13px;font-weight:500;fill:var(--plane,#a8d9cb)}.live-marker{transition:transform 12s linear}
 body.night #flight-map,body.force-night #flight-map{opacity:calc(var(--map-opacity,.52)*.85)}body.night #screen::before,body.force-night #screen::before{background:linear-gradient(to top,var(--bg),transparent 25%),linear-gradient(to bottom,var(--bg),transparent 18%),linear-gradient(to right,var(--bg),transparent 15%),linear-gradient(to left,var(--bg),transparent 15%)}
 body.no-labels .live-aircraft text{display:none}#map-credit{position:absolute;bottom:8px;right:14px;z-index:1;font:10px Figtree,sans-serif;color:#666;opacity:.7;pointer-events:none}#map-credit a{color:inherit;text-decoration:none}body.night #map-credit,body.force-night #map-credit{opacity:.4}
 @media(prefers-reduced-motion:reduce){.live-marker{transition:none}}
-#flight-tally{position:absolute;left:calc(var(--u)*64);bottom:calc(var(--u)*12);font-size:calc(var(--u)*14);font-weight:400;letter-spacing:calc(var(--u)*.6);color:#858585;opacity:.65;pointer-events:none;font-variant-numeric:tabular-nums}
-body.night #flight-tally,body.force-night #flight-tally{opacity:.35}
+#flight-tally{position:absolute;left:calc(var(--u)*64);bottom:calc(var(--u)*12);font-size:calc(var(--u)*14);font-weight:400;letter-spacing:calc(var(--u)*.6);color:#a0a0a0;opacity:.8;pointer-events:none;font-variant-numeric:tabular-nums}
+body.night #flight-tally,body.force-night #flight-tally{opacity:.5}
+/* Separate the temperature degree glyph from the geographic HOME marker. */
+body.night #night-weather,body.force-night #night-weather{transform:translateY(calc(var(--u)*44))}
 /* Ambience (js/ambience.js): season accent, golden hour, weather mood, sun/moon arc */
-.trail,.home circle{stroke:var(--accent)}.home .home-dot{fill:var(--accent);stroke:none}
+.trail{stroke:var(--accent)}.home .home-symbol{fill:var(--accent);stroke:none}
 #local-roads .road{transition:stroke 60s linear}#local-roads .minor{stroke:var(--road-minor,#343b38)}#local-roads .major{stroke:var(--road-major,#56605c)}#local-roads .water{stroke:var(--road-water,#495b57)}
 #mood{position:absolute;inset:0;width:100%;height:100%;z-index:-2;pointer-events:none}
 #flight-map{transition:opacity 4s}#local-roads{transition:filter 4s}body.mood-fog #flight-map{opacity:calc(var(--map-opacity,.52)*.7)}body.mood-fog #local-roads{filter:blur(1.3px)}
@@ -520,8 +522,8 @@ body.force-night { --bg: #050505; }
     </style></head>
 <body>
     <div id="screen"><svg id="flight-map" viewBox="0 0 1280 800" aria-label="Local streets and nearby aircraft from Home Assistant">
-<defs><radialGradient id="mapfade"><stop offset="0" stop-color="white"/><stop offset=".65" stop-color="white"/><stop offset="1" stop-color="white" stop-opacity=".25"/></radialGradient><mask id="fade"><rect width="1280" height="800" fill="url(#mapfade)"/></mask><path id="plane" d="M0 -12 3 -3 11 2 11 5 3 3 2 10 5 12 5 14 0 12 -5 14 -5 12 -2 10 -3 3 -11 5 -11 2 -3 -3Z"/><path id="helicopter" d="M0 -11C3 -11 5 -8 5 -4V2C5 5 3 7 2 7L1 12H5V14H-5V12H-1L-2 7C-3 7 -5 5 -5 2V-4C-5 -8 -3 -11 0 -11ZM-12 -4H12V-2H-12ZM-2 -14H0V10H-2ZM-7 -7H-6V5H-7ZM6 -7H7V5H6Z"/></defs>
-<g id="local-roads" mask="url(#fade)"></g><g class="flights"></g><g class="home" transform="translate(640 480)"><circle r="23" fill="none" stroke="#5fc9b4" stroke-opacity=".15"/><circle class="home-dot" r="4" fill="#5fc9b4"/><text x="14" y="5">HOME</text></g></svg><div id="map-credit"><a href="https://www.openstreetmap.org/copyright" tabindex="-1">&copy; OpenStreetMap contributors</a></div>
+<defs><radialGradient id="mapfade"><stop offset="0" stop-color="white"/><stop offset=".65" stop-color="white"/><stop offset="1" stop-color="white" stop-opacity=".25"/></radialGradient><mask id="fade"><rect width="1280" height="800" fill="url(#mapfade)"/></mask><path id="plane" d="M0 -12 3 -3 11 2 11 5 3 3 2 10 5 12 5 14 0 12 -5 14 -5 12 -2 10 -3 3 -11 5 -11 2 -3 -3Z"/><g id="helicopter" transform="rotate(90)"><path d="M-9 0C-9 -3 -6 -5 -2 -5H1C4 -5 5 -3 5 -1L12 -3V-6H14V1H12L5 2C3 4 -3 4 -6 3C-8 2 -9 1 -9 0ZM-12 -9H8V-7H-12ZM-3 -7H-1V-4H-3ZM-6 3H-4V7H-6ZM2 3H4V7H2ZM-10 7H6V9H-10Z"/></g></defs>
+<g id="local-roads" mask="url(#fade)"></g><g class="flights"></g><g class="home" transform="translate(640 480)"><path class="home-symbol" transform="scale(.75)" d="M-9 -1 0 -8 9 -1H7V8H2V2H-2V8H-7V-1Z"/><text x="-12" y="4" text-anchor="end">HOME</text></g></svg><div id="map-credit"><a href="https://www.openstreetmap.org/copyright" tabindex="-1">&copy; OpenStreetMap contributors</a></div>
         <div id="flight-tally" hidden></div>
         <div id="top">
             <div id="left">
@@ -552,9 +554,9 @@ body.force-night { --bg: #050505; }
 <script src="js/ha-config.js?v=20261009-flight-8"></script>
 <script type="module">
 import { config } from './js/config.js?v=20261009-flight-8';
-import { startScreensaver } from './js/screensaver.js?v=42';
-import { FlightBackdrop } from './js/flight-backdrop.js?v=15';
-import { Ambience } from './js/ambience.js?v=2';
+import { startScreensaver } from './js/screensaver.js?v=43';
+import { FlightBackdrop } from './js/flight-backdrop.js?v=17';
+import { Ambience } from './js/ambience.js?v=3';
 // Display settings are configured by URL; the screensaver stays touchless.
 const params=new URLSearchParams(location.search);
 const brightness=Number(params.get('map'));
