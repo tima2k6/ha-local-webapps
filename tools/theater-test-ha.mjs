@@ -3,7 +3,18 @@ import {connect,haUrl,token} from './activity-stats-ha.mjs';
 const [action,arg]=process.argv.slice(2);
 const h=await connect();
 try{
-if(action==='dvd_power_restore'){
+if(action==='sony_registry'){
+ const states=await h.call('get_states');console.log(JSON.stringify(states.filter(s=>s.entity_id.startsWith('sensor.sony_tv_current_input')).map(s=>({id:s.entity_id,state:s.state,attributes:s.attributes}))));
+ console.log(JSON.stringify(await h.call('config/entity_registry/get',{entity_id:'sensor.sony_tv_current_input'})));
+}else if(action==='sony_sensor'){
+ const states=await h.call('get_states');const s=states.find(s=>s.entity_id==='sensor.sony_tv_current_input');console.log(JSON.stringify({state:s.state,attributes:s.attributes}));
+}else if(action==='sony_content'){
+ const result=await h.call('call_service',{domain:'rest_command',service:'sony_tv_get_playing_content',return_response:true});
+ console.log(JSON.stringify({content:result.response?.content}));
+}else if(action==='sleep_apple_tv'){
+ await h.call('call_service',{domain:'media_player',service:'turn_off',target:{entity_id:'media_player.living_room_apple_tv'}});
+ console.log(JSON.stringify({when:new Date().toISOString(),command:'sleep_apple_tv'}));
+}else if(action==='dvd_power_restore'){
  await h.call('call_service',{domain:'button',service:'press',target:{entity_id:'button.av_cabinet_controller_dvd_power'}});
  console.log(JSON.stringify({when:new Date().toISOString(),command:'invert_test_dvd_power_toggle'}));
 }else if(action==='activity'){
@@ -28,7 +39,7 @@ if(action==='dvd_power_restore'){
  await h.call('call_service',{domain:'button',service:'press',target:{entity_id:'button.av_cabinet_controller_av_receiver_'+arg}});
  console.log(JSON.stringify({when:new Date().toISOString(),command:arg}));
 }else if(action==='state'){
- const states=await h.call('get_states');console.log(JSON.stringify(states.filter(x=>/^(sensor.sony_tv_|input_boolean.(activate_|av_receiver_power|alexa_pup_bluetooth|record_player)|input_select.active_input|switch.(liams_xbox_power|record_player_power)|media_player.(living_room_apple_tv|liams_xbox|bravia_4k_ur2_2|alexa_pup)|sensor.hub_mode|binary_sensor.av_cabinet_controller_av_receiver_power|automation.(master_activity_controller|sync_active_input_when_switches_change_2|av_receiver_bluetooth_input|system_sync_wemo_to_vinyl)|script.theater_|sensor.xbox_power_plug_shelly_integration_power)/.test(x.entity_id)||/dvd.*power|power.*dvd/i.test(x.entity_id)).map(x=>({id:x.entity_id,state:x.state,changed:x.last_changed,context:x.context}))));
+ const states=await h.call('get_states');console.log(JSON.stringify(states.filter(x=>/^(sensor.sony_tv_|input_boolean.(activate_|av_receiver_power|alexa_pup_bluetooth|record_player|theater_dvd_owned)|input_select.active_input|switch.(liams_xbox_power|record_player_power)|media_player.(living_room_apple_tv|liams_xbox|bravia_4k_ur2_2|alexa_pup)|sensor.hub_mode|binary_sensor.av_cabinet_controller_av_receiver_power|automation.(master_activity_controller|sync_active_input_when_switches_change_2|av_receiver_bluetooth_input|system_sync_wemo_to_vinyl)|script.theater_|sensor.xbox_power_plug_shelly_integration_power)/.test(x.entity_id)||/dvd.*power|power.*dvd/i.test(x.entity_id)).map(x=>({id:x.entity_id,state:x.state,changed:x.last_changed,context:x.context}))));
 }else if(action==='evidence'){
  const dir=new URL('../backups/theater-input-tests/',import.meta.url);fs.mkdirSync(dir,{recursive:true});
  const r=await fetch(haUrl+'/api/logbook/'+arg,{headers:{Authorization:'Bearer '+token}});

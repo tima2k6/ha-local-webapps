@@ -1,0 +1,18 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {haUrl,token} from './activity-stats-ha.mjs';
+const headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
+const url=haUrl+'/api/config/automation/config/1769794577727';const r=await fetch(url,{headers});const c=await r.json();
+const choose=c.actions.find(a=>a.choose);assert.ok(choose);
+const candidate="{{ states('input_select.active_input') in ['Apple TV','Xbox','DVD'] and trigger.to_state.state not in ['Off','Unknown','unknown','unavailable','No Signal','Apple TV','Xbox','HDMI 3'] }}";
+const cooldown={condition:'template',value_template:"{% set command_time = state_attr('input_datetime.last_tv_command_time','timestamp') %}{{ command_time is number and (as_timestamp(now()) - command_time) > 60 }}"};
+c.conditions[3]={condition:'or',conditions:[cooldown,{condition:'template',value_template:candidate}]};
+const branch=choose.choose.find(b=>b.sequence?.some(a=>a.data?.option==='None'));assert.ok(branch);
+branch.conditions=[{condition:'template',value_template:"{% set p = sony_observed.get('content', {}) %}{% set result = p.get('result', []) if p is mapping else [] %}{{ result | length > 0 and result[0] is mapping and result[0].get('uri','').startswith('tv:') and states('input_select.active_input') in ['Apple TV','Xbox','DVD'] }}"}];
+c.actions=[{action:'rest_command.sony_tv_get_playing_content',response_variable:'sony_observed'},choose];
+c.description+=' Native source ownership is confirmed directly with Sony before clearing activity state, independent of cached sensor attributes.';
+const saved=await fetch(url,{method:'POST',headers,body:JSON.stringify(c)});assert.equal(saved.status,200,await saved.text());const verified=await fetch(url,{headers});assert.deepEqual(await verified.json(),c);
+fs.writeFileSync('backups/theater-controller-repair/remote-sync-final.json',JSON.stringify(c,null,2));
+const checked=await fetch(haUrl+'/api/config/core/check_config',{method:'POST',headers,body:'{}'});assert.equal((await checked.json()).result,'valid');
+const reloaded=await fetch(haUrl+'/api/services/homeassistant/reload_all',{method:'POST',headers,body:'{}',signal:AbortSignal.timeout(60000)});assert.ok(reloaded.ok,'YAML reload failed: '+reloaded.status);
+console.log('Raw-input ownership sync saved; valid YAML configuration reloaded.');

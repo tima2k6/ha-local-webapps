@@ -29,4 +29,6 @@ tools/alexa-mcp/
 # Local theater diagnostics, automation backups, and incident logs
 backups/theater-input-tests/
 backups/xbox-incident-2026-10-11/
+backups/theater-controller-repair/
+tools/__pycache__/
 tools/xbox-incident-output.txt
