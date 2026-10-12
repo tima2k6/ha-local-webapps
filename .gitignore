@@ -25,3 +25,8 @@ backups/flight-tally-before-20261010/
 
 # Local Alexa MCP checkout, authentication, and home configuration backups
 tools/alexa-mcp/
+
+# Local theater diagnostics, automation backups, and incident logs
+backups/theater-input-tests/
+backups/xbox-incident-2026-10-11/
+tools/xbox-incident-output.txt

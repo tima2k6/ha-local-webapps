@@ -1,0 +1,30 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {connect,haUrl,token} from './activity-stats-ha.mjs';
+const id='1769794577727';
+const url=haUrl+'/api/config/automation/config/'+id;
+const headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
+const r=await fetch(url,{headers}); assert.equal(r.status,200);
+const original=await r.json();
+assert.ok(!original.actions[0].choose[0].conditions.some(c=>c.entity_id==='switch.liams_xbox_power'),'Xbox power guard is already installed; no changes made.');
+fs.mkdirSync('backups/xbox-incident-2026-10-11',{recursive:true});
+fs.writeFileSync('backups/xbox-incident-2026-10-11/remote-sync-before.json',JSON.stringify(original,null,2));
+const fixed=structuredClone(original);
+const branch=fixed.actions[0].choose[0];
+assert.equal(branch.conditions[0].entity_id,'sensor.sony_tv_current_input');
+assert.equal(branch.conditions[0].state,'Xbox');
+branch.conditions.push({alias:'Require the Xbox to be powered on; a TV input report alone must not claim the activity',condition:'state',entity_id:'switch.liams_xbox_power',state:'on'});
+branch.conditions.push({alias:'Corroborate Xbox presence by name on the CEC bus, matching the device-sync automation',condition:'template',value_template:"{{ 'xbox' in states('sensor.sony_tv_cec_devices') | lower }}"});
+fixed.description=original.description+'. Xbox input reports require Xbox power and named CEC presence before switching activities; prevents the false takeover seen at 22:13 on 2026-10-11.';
+fs.writeFileSync('backups/xbox-incident-2026-10-11/remote-sync-after.json',JSON.stringify(fixed,null,2));
+const p=await fetch(url,{method:'POST',headers,body:JSON.stringify(fixed)});
+assert.equal(p.status,200,await p.text());
+const v=await fetch(url,{headers});assert.deepEqual(await v.json(),fixed);
+const h=await connect();
+try {
+const states=await h.call('get_states');
+console.log(JSON.stringify(states.filter(x=>['automation.sync_active_input_when_switches_change','switch.liams_xbox_power','input_boolean.activate_xbox','input_boolean.activate_apple_tv','input_select.active_input','sensor.sony_tv_cec_devices'].includes(x.entity_id)).map(x=>({id:x.entity_id,state:x.state})),null,2));
+const evaluated=await fetch(haUrl+'/api/template',{method:'POST',headers,body:JSON.stringify({template:"{{ is_state('switch.liams_xbox_power', 'on') and 'xbox' in states('sensor.sony_tv_cec_devices') | lower }}"})});
+console.log('Xbox takeover guard now:',await evaluated.text());
+console.log('Saved and verified remote-sync configuration.');
+} finally {h.close();}
