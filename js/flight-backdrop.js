@@ -100,15 +100,22 @@ export function screenTextRects(map) {
     return rects;
 }
 // Label block beside a marker at x,y (icon, name line, detail line), right or left.
-export function labelHitsText(rects, x, y, lines, side = 'right') {
+export function labelBox(x, y, lines, side = 'right') {
     const width = 26 + 7.5 * Math.max(0, ...lines.map(s => String(s || '').length));
-    const box = side === 'right' ? [x - 12, y - 14, x + width, y + 24] : [x - width, y - 14, x + 12, y + 24];
+    // Text only, not the icon, so two boats at one dock can label opposite sides.
+    return side === 'right' ? [x + 8, y - 14, x + width, y + 24] : [x - width, y - 14, x - 8, y + 24];
+}
+export function labelHitsText(rects, x, y, lines, side = 'right') {
+    const box = labelBox(x, y, lines, side);
     return rects.some(r => box[0] < r[2] && box[2] > r[0] && box[1] < r[3] && box[3] > r[1]);
 }
 // Where a marker's labels go: right if clear, else left, else hidden (icon only, dimmed).
+// The chosen block is added to `rects`, so later markers' labels avoid it too.
 export function labelSide(rects, x, y, lines) {
-    return !labelHitsText(rects, x, y, lines, 'right') ? 'right'
+    const side = !labelHitsText(rects, x, y, lines, 'right') ? 'right'
         : x > 160 && !labelHitsText(rects, x, y, lines, 'left') ? 'left' : 'hidden';
+    if (side !== 'hidden') rects.push(labelBox(x, y, lines, side));
+    return side;
 }
 // Apply a side to a marker group and its label <text>s (gap = distance from the icon).
 export function placeLabels(group, labels, side, gap) {
@@ -301,7 +308,9 @@ export class FlightBackdrop {
             const updated = Date.parse(state.last_updated);
             if (['unknown', 'unavailable'].includes(state.state) || !Number.isFinite(updated)
                 || Date.now() - updated > 600000) throw new Error('boat feed unavailable');
-            this.map.dataset.boats = layer.draw(state.attributes.vessels, this.box, screenTextRects(this.map));
+            // Boats avoid screen text and the plane labels just placed in this refresh.
+            const taken = this.map.dataset.feed === 'live' && this.placedLabels ? [...this.placedLabels] : screenTextRects(this.map);
+            this.map.dataset.boats = layer.draw(state.attributes.vessels, this.box, taken);
         } catch (error) {
             layer.clear();
             this.map.dataset.boats = error.message;
@@ -379,6 +388,7 @@ export class FlightBackdrop {
             }
         }
         this.activeAircraftCount = active.size;
+        this.placedLabels = textRects;
         for (const [id, item] of this.markers) if (!active.has(id)) {
             if (item.departed) continue;
             item.departed = true;

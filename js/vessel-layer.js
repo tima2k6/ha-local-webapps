@@ -1,7 +1,7 @@
 // Boats on the flight map: reads sensor.nearby_vessels (bridges/vessel-bridge on the
 // Docker host joins aisstream.io AIS with WSDOT ferry data). Boats move slowly, so
 // markers jump to each new position: no transitions, keeping the GPU idle.
-import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=21';
+import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=22';
 
 export const VESSEL_ENTITY = 'sensor.nearby_vessels';
 const NS = 'http://www.w3.org/2000/svg';
@@ -39,8 +39,9 @@ export class VesselLayer {
     }
 
     draw(vessels, box, textRects = []) {
-        const active = new Set();
-        for (const v of validVessels(vessels)) {
+        const active = new Set(), rects = [...textRects];
+        // Moving boats claim label space first; docked ferries get what is left.
+        for (const v of validVessels(vessels).sort((a, b) => !!b.moving - !!a.moving)) {
             const id = String(v.id ?? `${v.lat},${v.lon}`);
             const [x, y] = project(Number(v.lat), Number(v.lon), box);
             if (x < -20 || x > 1300 || y < -20 || y > 820) continue;
@@ -62,8 +63,9 @@ export class VesselLayer {
             setAttr(item.hull, 'transform', `rotate(${Math.round(angle)})${v.moving ? '' : ' scale(.75)'}`);
             setText(item.label, v.name || v.label || 'Boat');
             setText(item.detail, vesselDetail(v));
+            // A docked boat shows its name only (CSS hides the detail line).
             placeLabels(item.group, [item.label, item.detail],
-                labelSide(textRects, x, y, [item.label.textContent, item.detail.textContent]), 16);
+                labelSide(rects, x, y, v.moving ? [item.label.textContent, item.detail.textContent] : [item.label.textContent]), 16);
             const points = (Array.isArray(v.track) ? v.track : [])
                 .filter(p => Array.isArray(p) && finite(p[0]) && finite(p[1]))
                 .map(p => project(Number(p[0]), Number(p[1]), box));
