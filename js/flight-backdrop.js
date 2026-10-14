@@ -99,11 +99,24 @@ export function screenTextRects(map) {
     }
     return rects;
 }
-// Label block to the right of a marker at x,y: icon, name line and detail line.
-export function labelHitsText(rects, x, y, lines) {
+// Label block beside a marker at x,y (icon, name line, detail line), right or left.
+export function labelHitsText(rects, x, y, lines, side = 'right') {
     const width = 26 + 7.5 * Math.max(0, ...lines.map(s => String(s || '').length));
-    const box = [x - 12, y - 14, x + width, y + 24];
+    const box = side === 'right' ? [x - 12, y - 14, x + width, y + 24] : [x - width, y - 14, x + 12, y + 24];
     return rects.some(r => box[0] < r[2] && box[2] > r[0] && box[1] < r[3] && box[3] > r[1]);
+}
+// Where a marker's labels go: right if clear, else left, else hidden (icon only, dimmed).
+export function labelSide(rects, x, y, lines) {
+    return !labelHitsText(rects, x, y, lines, 'right') ? 'right'
+        : x > 160 && !labelHitsText(rects, x, y, lines, 'left') ? 'left' : 'hidden';
+}
+// Apply a side to a marker group and its label <text>s (gap = distance from the icon).
+export function placeLabels(group, labels, side, gap) {
+    group.classList.toggle('under-text', side === 'hidden');
+    for (const label of labels) {
+        setAttr(label, 'x', side === 'left' ? -gap : gap);
+        setAttr(label, 'text-anchor', side === 'left' ? 'end' : 'start');
+    }
 }
 
 function svg(tag, attributes = {}, parent) {
@@ -339,15 +352,15 @@ export class FlightBackdrop {
             setAttr(item.plane, 'href', String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? '#helicopter' : '#plane');
             const scale = altitudeScale(f.altitude);
             setAttr(item.plane, 'transform', `rotate(${finite(f.heading) ? Number(f.heading) : 0}) scale(${scale.toFixed(3)})`);
-            // Leave breathing room between the larger silhouette and its labels.
-            for (const label of [item.label, item.route]) setAttr(label, 'x', Math.round(22 * Math.max(1, scale)));
             setText(item.label, f.airline_short || f.airline
                 || (String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? 'Helicopter' : 'Aircraft'));
             const origin = f.airport_origin_code_iata || f.airport_origin_code_icao;
             const destination = f.airport_destination_code_iata || f.airport_destination_code_icao;
             const route = origin || destination ? `${origin || '?'} → ${destination || '?'}` : '';
             setText(item.route, [route, flightPhase(f, this.center)].filter(Boolean).join(' · '));
-            item.group.classList.toggle('under-text', labelHitsText(textRects, x, y, [item.label.textContent, item.route.textContent]));
+            // Leave breathing room between the larger silhouette and its labels.
+            placeLabels(item.group, [item.label, item.route],
+                labelSide(textRects, x, y, [item.label.textContent, item.route.textContent]), Math.round(22 * Math.max(1, scale)));
             let points = (Array.isArray(f.coordinates) ? f.coordinates : [])
                 .filter(p => Array.isArray(p) && finite(p[0]) && finite(p[1]))
                 .map(p => project(Number(p[0]), Number(p[1]), this.box));

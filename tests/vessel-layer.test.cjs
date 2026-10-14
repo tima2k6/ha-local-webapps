@@ -24,6 +24,15 @@ test('a label overlapping screen text is detected; open map space is not', async
     assert.equal(labelHitsText([], 365, 420, ['Anything']), false);
 });
 
+test('labels flip left when the right side hits screen text, and hide only when both sides do', async () => {
+    const { labelSide } = await load('flight-backdrop.js');
+    const clock = [[370, 250, 840, 430]];
+    assert.equal(labelSide(clock, 200, 300, ['Walla Walla', 'Ferry']), 'right');
+    assert.equal(labelSide(clock, 355, 285, ['Hyundai Supreme', 'Cargo ship · 15 kn']), 'left');
+    assert.equal(labelSide(clock, 150, 285,['A very long boat name here', 'Pleasure boat · 9 kn']), 'hidden'); // too near the left edge
+    assert.equal(labelSide([[0, 250, 1280, 430]], 600, 300, ['Anything']), 'hidden');
+});
+
 test('boats take the season accent complement, distinct from it and from the near-white planes', async () => {
     const { complement, mix } = await load('ambience.js');
     const hue = hex => {
