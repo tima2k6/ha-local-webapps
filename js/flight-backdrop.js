@@ -143,7 +143,8 @@ export class FlightBackdrop {
         this.home = map.querySelector('.home');
         this.home.setAttribute('transform', 'translate(640 480)');
         this.map.setAttribute('aria-label', 'Nearby aircraft from Home Assistant over local street linework');
-        this.roads = map.querySelector('#local-roads');
+        // Streets live in their own SVG (#road-map) under this one, with the same viewBox.
+        this.roads = document.querySelector('#local-roads');
     }
 
     async state(entity) {

@@ -328,7 +328,7 @@ class Mood {
 
 // ===== Morning reveal: the streets draw outward from home when the day layout returns =====
 function reveal() {
-    const map = document.getElementById('flight-map'), roads = map?.querySelector('#local-roads');
+    const roads = document.getElementById('local-roads'), map = roads?.ownerSVGElement;
     if (!roads || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     let circle = map.querySelector('#reveal-clip circle');
     if (!circle) {
