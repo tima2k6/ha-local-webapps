@@ -48,6 +48,10 @@ export function flightPhase(f, home, now = Date.now()) {
     return '';
 }
 
+// Rewriting an unchanged value still invalidates the SVG, so skip no-op writes.
+const setAttr = (el, name, value) => { if (el.getAttribute(name) !== String(value)) el.setAttribute(name, value); };
+const setText = (el, value) => { if (el.textContent !== value) el.textContent = value; };
+
 export function viewport(home, bounds) {
     const [north, south, west, east] = String(bounds).split(',').map(Number);
     if (![...home, north, south, west, east].every(Number.isFinite) || north <= south || east <= west) throw new Error('Invalid flight map bounds');
@@ -120,8 +124,12 @@ export class FlightBackdrop {
             await this.refresh();
         } catch (error) { this.fail(error); }
         await mapRequest;
-        // Reconcile missed updates and check freshness; websocket events draw immediately.
-        this.timer = setInterval(() => this.refresh(), 10000);
+        // Websocket events draw immediately; polling only covers a dead socket
+        // (every 10 s) and a slow freshness check while it is live (every 30 s).
+        this.timer = setInterval(() => {
+            if (this.map.dataset.transport === 'websocket' && Date.now() - (this.lastRefresh || 0) < 30000) return;
+            this.refresh();
+        }, 10000);
         document.addEventListener('visibilitychange', () => { if (!document.hidden) this.refresh(); });
         window.addEventListener('pagehide', () => {
             this.stopped = true;
@@ -203,6 +211,7 @@ export class FlightBackdrop {
         if (document.hidden) return;
         if (this.busy) { this.pendingRefresh = true; return; }
         this.busy = true;
+        this.lastRefresh = Date.now();
         try {
             // An unavailable map feed must not erase a valid daily total.
             if (this.tally) {
@@ -276,21 +285,23 @@ export class FlightBackdrop {
                 const duration = !previous || returning || gap > 30000 ? 0
                     : Math.min(32000, Math.max(10000, gap) + 2000);
                 item.marker.style.transitionDuration = `${duration}ms`;
+                // One visible step per second: a continuous glide repaints the
+                // whole SVG every frame, which outpaced the kiosk's charger.
+                item.marker.style.transitionTimingFunction = `steps(${Math.max(1, Math.round(duration / 1000))}, end)`;
                 item.marker.style.transform = `translate(${x}px, ${y}px)`;
                 item.position = { x, y, reportedAt };
             }
-            item.plane.setAttribute('href', String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? '#helicopter' : '#plane');
+            setAttr(item.plane, 'href', String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? '#helicopter' : '#plane');
             const scale = altitudeScale(f.altitude);
-            item.plane.setAttribute('transform', `rotate(${finite(f.heading) ? Number(f.heading) : 0}) scale(${scale.toFixed(3)})`);
+            setAttr(item.plane, 'transform', `rotate(${finite(f.heading) ? Number(f.heading) : 0}) scale(${scale.toFixed(3)})`);
             // Leave breathing room between the larger silhouette and its labels.
-            for (const label of [item.label, item.route]) label.setAttribute('x', Math.round(22 * Math.max(1, scale)));
-            item.label.textContent = f.airline_short || f.airline
-                || (String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? 'Helicopter' : 'Aircraft');
+            for (const label of [item.label, item.route]) setAttr(label, 'x', Math.round(22 * Math.max(1, scale)));
+            setText(item.label, f.airline_short || f.airline
+                || (String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? 'Helicopter' : 'Aircraft'));
             const origin = f.airport_origin_code_iata || f.airport_origin_code_icao;
             const destination = f.airport_destination_code_iata || f.airport_destination_code_icao;
             const route = origin || destination ? `${origin || '?'} → ${destination || '?'}` : '';
-            item.route.textContent = [route, flightPhase(f, this.center)].filter(Boolean).join(' · ');
-            item.trails.replaceChildren();
+            setText(item.route, [route, flightPhase(f, this.center)].filter(Boolean).join(' · '));
             let points = (Array.isArray(f.coordinates) ? f.coordinates : [])
                 .filter(p => Array.isArray(p) && finite(p[0]) && finite(p[1]))
                 .map(p => project(Number(p[0]), Number(p[1]), this.box));
@@ -299,6 +310,10 @@ export class FlightBackdrop {
             if (points.length > 1 && distance(points[0]) < distance(points.at(-1))) points.reverse();
             points = points.slice(-45);
             if (!points.length || distance(points.at(-1)) > 1) points.push([x, y]);
+            const trailKey = points.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ');
+            if (trailKey === item.trailKey) continue;
+            item.trailKey = trailKey;
+            item.trails.replaceChildren();
             for (let i = 1; i < points.length; i++) {
                 svg('path', { class: 'trail', d: `M${points[i-1].join(',')}L${points[i].join(',')}`, fill: 'none',
                     stroke: '#5fc9b4', 'stroke-width': 1.6, 'stroke-opacity': (.08+.55*i/points.length).toFixed(2) }, item.trails);
@@ -310,7 +325,7 @@ export class FlightBackdrop {
             item.departed = true;
             item.marker.style.display = 'none';
             // Keep only the observed path, fading gently for two minutes.
-            item.trails.style.transition = 'opacity 120s linear';
+            item.trails.style.transition = 'opacity 120s steps(120, end)';
             item.trails.style.opacity = '0';
             item.retireTimer = setTimeout(() => {
                 if (item.departed && this.markers.get(id) === item) {

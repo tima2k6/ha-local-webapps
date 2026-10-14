@@ -46,6 +46,7 @@ test('airline labels and routes replace flight numbers; departed trails last two
     const timers = new Map(); let next = 0;
     const element = () => ({ attrs: {}, style: {}, children: [],
         setAttribute(key, value) { this.attrs[key] = value; },
+        getAttribute(key) { return key in this.attrs ? String(this.attrs[key]) : null; },
         append(child) { this.children.push(child); },
         replaceChildren() { this.children = []; },
         remove() { this.removed = true; }
@@ -69,6 +70,7 @@ test('airline labels and routes replace flight numbers; departed trails last two
         const moved = { ...plane, longitude: -122.29 };
         feed.draw([moved], 110000);
         assert.equal(item.marker.style.transitionDuration, '12000ms');
+        assert.equal(item.marker.style.transitionTimingFunction, 'steps(12, end)'); // Repaint once a second, not every frame.
         feed.draw([moved], 115000); // Duplicate polls must not alter the movement cadence.
         assert.equal(item.position.reportedAt, 110000);
         feed.draw([{ ...moved, longitude: -122.28 }], 130000);
@@ -80,6 +82,7 @@ test('airline labels and routes replace flight numbers; departed trails last two
         assert.equal(feed.activeAircraftCount, 0);
         assert.ok(item.trails.children.length > 0);
         assert.equal(timers.get(item.retireTimer).ms, 120000);
+        assert.equal(item.trails.style.transition, 'opacity 120s steps(120, end)');
         const firstTimer = item.retireTimer;
         feed.draw([]); // Polling must not extend the expiry.
         assert.equal(item.retireTimer, firstTimer);
