@@ -41,6 +41,17 @@ const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
 const hex = c => '#' + c.map(v => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')).join('');
 export const mix = (a, b, t) => { const x = rgb(a), y = rgb(b); return hex(x.map((v, i) => v + (y[i] - v) * t)); };
 
+// The hue opposite `color` at a fixed soft saturation and lightness: boats on the map
+// get the season accent's complement, so they never blend with it or with the planes.
+export function complement(color) {
+    const [r, g, b] = rgb(color).map(v => v / 255);
+    const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+    const h = d === 0 ? 0 : max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    const hue = ((h * 60 + 180) % 360 + 360) % 360, s = .62, l = .68;
+    const k = n => (n + hue / 30) % 12, a = s * Math.min(l, 1 - l);
+    return hex([0, 8, 4].map(n => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)))));
+}
+
 export function seasonAccent(now, forced) {
     if (SEASON[forced]) return SEASON[forced];
     const month = now.getMonth(), season = SEASON[SEASON_OF[month]];
@@ -420,9 +431,10 @@ export class Ambience {
         const warm = this.forced.golden ? 1 : goldenness(now, set);
         root.setProperty('--accent', accent);
         root.setProperty('--accent-border', mix(accent, '#0c0c0c', .55));
-        root.setProperty('--plane', mix(accent, '#ffffff', .3));
-        root.setProperty('--map-label', mix(accent, '#9a9a9a', .55));
-        root.setProperty('--map-route', mix(accent, '#a9a9a9', .6));
+        // Map traffic: planes near-white with a season hint, boats the accent's complement.
+        // Their labels stay neutral grey (index.html) so text never reads as either.
+        root.setProperty('--plane', mix(accent, '#ffffff', .65));
+        root.setProperty('--boat', complement(accent));
         for (const k of Object.keys(ROAD)) root.setProperty(`--road-${k}`, mix(ROAD[k], GOLD, warm * ROAD_WARMTH[k]));
 
         const o = this.occasion();

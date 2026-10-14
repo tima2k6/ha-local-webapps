@@ -45,6 +45,7 @@ test('airline labels and routes replace flight numbers; departed trails last two
     const original = { document: global.document, setTimeout: global.setTimeout, clearTimeout: global.clearTimeout };
     const timers = new Map(); let next = 0;
     const element = () => ({ attrs: {}, style: {}, children: [],
+        classList: { names: new Set(), toggle(name, on) { on ? this.names.add(name) : this.names.delete(name); } },
         setAttribute(key, value) { this.attrs[key] = value; },
         getAttribute(key) { return key in this.attrs ? String(this.attrs[key]) : null; },
         append(child) { this.children.push(child); },

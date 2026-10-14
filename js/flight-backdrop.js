@@ -81,6 +81,31 @@ export function dailyTallyText(state, now = new Date()) {
     return `${count.toLocaleString()} aircraft today`;
 }
 
+// Screen text the map sits under (clock, weather, agenda...), as tight per-line boxes in
+// map units. A plane or boat whose label would land on one keeps a dimmed icon only.
+const SCREEN_TEXT = '#clock .date, #clock .time, #clock .period, #weather, #insights, #night-weather, '
+    + '.agenda-head, #agenda, #tags, #timers, #flight-tally';
+export function screenTextRects(map) {
+    const toMap = map.getScreenCTM?.()?.inverse();
+    if (!toMap) return [];
+    const range = document.createRange(), rects = [];
+    for (const el of document.querySelectorAll(SCREEN_TEXT)) {
+        range.selectNodeContents(el);
+        for (const r of range.getClientRects()) {
+            if (r.width < 1 || r.height < 1) continue;
+            const a = new DOMPoint(r.left, r.top).matrixTransform(toMap), b = new DOMPoint(r.right, r.bottom).matrixTransform(toMap);
+            rects.push([a.x, a.y, b.x, b.y]);
+        }
+    }
+    return rects;
+}
+// Label block to the right of a marker at x,y: icon, name line and detail line.
+export function labelHitsText(rects, x, y, lines) {
+    const width = 26 + 7.5 * Math.max(0, ...lines.map(s => String(s || '').length));
+    const box = [x - 12, y - 14, x + width, y + 24];
+    return rects.some(r => box[0] < r[2] && box[2] > r[0] && box[1] < r[3] && box[3] > r[1]);
+}
+
 function svg(tag, attributes = {}, parent) {
     const el = document.createElementNS(NS, tag);
     for (const [key, value] of Object.entries(attributes)) el.setAttribute(key, value);
@@ -89,8 +114,9 @@ function svg(tag, attributes = {}, parent) {
 }
 
 export class FlightBackdrop {
-    constructor(config, map, status, tally) {
-        Object.assign(this, { config, map, status: status || { textContent: '' }, tally });
+    // vessels: optional { layer: VesselLayer, entity } drawn on the same projection.
+    constructor(config, map, status, tally, vessels) {
+        Object.assign(this, { config, map, status: status || { textContent: '' }, tally, vessels });
         this.markers = new Map();
         this.layer = map.querySelector('.flights');
         this.layer.replaceChildren();
@@ -149,7 +175,8 @@ export class FlightBackdrop {
             if (message.type === 'auth_required') ws.send(JSON.stringify({ type: 'auth', access_token: this.config.longLivedAccessToken }));
             if (message.type === 'auth_ok') {
                 ws.send(JSON.stringify({ id: 1, type: 'subscribe_trigger', trigger: {
-                    platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching', TALLY_ENTITY]
+                    platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching', TALLY_ENTITY,
+                        ...(this.vessels ? [this.vessels.entity] : [])]
                 } }));
             }
             if (message.type === 'auth_invalid') {
@@ -242,6 +269,7 @@ export class FlightBackdrop {
             this.status.textContent = `HA flight snapshot · ${this.activeAircraftCount ?? this.markers.size} aircraft · source updated ${new Date(state.last_updated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`;
         } catch (error) { this.fail(error); }
         finally {
+            await this.refreshVessels();
             this.busy = false;
             if (this.pendingRefresh) {
                 this.pendingRefresh = false;
@@ -250,8 +278,25 @@ export class FlightBackdrop {
         }
     }
 
+    // Boats have their own sensor; a missing or stale one clears only the boats.
+    async refreshVessels() {
+        if (!this.vessels) return;
+        const { layer, entity } = this.vessels;
+        try {
+            if (!this.box) throw new Error('no map box yet');
+            const state = await this.state(entity);
+            const updated = Date.parse(state.last_updated);
+            if (['unknown', 'unavailable'].includes(state.state) || !Number.isFinite(updated)
+                || Date.now() - updated > 600000) throw new Error('boat feed unavailable');
+            this.map.dataset.boats = layer.draw(state.attributes.vessels, this.box, screenTextRects(this.map));
+        } catch (error) {
+            layer.clear();
+            this.map.dataset.boats = error.message;
+        }
+    }
+
     draw(flights, reportedAt = Date.now()) {
-        const active = new Set();
+        const active = new Set(), textRects = screenTextRects(this.map);
         for (const f of flights) {
             const id = String(f.id || f.aircraft_icao_24bit || f.callsign || f.flight_number || `${f.latitude},${f.longitude}`);
             const [x, y] = project(Number(f.latitude), Number(f.longitude), this.box);
@@ -302,6 +347,7 @@ export class FlightBackdrop {
             const destination = f.airport_destination_code_iata || f.airport_destination_code_icao;
             const route = origin || destination ? `${origin || '?'} → ${destination || '?'}` : '';
             setText(item.route, [route, flightPhase(f, this.center)].filter(Boolean).join(' · '));
+            item.group.classList.toggle('under-text', labelHitsText(textRects, x, y, [item.label.textContent, item.route.textContent]));
             let points = (Array.isArray(f.coordinates) ? f.coordinates : [])
                 .filter(p => Array.isArray(p) && finite(p[0]) && finite(p[1]))
                 .map(p => project(Number(p[0]), Number(p[1]), this.box));
