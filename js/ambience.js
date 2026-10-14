@@ -337,13 +337,17 @@ function reveal() {
     }
     roads.setAttribute('clip-path', 'url(#reveal-clip)');
     const t0 = performance.now(), DUR = 6500;
+    let done = false;
+    const finish = () => { done = true; circle.setAttribute('r', 1150); roads.removeAttribute('clip-path'); };
     const step = t => {
+        if (done) return;
         const p = Math.min(1, (t - t0) / DUR);
         circle.setAttribute('r', (1 - Math.pow(1 - p, 3)) * 1150);
-        if (p < 1) requestAnimationFrame(step);
-        else roads.removeAttribute('clip-path');
+        if (p < 1) requestAnimationFrame(step); else finish();
     };
     requestAnimationFrame(step);
+    // Animation frames can pause (a hidden or throttled kiosk page); never leave the streets clipped.
+    setTimeout(finish, DUR + 1500);
 }
 
 // ===== The conductor =====
