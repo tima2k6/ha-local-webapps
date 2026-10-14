@@ -565,7 +565,6 @@ import { startScreensaver } from './js/screensaver.js?v=43';
 import { FlightBackdrop } from './js/flight-backdrop.js?v=25';
 import { VesselLayer, VESSEL_ENTITY } from './js/vessel-layer.js?v=6';
 import { Ambience } from './js/ambience.js?v=8';
-import { startDiagnostics } from './js/diagnostics.js?v=1';  // TEMPORARY, see the file
 // Display settings are configured by URL; the screensaver stays touchless.
 const params=new URLSearchParams(location.search);
 const brightness=Number(params.get('map'));
@@ -579,6 +578,5 @@ const backdrop=new FlightBackdrop(config,flightMap,null,document.querySelector('
     {layer:new VesselLayer(flightMap.querySelector('.vessels')),entity:VESSEL_ENTITY});
 window.flightBackdrop=backdrop;
 backdrop.start();
-startDiagnostics(config);
 </script></body>
 </html>
