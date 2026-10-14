@@ -237,7 +237,7 @@ export class FlightBackdrop {
         for (const kind of ['minor', 'major', 'water']) {
             // Colors here are fallbacks: index.html's --road-* (season, golden hour) override them
             svg('path', { class: `road ${kind}`, d: linework[kind].join(''), fill: 'none',
-                stroke: kind === 'water' ? '#495b57' : kind === 'major' ? '#56605c' : '#343b38',
+                stroke: kind === 'water' ? '#62807a' : kind === 'major' ? '#56605c' : '#343b38',
                 'stroke-width': kind === 'water' ? 1.2 : kind === 'major' ? 1 : .65,
                 'stroke-opacity': kind === 'water' ? 1 : .9,
                 'stroke-linejoin': 'round' }, this.roads);
