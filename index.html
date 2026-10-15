@@ -443,13 +443,13 @@
 #screen{isolation:isolate}#road-map,#flight-map{position:absolute;inset:0;width:100%;height:100%;z-index:-2;pointer-events:none}
 /* Streets sit back (--map-opacity, ?map=); planes, boats and their labels stay readable above them. */
 /* Streets have their own SVG, dimmed as a whole: an opacity on the masked street group inside one SVG did not render on the tablet. */
-#road-map{opacity:var(--map-opacity,.52)}#flight-map .flights,#flight-map .vessels{opacity:var(--traffic-opacity,.9)}
+#road-map{opacity:var(--map-opacity,.58)}#flight-map .flights,#flight-map .vessels{opacity:var(--traffic-opacity,.9)}
 #screen::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(to top,var(--bg),transparent 25%),linear-gradient(to bottom,var(--bg),transparent 18%),linear-gradient(to right,var(--bg),transparent 15%),linear-gradient(to left,var(--bg),transparent 15%);pointer-events:none}
 .live-aircraft use{fill:var(--plane,#d9f2ec)}.live-aircraft text,.live-vessel text,.home text{font:14px Figtree,sans-serif;letter-spacing:1.4px;fill:var(--map-label,#d2d6d8);paint-order:stroke;stroke:var(--bg,#0c0c0c);stroke-width:3px;stroke-linejoin:round}.live-aircraft .flight-route,.live-vessel .vessel-detail{font-size:11px;letter-spacing:1px;fill:var(--map-route,#9ba2a6);opacity:1}.home{opacity:.6}
 .live-vessel use{fill:var(--boat,#78c0e6)}.vessel-trail{stroke:var(--boat,#78c0e6);stroke-width:1.6;stroke-opacity:.45;stroke-linejoin:round}.live-vessel.docked{opacity:.55}.live-vessel.docked .vessel-detail{display:none}
 /* A marker whose label would sit on the clock, weather or agenda keeps a dimmed icon only. */
 .under-text text{display:none}.under-text .live-marker,.under-text .vessel-marker{opacity:.45}.home text{font-size:13px;font-weight:500;fill:var(--plane,#a8d9cb)}.live-marker{transition:transform 12s steps(12,end)}
-body.night #road-map,body.force-night #road-map{opacity:calc(var(--map-opacity,.52)*.85)}body.night,body.force-night{--traffic-opacity:.45}body.night #screen::before,body.force-night #screen::before{background:linear-gradient(to top,var(--bg),transparent 25%),linear-gradient(to bottom,var(--bg),transparent 18%),linear-gradient(to right,var(--bg),transparent 15%),linear-gradient(to left,var(--bg),transparent 15%)}
+body.night #road-map,body.force-night #road-map{opacity:calc(var(--map-opacity,.58)*.85)}body.night,body.force-night{--traffic-opacity:.45}body.night #screen::before,body.force-night #screen::before{background:linear-gradient(to top,var(--bg),transparent 25%),linear-gradient(to bottom,var(--bg),transparent 18%),linear-gradient(to right,var(--bg),transparent 15%),linear-gradient(to left,var(--bg),transparent 15%)}
 body.no-labels .live-aircraft text,body.no-labels .live-vessel text{display:none}#map-credit{position:absolute;bottom:8px;right:14px;z-index:1;font:10px Figtree,sans-serif;color:#666;opacity:.7;pointer-events:none}#map-credit a{color:inherit;text-decoration:none}body.night #map-credit,body.force-night #map-credit{opacity:.4}
 @media(prefers-reduced-motion:reduce){.live-marker{transition:none}}
 #flight-tally{position:absolute;left:calc(var(--u)*64);bottom:calc(var(--u)*12);font-size:calc(var(--u)*14);font-weight:400;letter-spacing:calc(var(--u)*.6);color:#a0a0a0;opacity:.8;pointer-events:none;font-variant-numeric:tabular-nums}
@@ -458,9 +458,9 @@ body.night #flight-tally,body.force-night #flight-tally{opacity:.5}
 body.night #night-weather,body.force-night #night-weather{transform:translateY(calc(var(--u)*44))}
 /* Ambience (js/ambience.js): season accent, golden hour, weather mood, sun/moon arc */
 .live-aircraft .trail{stroke:var(--plane,#d9f2ec)}.home .home-symbol{fill:var(--accent);stroke:none}
-#local-roads .road{transition:stroke 60s steps(60,end)}#local-roads .minor{stroke:var(--road-minor,#343b38)}#local-roads .major{stroke:var(--road-major,#56605c)}#local-roads .water{stroke:var(--road-water,#495b57)}
+#local-roads .road{transition:stroke 60s steps(60,end)}#local-roads .minor{stroke:var(--road-minor,#414a46)}#local-roads .major{stroke:var(--road-major,#6b7571)}#local-roads .water{stroke:var(--road-water,#647e78)}
 #mood{position:absolute;inset:0;width:100%;height:100%;z-index:-2;pointer-events:none}
-#road-map{transition:opacity 4s}#local-roads{transition:filter 4s}body.mood-fog #road-map{opacity:calc(var(--map-opacity,.52)*.7)}body.mood-fog #local-roads{filter:blur(1.3px)}
+#road-map{transition:opacity 4s}#local-roads{transition:filter 4s}body.mood-fog #road-map{opacity:calc(var(--map-opacity,.58)*.7)}body.mood-fog #local-roads{filter:blur(1.3px)}
 #sky{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;opacity:.7;transition:opacity 4s}body.night #sky,body.force-night #sky{opacity:.35}
 #sky .arc-track{fill:none;stroke:#8a8a8a;stroke-opacity:.22;stroke-width:1.2;stroke-dasharray:2 7;stroke-linecap:round}
 #sky .arc-done{fill:none;stroke:var(--accent);stroke-opacity:.35;stroke-width:1.4}
@@ -562,9 +562,9 @@ body.force-night { --bg: #050505; }
 <script type="module">
 import { config } from './js/config.js?v=20261009-flight-8';
 import { startScreensaver } from './js/screensaver.js?v=43';
-import { FlightBackdrop } from './js/flight-backdrop.js?v=26';
-import { VesselLayer, VESSEL_ENTITY } from './js/vessel-layer.js?v=7';
-import { Ambience } from './js/ambience.js?v=9';
+import { FlightBackdrop } from './js/flight-backdrop.js?v=27';
+import { VesselLayer, VESSEL_ENTITY } from './js/vessel-layer.js?v=8';
+import { Ambience } from './js/ambience.js?v=10';
 // Display settings are configured by URL; the screensaver stays touchless.
 const params=new URLSearchParams(location.search);
 const brightness=Number(params.get('map'));
