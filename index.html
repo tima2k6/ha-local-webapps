@@ -460,7 +460,8 @@ body.night #night-weather,body.force-night #night-weather{transform:translateY(c
 .live-aircraft .trail{stroke:var(--plane,#d9f2ec)}.home .home-symbol{fill:var(--accent);stroke:none}
 #local-roads .road{transition:stroke 60s steps(60,end)}#local-roads .minor{stroke:var(--road-minor,#414a46)}#local-roads .major{stroke:var(--road-major,#6b7571)}#local-roads .water{stroke:var(--road-water,#647e78)}
 #mood{position:absolute;inset:0;width:100%;height:100%;z-index:-2;pointer-events:none}
-#road-map{transition:opacity 4s}#local-roads{transition:filter 4s}body.mood-fog #road-map{opacity:calc(var(--map-opacity,.58)*.7)}body.mood-fog #local-roads{filter:blur(1.3px)}
+#road-map{transition:opacity 4s}#local-roads{transition:filter 4s}/* Fog is a hint only: a stronger blur smears the sub-pixel street lines to nothing (seen 2026-10-15). */
+body.mood-fog #road-map{opacity:calc(var(--map-opacity,.58)*.85)}body.mood-fog #local-roads{filter:blur(.5px)}
 #sky{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;opacity:.7;transition:opacity 4s}body.night #sky,body.force-night #sky{opacity:.35}
 #sky .arc-track{fill:none;stroke:#8a8a8a;stroke-opacity:.22;stroke-width:1.2;stroke-dasharray:2 7;stroke-linecap:round}
 #sky .arc-done{fill:none;stroke:var(--accent);stroke-opacity:.35;stroke-width:1.4}
