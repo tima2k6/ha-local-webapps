@@ -99,30 +99,41 @@ export function screenTextRects(map) {
     }
     return rects;
 }
-// Label block beside a marker at x,y (icon, name line, detail line), right or left.
+// Label block beside a marker at x,y (name line, plus detail line if given), right or left.
 export function labelBox(x, y, lines, side = 'right') {
     const width = 26 + 7.5 * Math.max(0, ...lines.map(s => String(s || '').length));
+    const bottom = y + (lines.length > 1 ? 24 : 8);
     // Text only, not the icon, so two boats at one dock can label opposite sides.
-    return side === 'right' ? [x + 8, y - 14, x + width, y + 24] : [x - width, y - 14, x - 8, y + 24];
+    return side === 'right' ? [x + 8, y - 14, x + width, bottom] : [x - width, y - 14, x - 8, bottom];
 }
 export function labelHitsText(rects, x, y, lines, side = 'right') {
     const box = labelBox(x, y, lines, side);
-    return rects.some(r => box[0] < r[2] && box[2] > r[0] && box[1] < r[3] && box[3] > r[1]);
+    return box[0] < 0 || box[2] > 1280
+        || rects.some(r => box[0] < r[2] && box[2] > r[0] && box[1] < r[3] && box[3] > r[1]);
 }
-// Where a marker's labels go: right if clear, else left, else hidden (icon only, dimmed).
-// The chosen block is added to `rects`, so later markers' labels avoid it too.
+// Where a marker's labels go, first that is clear of screen text and other labels:
+// both lines right, both left, name only right ('right-name'), name only left, else
+// 'hidden' (icon only, dimmed). The chosen block is added to `rects` for later markers.
 export function labelSide(rects, x, y, lines) {
-    const side = !labelHitsText(rects, x, y, lines, 'right') ? 'right'
-        : x > 160 && !labelHitsText(rects, x, y, lines, 'left') ? 'left' : 'hidden';
-    if (side !== 'hidden') rects.push(labelBox(x, y, lines, side));
-    return side;
+    const options = [['right', lines], ['left', lines]];
+    if (lines.length > 1) options.push(['right-name', lines.slice(0, 1)], ['left-name', lines.slice(0, 1)]);
+    for (const [side, used] of options) {
+        const edge = side.startsWith('left') ? 'left' : 'right';
+        if (labelHitsText(rects, x, y, used, edge)) continue;
+        rects.push(labelBox(x, y, used, edge));
+        return side;
+    }
+    return 'hidden';
 }
-// Apply a side to a marker group and its label <text>s (gap = distance from the icon).
+// Apply a placement to a marker group and its label <text>s (gap = distance from the icon).
+// The first label is the name; any others are hidden for a '-name' placement.
 export function placeLabels(group, labels, side, gap) {
     group.classList.toggle('under-text', side === 'hidden');
+    group.classList.toggle('name-only', side.endsWith('-name'));
+    const left = side.startsWith('left');
     for (const label of labels) {
-        setAttr(label, 'x', side === 'left' ? -gap : gap);
-        setAttr(label, 'text-anchor', side === 'left' ? 'end' : 'start');
+        setAttr(label, 'x', left ? -gap : gap);
+        setAttr(label, 'text-anchor', left ? 'end' : 'start');
     }
 }
 

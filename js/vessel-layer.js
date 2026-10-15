@@ -1,7 +1,7 @@
 // Boats on the flight map: reads sensor.nearby_vessels (bridges/vessel-bridge on the
 // Docker host joins aisstream.io AIS with WSDOT ferry data). Boats move slowly, so
 // markers jump to each new position: no transitions, keeping the GPU idle.
-import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=28';
+import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=29';
 
 export const VESSEL_ENTITY = 'sensor.nearby_vessels';
 const NS = 'http://www.w3.org/2000/svg';

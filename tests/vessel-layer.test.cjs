@@ -36,6 +36,11 @@ test('labels flip left when the right side hits screen text, and hide only when 
     assert.equal(labelSide(taken, 600, 300, ['Spokane']), 'right');
     assert.equal(labelSide(taken, 602, 301, ['Walla Walla']), 'left');
     assert.equal(labelSide(taken, 601, 302, ['Kittitas']), 'hidden');
+    // Two lines would touch text just below, and the left is off-screen: the name alone fits.
+    const below = [[200, 295, 900, 420]];
+    assert.equal(labelSide([...below], 100, 280, ['Diane H', 'Fishing boat · 20 kn']), 'right-name');
+    // Labels never run off the screen edge.
+    assert.equal(labelSide([], 1250, 300, ['Pacific Harvester', 'Boat · 8 kn']), 'left');
 });
 
 test('boats take the season accent complement, distinct from it and from the near-white planes', async () => {
