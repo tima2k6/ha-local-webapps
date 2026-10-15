@@ -23,7 +23,7 @@ const BLEND_DAYS = 10;            // a new season's color eases in over its firs
 // Golden hour: the street lines warm toward amber before sunset, then fade back
 const GOLD = '#e3a14f';
 const GOLDEN = { before: 45, after: 25 };    // minutes around sunset
-const ROAD = { minor: '#414a46', major: '#6b7571', water: '#647e78' };   // a step up from the original greys so streets hold up beside the brighter planes/boats
+const ROAD = { minor: '#343b38', major: '#56605c', water: '#495b57' };
 const ROAD_WARMTH = { minor: 0.4, major: 0.5, water: 0.3 };
 
 // Night layout window, same as screensaver.js
