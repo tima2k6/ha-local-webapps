@@ -311,7 +311,8 @@ const SNOW = new Set(['snowy', 'snowy-rainy', 'hail']);
 const FROST_AT = 34;          // °F low that counts as frost
 const BIG_CHANGE = 8;         // °F difference in highs worth mentioning
 const WINDY_AT = 15;          // mph
-const SHOWN = 2, ROTATE_MS = 20000, SCROLL_MS = 1400;
+const SHOWN = 2, ROTATE_MS = 10000, SCROLL_MS = 1400;
+const SCROLL_DOWN = true;    // new lines enter at the top and push the others down (false: ticker-style, up)
 
 const INS_ICONS = {
     sunrise: '<path d="M3 17h18M6.5 17a5.5 5.5 0 0 1 11 0M12 6v3M5.2 9.2l2 2M18.8 9.2l-2 2M8 21h8"/>',
@@ -875,8 +876,8 @@ class Insights {
     }
 
     // Pinned lines, then the rest taking turns in the space left, one line per turn so
-    // they scroll like a ticker: the top one leaves upward, the others move up, the new
-    // one comes in from below. Lines that stay keep their element.
+    // they scroll (see SCROLL_DOWN): the new line comes in at one end, the others shift
+    // along, and the one at the far end leaves. Lines that stay keep their element.
     render() {
         const now = new Date(), m = now.getHours() * 60 + now.getMinutes();
         const night = m < DAY_STARTS || m >= NIGHT_STARTS;
@@ -888,7 +889,7 @@ class Insights {
         const room = Math.max(0, SHOWN - pinned.length);
         let shown = rest;
         if (rest.length > room) {
-            const start = this.turn % rest.length;
+            const start = ((SCROLL_DOWN ? -this.turn : this.turn) % rest.length + rest.length) % rest.length;
             shown = Array.from({ length: room }, (_, i) => rest[(start + i) % rest.length]);
         }
         const want = [...pinned, ...shown].map(([tone, ic, text]) => ({ key: `${tone}|${ic}|${text}`, tone, ic, text }));
@@ -907,10 +908,11 @@ class Insights {
     }
 
     // Swap in the new lines, then slide everything from where it was: kept lines move to
-    // their new slot, gone ones carry on up and out, new ones rise from below. The box
-    // clips at its top rule and bottom edge, so lines appear and vanish there.
+    // their new slot, gone ones carry on out the far end, new ones slide in from the near
+    // end. The box clips at its top rule and bottom edge, so lines appear and vanish there.
     scroll(current, els) {
         const before = new Map(current.map(c => [c, c.offsetTop]));
+        const dir = SCROLL_DOWN ? 1 : -1;
         const step = (current[0]?.offsetHeight || 0) + (parseFloat(getComputedStyle(this.el).rowGap) || 0);
         const gone = current.filter(c => !els.includes(c));
         for (const c of gone) {
@@ -922,10 +924,10 @@ class Insights {
         this.fit();
         const move = { duration: SCROLL_MS, easing: 'cubic-bezier(.45,0,.25,1)' };
         for (const c of gone)
-            c.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${-step}px)`, opacity: 0 }],
+            c.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${dir * step}px)`, opacity: 0 }],
                 { ...move, fill: 'forwards' }).finished.then(() => c.remove(), () => {});
         for (const c of els) {
-            const from = before.has(c) ? before.get(c) - c.offsetTop : (step || c.offsetHeight);
+            const from = before.has(c) ? before.get(c) - c.offsetTop : -dir * (step || c.offsetHeight);
             if (!from && before.has(c)) continue;
             c.animate(before.has(c)
                 ? [{ transform: `translateY(${from}px)` }, { transform: 'none' }]
