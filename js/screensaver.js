@@ -311,7 +311,7 @@ const SNOW = new Set(['snowy', 'snowy-rainy', 'hail']);
 const FROST_AT = 34;          // °F low that counts as frost
 const BIG_CHANGE = 8;         // °F difference in highs worth mentioning
 const WINDY_AT = 15;          // mph
-const SHOWN = 2, ROTATE_MS = 20000;
+const SHOWN = 2, ROTATE_MS = 20000, SCROLL_MS = 1400;
 
 const INS_ICONS = {
     sunrise: '<path d="M3 17h18M6.5 17a5.5 5.5 0 0 1 11 0M12 6v3M5.2 9.2l2 2M18.8 9.2l-2 2M8 21h8"/>',
@@ -874,8 +874,9 @@ class Insights {
             ? ` - <b>${plural(Math.round(minutes), 'minute')}</b> away${heavy ? ' - HEAVY TRAFFIC' : ''}` : ''}`];
     }
 
-    // Pinned lines, then the rest taking turns in the space left. Lines that stay
-    // on screen keep their element, so only the ones that change fade in.
+    // Pinned lines, then the rest taking turns in the space left, one line per turn so
+    // they scroll like a ticker: the top one leaves upward, the others move up, the new
+    // one comes in from below. Lines that stay keep their element.
     render() {
         const now = new Date(), m = now.getHours() * 60 + now.getMinutes();
         const night = m < DAY_STARTS || m >= NIGHT_STARTS;
@@ -887,22 +888,49 @@ class Insights {
         const room = Math.max(0, SHOWN - pinned.length);
         let shown = rest;
         if (rest.length > room) {
-            const start = (this.turn * room) % rest.length;
+            const start = this.turn % rest.length;
             shown = Array.from({ length: room }, (_, i) => rest[(start + i) % rest.length]);
         }
         const want = [...pinned, ...shown].map(([tone, ic, text]) => ({ key: `${tone}|${ic}|${text}`, tone, ic, text }));
-        const have = new Map([...this.el.children].map(c => [c.dataset.key, c]));
+        const current = [...this.el.children].filter(c => !c.classList.contains('leaving'));
+        const have = new Map(current.map(c => [c.dataset.key, c]));
         const els = want.map(w => {
             if (have.has(w.key)) return have.get(w.key);
             const d = document.createElement('div');
-            d.className = `ins ${w.tone} fresh`;
+            d.className = `ins ${w.tone}`;
             d.dataset.key = w.key;
             d.innerHTML = `${insIcon(w.ic)}<span>${w.text}</span>`;
             return d;
         });
-        if (!(els.length === this.el.children.length && els.every((e, i) => e === this.el.children[i])))
-            this.el.replaceChildren(...els);
+        if (els.length === current.length && els.every((e, i) => e === current[i])) { this.fit(); return; }
+        this.scroll(current, els);
+    }
+
+    // Swap in the new lines, then slide everything from where it was: kept lines move to
+    // their new slot, gone ones carry on up and out, new ones rise from below. The box
+    // clips at its top rule and bottom edge, so lines appear and vanish there.
+    scroll(current, els) {
+        const before = new Map(current.map(c => [c, c.offsetTop]));
+        const step = (current[0]?.offsetHeight || 0) + (parseFloat(getComputedStyle(this.el).rowGap) || 0);
+        const gone = current.filter(c => !els.includes(c));
+        for (const c of gone) {
+            c.classList.add('leaving');
+            c.style.top = `${before.get(c)}px`;
+            c.style.left = `${c.offsetLeft}px`;
+        }
+        this.el.replaceChildren(...els, ...gone);
         this.fit();
+        const move = { duration: SCROLL_MS, easing: 'cubic-bezier(.45,0,.25,1)' };
+        for (const c of gone)
+            c.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${-step}px)`, opacity: 0 }],
+                { ...move, fill: 'forwards' }).finished.then(() => c.remove(), () => {});
+        for (const c of els) {
+            const from = before.has(c) ? before.get(c) - c.offsetTop : (step || c.offsetHeight);
+            if (!from && before.has(c)) continue;
+            c.animate(before.has(c)
+                ? [{ transform: `translateY(${from}px)` }, { transform: 'none' }]
+                : [{ transform: `translateY(${from}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], move);
+        }
     }
 
     // Lines never widen the clock's block (see #insights in index.html), so a long one
@@ -917,6 +945,7 @@ class Insights {
         const u = screen.getBoundingClientRect().width / 1280;
         const limit = side.getBoundingClientRect().left - 40 * u;
         for (const line of this.el.children) {
+            if (line.classList.contains('leaving')) continue;
             const text = line.querySelector('span');
             if (!text) continue;
             text.style.fontSize = '';

@@ -200,6 +200,10 @@
             margin-top: calc(var(--u) * 30);
             padding-top: calc(var(--u) * 26);
             border-top: 1.5px solid #1f1f1f;
+            position: relative;
+            /* Lines scroll in and out (Insights.scroll): clip at the top rule and the
+               bottom edge only, so long lines still run right past the box. */
+            clip-path: inset(0 -100vw 0 -100vw);
         }
         #insights:empty, body.night #insights { display: none; }
         .ins {
@@ -212,8 +216,7 @@
             white-space: nowrap;
             width: max-content;    /* measured by fitInsights() in screensaver.js */
         }
-        .ins.fresh { animation: insFade 2.5s ease-out both; }
-        @keyframes insFade { from { opacity: 0; } to { opacity: 1; } }
+        .ins.leaving { position: absolute; }
         .ins svg {
             width: calc(var(--u) * 32);
             height: calc(var(--u) * 32);
@@ -562,7 +565,7 @@ body.force-night { --bg: #050505; }
 <script src="js/ha-config.js?v=20261009-flight-8"></script>
 <script type="module">
 import { config } from './js/config.js?v=20261009-flight-8';
-import { startScreensaver } from './js/screensaver.js?v=43';
+import { startScreensaver } from './js/screensaver.js?v=44';
 import { FlightBackdrop } from './js/flight-backdrop.js?v=29';
 import { VesselLayer, VESSEL_ENTITY } from './js/vessel-layer.js?v=10';
 import { Ambience } from './js/ambience.js?v=11';
