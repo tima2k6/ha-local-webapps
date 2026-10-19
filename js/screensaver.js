@@ -312,7 +312,7 @@ const FROST_AT = 34;          // °F low that counts as frost
 const BIG_CHANGE = 8;         // °F difference in highs worth mentioning
 const WINDY_AT = 15;          // mph
 const SHOWN = 2, ROTATE_MS = 10000, SCROLL_MS = 1400;
-const SCROLL_DOWN = true;    // true: new lines enter at the top and push the others down; false: ticker-style, up
+const SCROLL_DOWN = false;   // false: ticker-style, new lines rise from below; true: they enter at the top
 
 const INS_ICONS = {
     sunrise: '<path d="M3 17h18M6.5 17a5.5 5.5 0 0 1 11 0M12 6v3M5.2 9.2l2 2M18.8 9.2l-2 2M8 21h8"/>',
