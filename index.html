@@ -200,10 +200,6 @@
             margin-top: calc(var(--u) * 30);
             padding-top: calc(var(--u) * 26);
             border-top: 1.5px solid #1f1f1f;
-            position: relative;
-            /* Lines scroll in and out (Insights.scroll): clip at the top rule and the
-               bottom edge only, so long lines still run right past the box. */
-            clip-path: inset(0 -100vw 0 -100vw);
         }
         #insights:empty, body.night #insights { display: none; }
         .ins {
@@ -215,6 +211,16 @@
             color: var(--text-mid);
             white-space: nowrap;
             width: max-content;    /* measured by fitInsights() in screensaver.js */
+        }
+        /* The rotating lines, below any pinned ones. They scroll in and out
+           (Insights.scroll): clip at this box's top and bottom only, so they pass behind
+           the pinned lines and long lines still run right. */
+        .ins-roll {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: calc(var(--u) * 14);
+            clip-path: inset(0 -100vw 0 -100vw);
         }
         .ins.leaving { position: absolute; }
         .ins svg {
@@ -565,7 +571,7 @@ body.force-night { --bg: #050505; }
 <script src="js/ha-config.js?v=20261009-flight-8"></script>
 <script type="module">
 import { config } from './js/config.js?v=20261009-flight-8';
-import { startScreensaver } from './js/screensaver.js?v=45';
+import { startScreensaver } from './js/screensaver.js?v=46';
 import { FlightBackdrop } from './js/flight-backdrop.js?v=29';
 import { VesselLayer, VESSEL_ENTITY } from './js/vessel-layer.js?v=10';
 import { Ambience } from './js/ambience.js?v=11';

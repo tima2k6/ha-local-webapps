@@ -312,7 +312,7 @@ const FROST_AT = 34;          // °F low that counts as frost
 const BIG_CHANGE = 8;         // °F difference in highs worth mentioning
 const WINDY_AT = 15;          // mph
 const SHOWN = 2, ROTATE_MS = 10000, SCROLL_MS = 1400;
-const SCROLL_DOWN = true;    // new lines enter at the top and push the others down (false: ticker-style, up)
+const SCROLL_DOWN = false;   // false: ticker-style, new lines rise from below; true: they enter at the top
 
 const INS_ICONS = {
     sunrise: '<path d="M3 17h18M6.5 17a5.5 5.5 0 0 1 11 0M12 6v3M5.2 9.2l2 2M18.8 9.2l-2 2M8 21h8"/>',
@@ -875,9 +875,11 @@ class Insights {
             ? ` - <b>${plural(Math.round(minutes), 'minute')}</b> away${heavy ? ' - HEAVY TRAFFIC' : ''}` : ''}`];
     }
 
-    // Pinned lines, then the rest taking turns in the space left, one line per turn so
-    // they scroll (see SCROLL_DOWN): the new line comes in at one end, the others shift
-    // along, and the one at the far end leaves. Lines that stay keep their element.
+    // Pinned lines stay put at the top; the rest take turns in the space left, one line
+    // per turn, scrolling (see SCROLL_DOWN) inside their own clipped .ins-roll below the
+    // pinned ones, so a line leaving or arriving passes behind them, never over them.
+    // Two pinned lines fill the box and nothing rotates; three or more (several urgent
+    // ones) all scroll through the box together. Lines that stay keep their element.
     render() {
         const now = new Date(), m = now.getHours() * 60 + now.getMinutes();
         const night = m < DAY_STARTS || m >= NIGHT_STARTS;
@@ -892,42 +894,53 @@ class Insights {
             const start = ((SCROLL_DOWN ? -this.turn : this.turn) % rest.length + rest.length) % rest.length;
             shown = Array.from({ length: room }, (_, i) => rest[(start + i) % rest.length]);
         }
-        const want = [...pinned, ...shown].map(([tone, ic, text]) => ({ key: `${tone}|${ic}|${text}`, tone, ic, text }));
-        const current = [...this.el.children].filter(c => !c.classList.contains('leaving'));
-        const have = new Map(current.map(c => [c.dataset.key, c]));
-        const els = want.map(w => {
-            if (have.has(w.key)) return have.get(w.key);
+        const have = new Map([...this.el.querySelectorAll('.ins:not(.leaving)')].map(c => [c.dataset.key, c]));
+        const make = ([tone, ic, text]) => {
+            const key = `${tone}|${ic}|${text}`;
+            if (have.has(key)) return have.get(key);
             const d = document.createElement('div');
-            d.className = `ins ${w.tone}`;
-            d.dataset.key = w.key;
-            d.innerHTML = `${insIcon(w.ic)}<span>${w.text}</span>`;
+            d.className = `ins ${tone}`;
+            d.dataset.key = key;
+            d.innerHTML = `${insIcon(ic)}<span>${text}</span>`;
             return d;
-        });
-        if (els.length === current.length && els.every((e, i) => e === current[i])) { this.fit(); return; }
-        this.scroll(current, els);
+        };
+        const top = pinned.map(make), roll = shown.map(make);
+        this.roll ||= Object.assign(document.createElement('div'), { className: 'ins-roll' });
+        const curTop = [...this.el.children].filter(c => c !== this.roll);
+        const curRoll = [...this.roll.children].filter(c => !c.classList.contains('leaving'));
+        const same = (a, b) => a.length === b.length && a.every((e, i) => e === b[i]);
+        if (same(top, curTop) && same(roll, curRoll)) { this.fit(); return; }
+        this.scroll(curTop, curRoll, top, roll);
     }
 
-    // Swap in the new lines, then slide everything from where it was: kept lines move to
-    // their new slot, gone ones carry on out the far end, new ones slide in from the near
-    // end. The box clips at its top rule and bottom edge, so lines appear and vanish there.
-    scroll(current, els) {
-        const before = new Map(current.map(c => [c, c.offsetTop]));
-        const dir = SCROLL_DOWN ? 1 : -1;
-        const step = (current[0]?.offsetHeight || 0) + (parseFloat(getComputedStyle(this.el).rowGap) || 0);
-        const gone = current.filter(c => !els.includes(c));
+    // Swap in the new lines, then slide the rotating ones from where they were: kept lines
+    // move to their new slot, gone ones carry on out the far end, new ones slide in from
+    // the near end. .ins-roll clips at its own top and bottom, so they appear and vanish
+    // there. A new pinned line just fades in.
+    scroll(curTop, curRoll, top, roll) {
+        const box = this.roll, dir = SCROLL_DOWN ? 1 : -1;
+        const before = new Map(curRoll.map(c => [c, c.offsetTop]));
+        const gone = curRoll.filter(c => !roll.includes(c) && !top.includes(c));
         for (const c of gone) {
             c.classList.add('leaving');
             c.style.top = `${before.get(c)}px`;
             c.style.left = `${c.offsetLeft}px`;
         }
-        this.el.replaceChildren(...els, ...gone);
+        const fresh = top.filter(c => !c.isConnected);
+        box.replaceChildren(...roll, ...gone);
+        this.el.replaceChildren(...top, ...(box.children.length ? [box] : []));
         this.fit();
+        for (const c of fresh) c.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 2500, easing: 'ease-out' });
+        const step = ((roll[0] || gone[0])?.offsetHeight || 0) + (parseFloat(getComputedStyle(box).rowGap) || 0);
         const move = { duration: SCROLL_MS, easing: 'cubic-bezier(.45,0,.25,1)' };
         for (const c of gone)
-            c.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${dir * step}px)`, opacity: 0 }],
-                { ...move, fill: 'forwards' }).finished.then(() => c.remove(), () => {});
-        for (const c of els) {
-            const from = before.has(c) ? before.get(c) - c.offsetTop : -dir * (step || c.offsetHeight);
+            c.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${-dir * step}px)`, opacity: 0 }],
+                { ...move, fill: 'forwards' }).finished.then(() => {
+                    c.remove();
+                    if (!box.children.length) box.remove();
+                }, () => {});
+        for (const c of roll) {
+            const from = before.has(c) ? before.get(c) - c.offsetTop : dir * step;
             if (!from && before.has(c)) continue;
             c.animate(before.has(c)
                 ? [{ transform: `translateY(${from}px)` }, { transform: 'none' }]
@@ -943,11 +956,10 @@ class Insights {
         if (document.body.classList.contains('night')) return;
         const side = document.getElementById('side');
         const screen = document.getElementById('screen');
-        if (!side || !screen || !this.el.children.length) return;
+        if (!side || !screen || !this.el.querySelector('.ins')) return;
         const u = screen.getBoundingClientRect().width / 1280;
         const limit = side.getBoundingClientRect().left - 40 * u;
-        for (const line of this.el.children) {
-            if (line.classList.contains('leaving')) continue;
+        for (const line of this.el.querySelectorAll('.ins:not(.leaving)')) {
             const text = line.querySelector('span');
             if (!text) continue;
             text.style.fontSize = '';
