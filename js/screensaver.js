@@ -934,13 +934,13 @@ class Insights {
         const step = ((roll[0] || gone[0])?.offsetHeight || 0) + (parseFloat(getComputedStyle(box).rowGap) || 0);
         const move = { duration: SCROLL_MS, easing: 'cubic-bezier(.45,0,.25,1)' };
         for (const c of gone)
-            c.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${-dir * step}px)`, opacity: 0 }],
+            c.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${dir * step}px)`, opacity: 0 }],
                 { ...move, fill: 'forwards' }).finished.then(() => {
                     c.remove();
                     if (!box.children.length) box.remove();
                 }, () => {});
         for (const c of roll) {
-            const from = before.has(c) ? before.get(c) - c.offsetTop : dir * step;
+            const from = before.has(c) ? before.get(c) - c.offsetTop : -dir * step;
             if (!from && before.has(c)) continue;
             c.animate(before.has(c)
                 ? [{ transform: `translateY(${from}px)` }, { transform: 'none' }]
