@@ -1,0 +1,67 @@
+{
+  "id": "1790697400089",
+  "alias": "Someone's Home Announcement",
+  "description": "Replaces the Hubitat Echo Speaks rule \"Someone's home! (A)\". Fires on presence arrival (sensor off -> on), before they are through the door - phrasing says arrived/here, never 'walked in' or 'entered the building'. Suppressed entirely while Silence Voice Alerts is on. Waits 3 seconds then announces on Alexa Pup, Office Dog and Bedroom Dot via Alexa Media Player. Announces only once if both arrive together - a second arrival within 2 minutes is ignored. The Hubitat rule was disabled 2026-09-29 when this took over.",
+  "triggers": [
+    {
+      "entity_id": "binary_sensor.tim_presence",
+      "from": "off",
+      "id": "Tim",
+      "note": "Hubitat presence sensor mirrored into HA via Maker API.",
+      "to": "on",
+      "trigger": "state"
+    },
+    {
+      "entity_id": "binary_sensor.emily_presence",
+      "from": "off",
+      "id": "Emily",
+      "to": "on",
+      "trigger": "state"
+    }
+  ],
+  "conditions": [
+    {
+      "condition": "state",
+      "entity_id": "switch.silence_voice_alerts",
+      "note": "Master mute. light.silence_voice_alerts is a switch_as_x mirror of this switch - toggling either one works.",
+      "state": "off"
+    }
+  ],
+  "actions": [
+    {
+      "delay": {
+        "seconds": 3
+      },
+      "note": "Matches the 3-second delay configured in the original Echo Speaks action."
+    },
+    {
+      "condition": "state",
+      "entity_id": "switch.silence_voice_alerts",
+      "note": "Re-checked after the delay so toggling Silence Voice Alerts on right as someone arrives still suppresses the announcement.",
+      "state": "off"
+    },
+    {
+      "action": "notify.alexa_media",
+      "data": {
+        "data": {
+          "type": "announce"
+        },
+        "message": "{% set name = trigger.id %}{% set phrases = [\n  \"Turn up the AC, it's about to get hot in here. \" ~ name ~ \" is back!\",\n  \"Guess who's back, back again? \" ~ name ~ \"'s back, tell a friend!\",\n  \"Attention, attention! The one, the only, \" ~ name ~ \" has returned. Please hold your applause until the end.\",\n  \"Alert! \" ~ name ~ \" has arrived. Hide the snacks, or be prepared to share!\",\n  \"Look who's back! \" ~ name ~ \", the one person who always laughs at your jokes, even the bad ones.\",\n  \"Everyone act natural. \" ~ name ~ \" is here.\",\n  \"Breaking news: \" ~ name ~ \" is here. Back to you in the studio.\",\n  \"Ladies and gentlemen, please rise. \" ~ name ~ \" has arrived.\",\n  \"The prodigal \" ~ name ~ \" returns. Someone fetch the good snacks.\",\n  \"Incoming. \" ~ name ~ \" is home, and statistically speaking, hungry.\",\n  \"Security alert. Intruder detected. False alarm, it's just \" ~ name ~ \".\",\n  \"\" ~ name ~ \" has docked successfully. All systems nominal. Welcome home.\",\n  \"Roll out the red carpet. Actually, we don't have one. Just come in, \" ~ name ~ \".\",\n  \"\" ~ name ~ \" is home. You may all resume whatever you were doing. Or don't. I'm not in charge here.\",\n  \"Look alive, people. \" ~ name ~ \" is here and will absolutely notice the dishes.\"\n] %}{{ phrases | random }}",
+        "target": [
+          "media_player.alexa_pup",
+          "media_player.office_dog",
+          "media_player.bedroom_dot"
+        ]
+      },
+      "note": "trigger.id carries the arriving person's name into the phrase list. 15 phrases, randomly selected. Wording says arrived/here - avoid any phrasing that claims they are already inside the house. Multiple targets play as a synchronized broadcast."
+    },
+    {
+      "delay": {
+        "minutes": 2
+      },
+      "note": "Cooldown: holds the run open so a second arrival within 2 minutes is swallowed by mode single. Announces once when Tim and Emily come home together."
+    }
+  ],
+  "max_exceeded": "silent",
+  "mode": "single"
+}
