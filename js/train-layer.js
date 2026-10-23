@@ -1,6 +1,6 @@
 // Trains on the flight map: reads sensor.nearby_trains (bridges/train-bridge on the Docker
-// host polls Amtraker and Sound Transit). Amtrak and Sounder get a car icon and a label; Link
-// trains come every few minutes, so they are small unlabelled dots to keep the map quiet.
+// host polls Amtraker and Sound Transit). Amtrak and Sounder get a locomotive icon and a label;
+// Link trains come every few minutes, so they are a small dim car with no label, to keep the map quiet.
 // Markers jump to each new position: no transitions, keeping the GPU idle.
 import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=30';
 
@@ -20,7 +20,7 @@ export function validTrains(trains) {
         && Math.abs(Number(t.lat)) <= 90 && Math.abs(Number(t.lon)) <= 180);
 }
 
-// Link is a dot; anything else (Amtrak, Sounder) is a labelled train.
+// Link is a small unlabelled car; anything else (Amtrak, Sounder) is a labelled train.
 export const isLink = t => t.kind === 'link';
 
 export class TrainLayer {
@@ -49,7 +49,7 @@ export class TrainLayer {
                 item?.group.remove();
                 const group = svg('g', { class: link ? 'live-train link' : 'live-train' }, this.layer);
                 const marker = svg('g', { class: 'train-marker' }, group);
-                const icon = svg('use', { href: link ? '#link-dot' : '#train-car' }, marker);
+                const icon = svg('use', { href: link ? '#link-car' : '#train-car' }, marker);
                 item = { group, marker, icon, link };
                 if (!link) {
                     item.label = svg('text', { x: 14, y: 4 }, marker);
@@ -58,8 +58,8 @@ export class TrainLayer {
                 this.markers.set(id, item);
             }
             setAttr(item.marker, 'transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
-            if (link) continue;
             setAttr(item.icon, 'transform', `rotate(${finite(t.heading) ? Math.round(Number(t.heading)) : 0})`);
+            if (link) continue;
             setText(item.label, t.name || 'Train');
             setText(item.detail, String(t.detail || ''));
             const lines = [item.label.textContent, item.detail.textContent].filter(Boolean);

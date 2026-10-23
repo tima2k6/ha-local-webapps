@@ -15,3 +15,12 @@ test('official screensaver imports resolve directly in the browser', () => {
     }
     assert.ok(!html.includes('mockups/'));
 });
+
+test('no CSS comment closes its style block early', () => {
+    // A "</style>" inside a CSS comment ends the block in HTML, and the rest of the CSS shows
+    // on screen as text (happened 2026-10-23, caught before deploy).
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    for (const [, css] of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g))
+        for (const [comment] of css.matchAll(/\/\*[\s\S]*?\*\//g))
+            assert.ok(!comment.includes('</'), `CSS comment contains "</": ${comment.slice(0, 80)}`);
+});

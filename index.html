@@ -452,6 +452,15 @@
         }
     </style>
 <style>
+/* Map traffic colours, fixed per season and set by the date alone (a little inline script at the end
+   of the head picks the season; ?season= overrides it). Deliberately independent of js/ambience.js
+   and HA, so the seasons keep working if other code changes or fails. Planes are near-white with
+   a season hint, boats and trains two hues clearly apart from them and from each other (trains were
+   picked by hand 2026-10-23: a formula put them 60° from the boats, which blurred together dimmed). */
+:root,:root[data-season=fall]{--plane:#f3dac9;--boat:#7bb8e0;--train:#ee7fc0}
+:root[data-season=winter]{--plane:#d2e4f6;--boat:#e0ad7b;--train:#7fdc8f}
+:root[data-season=spring]{--plane:#d9eed2;--boat:#c67be0;--train:#f0957a}
+:root[data-season=summer]{--plane:#c7ece5;--boat:#e07b8f;--train:#8f9ff2}
 #screen{isolation:isolate}#road-map,#flight-map{position:absolute;inset:0;width:100%;height:100%;z-index:-2;pointer-events:none}
 /* Streets sit back (--map-opacity, ?map=); planes, boats, trains and their labels stay readable above them. */
 /* Streets have their own SVG, dimmed as a whole: an opacity on the masked street group inside one SVG did not render on the tablet. */
@@ -459,8 +468,8 @@
 #screen::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(to top,var(--bg),transparent 25%),linear-gradient(to bottom,var(--bg),transparent 18%),linear-gradient(to right,var(--bg),transparent 15%),linear-gradient(to left,var(--bg),transparent 15%);pointer-events:none}
 .live-aircraft use{fill:var(--plane,#d9f2ec)}.live-aircraft text,.live-vessel text,.live-train text,.home text{font:14px Figtree,sans-serif;letter-spacing:1.4px;fill:var(--map-label,#d2d6d8);paint-order:stroke;stroke:var(--bg,#0c0c0c);stroke-width:3px;stroke-linejoin:round}.live-aircraft .flight-route,.live-vessel .vessel-detail,.live-train .train-detail{font-size:11px;letter-spacing:1px;fill:var(--map-route,#9ba2a6);opacity:1}.home{opacity:.6}
 .live-vessel use{fill:var(--boat,#78c0e6)}.vessel-trail{stroke:var(--boat,#78c0e6);stroke-width:1.6;stroke-opacity:.45;stroke-linejoin:round}.live-vessel.docked{opacity:.55}.live-vessel.docked .vessel-detail{display:none}
-/* Trains: Amtrak and Sounder a labelled car, Link a small dim dot (it runs every few minutes). */
-.live-train use{fill:var(--train,#7be0a3)}.live-train.link{opacity:.6}
+/* Trains: Amtrak and Sounder a labelled locomotive, Link a small dim unlabelled car (it runs every few minutes). */
+.live-train use{fill:var(--train,#ee7fc0)}.live-train.link{opacity:.6}
 /* A marker whose label would sit on the clock, weather or agenda keeps a dimmed icon only. */
 .under-text text{display:none}.name-only .flight-route,.name-only .vessel-detail,.name-only .train-detail{display:none}.under-text .live-marker,.under-text .vessel-marker,.under-text .train-marker{opacity:.45}.home text{font-size:13px;font-weight:500;fill:var(--plane,#a8d9cb)}.live-marker{transition:transform 12s steps(12,end)}
 body.night #road-map,body.force-night #road-map{opacity:calc(var(--map-opacity,.52)*.85)}body.night,body.force-night{--traffic-opacity:.3}body.night #screen::before,body.force-night #screen::before{background:linear-gradient(to top,var(--bg),transparent 25%),linear-gradient(to bottom,var(--bg),transparent 18%),linear-gradient(to right,var(--bg),transparent 15%),linear-gradient(to left,var(--bg),transparent 15%)}
@@ -540,11 +549,25 @@ body.force-night { --bg: #050505; }
             width: calc(var(--u) * 46);
             height: calc(var(--u) * 46);
         }
-    </style></head>
+    </style>
+<script>
+// Season for the map traffic colours (CSS above). Meteorological seasons, like js/ambience.js;
+// re-checked hourly because the page runs for days. Needs nothing else on the page.
+(function () {
+    var of = ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'fall', 'fall', 'fall', 'winter'];
+    function set() {
+        var forced = new URLSearchParams(location.search).get('season');
+        document.documentElement.dataset.season = of.indexOf(forced) >= 0 ? forced : of[new Date().getMonth()];
+    }
+    set();
+    setInterval(set, 3600e3);
+})();
+</script>
+</head>
 <body>
     <div id="screen"><svg id="road-map" viewBox="0 0 1280 800" aria-hidden="true"><defs><radialGradient id="mapfade"><stop offset="0" stop-color="white"/><stop offset=".65" stop-color="white"/><stop offset="1" stop-color="white" stop-opacity=".25"/></radialGradient><mask id="fade"><rect width="1280" height="800" fill="url(#mapfade)"/></mask></defs><g id="local-roads" mask="url(#fade)"></g></svg>
 <svg id="flight-map" viewBox="0 0 1280 800" aria-label="Local streets, nearby aircraft, boats and trains from Home Assistant">
-<defs><path id="plane" d="M0 -12 3 -3 11 2 11 5 3 3 2 10 5 12 5 14 0 12 -5 14 -5 12 -2 10 -3 3 -11 5 -11 2 -3 -3Z"/><path id="hull" d="M0 -11C3.5 -7 5 -3 5 2V9H-5V2C-5 -3 -3.5 -7 0 -11Z"/><rect id="train-car" x="-3.5" y="-9" width="7" height="18" rx="2.5"/><circle id="link-dot" r="3.2"/><g id="helicopter" transform="rotate(90)"><path d="M-9 0C-9 -3 -6 -5 -2 -5H1C4 -5 5 -3 5 -1L12 -3V-6H14V1H12L5 2C3 4 -3 4 -6 3C-8 2 -9 1 -9 0ZM-12 -9H8V-7H-12ZM-3 -7H-1V-4H-3ZM-6 3H-4V7H-6ZM2 3H4V7H2ZM-10 7H6V9H-10Z"/></g></defs>
+<defs><path id="plane" d="M0 -12 3 -3 11 2 11 5 3 3 2 10 5 12 5 14 0 12 -5 14 -5 12 -2 10 -3 3 -11 5 -11 2 -3 -3Z"/><path id="hull" d="M0 -11C3.5 -7 5 -3 5 2V9H-5V2C-5 -3 -3.5 -7 0 -11Z"/><path id="train-car" fill-rule="evenodd" d="M-4 13V-8C-4 -12 -2 -14.5 0 -14.5C2 -14.5 4 -12 4 -8V13Q4 14 3 14H-3Q-4 14 -4 13Z M-2.6 -9.8H2.6V-8.2H-2.6Z M-4 2.6H4V3.6H-4Z"/><path id="link-car" d="M-2.2 -0.4V-5.5C-2.2 -7.3 -1.1 -8.4 0 -8.4C1.1 -8.4 2.2 -7.3 2.2 -5.5V-0.4Z M-2.2 0.6H2.2V7.6Q2.2 8.2 1.6 8.2H-1.6Q-2.2 8.2 -2.2 7.6Z"/><g id="helicopter" transform="rotate(90)"><path d="M-9 0C-9 -3 -6 -5 -2 -5H1C4 -5 5 -3 5 -1L12 -3V-6H14V1H12L5 2C3 4 -3 4 -6 3C-8 2 -9 1 -9 0ZM-12 -9H8V-7H-12ZM-3 -7H-1V-4H-3ZM-6 3H-4V7H-6ZM2 3H4V7H2ZM-10 7H6V9H-10Z"/></g></defs>
 <g class="vessels"></g><g class="trains"></g><g class="flights"></g><g class="home" transform="translate(640 480)"><path class="home-symbol" transform="scale(.75)" d="M-9 -1 0 -8 9 -1H7V8H2V2H-2V8H-7V-1Z"/><text x="-12" y="4" text-anchor="end">HOME</text></g></svg><div id="map-credit"><a href="https://www.openstreetmap.org/copyright" tabindex="-1">&copy; OpenStreetMap contributors</a></div>
         <div id="flight-tally" hidden></div>
         <div id="top">
@@ -579,8 +602,8 @@ import { config } from './js/config.js?v=20261009-flight-8';
 import { startScreensaver } from './js/screensaver.js?v=49';
 import { FlightBackdrop } from './js/flight-backdrop.js?v=30';
 import { VesselLayer, VESSEL_ENTITY } from './js/vessel-layer.js?v=11';
-import { TrainLayer, TRAIN_ENTITY } from './js/train-layer.js?v=1';
-import { Ambience } from './js/ambience.js?v=12';
+import { TrainLayer, TRAIN_ENTITY } from './js/train-layer.js?v=2';
+import { Ambience } from './js/ambience.js?v=13';
 // Display settings are configured by URL; the screensaver stays touchless.
 const params=new URLSearchParams(location.search);
 const brightness=Number(params.get('map'));
