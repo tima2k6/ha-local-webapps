@@ -143,11 +143,14 @@ export function dailyTallyText(state, now = new Date()) {
 // map units. A plane or boat whose label would land on one keeps a dimmed icon only.
 const SCREEN_TEXT = '#clock .date, #clock .time, #clock .period, #weather, #insights, #night-weather, '
     + '.agenda-head, #agenda, #tags, #timers, #flight-tally';
-export function screenTextRects(map) {
+// Place names may sit behind the big clock digits (faint, and towns like Edmonds, Lynnwood and
+// Shoreline are right there); they still keep off the smaller text, where they'd tangle with words.
+const LABEL_AVOID = SCREEN_TEXT.replace('#clock .time, #clock .period, ', '');
+export function screenTextRects(map, selector = SCREEN_TEXT) {
     const toMap = map.getScreenCTM?.()?.inverse();
     if (!toMap) return [];
     const range = document.createRange(), rects = [];
-    for (const el of document.querySelectorAll(SCREEN_TEXT)) {
+    for (const el of document.querySelectorAll(selector)) {
         range.selectNodeContents(el);
         for (const r of range.getClientRects()) {
             if (r.width < 1 || r.height < 1) continue;
@@ -390,7 +393,7 @@ export class FlightBackdrop {
             const key = this.box.join(',');
             if (key !== this.lastMapBox) { this.renderMap(); this.lastMapBox = key; }
             this.draw(validFlights(state.attributes.flights), updated);
-            this.renderPlaceLabels(screenTextRects(this.map));
+            this.renderPlaceLabels(screenTextRects(this.map, LABEL_AVOID));
             this.map.dataset.feed = 'live';
             this.map.dataset.sourceUpdated = state.last_updated;
             delete this.map.dataset.feedStatus;
