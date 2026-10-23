@@ -1,6 +1,6 @@
 // Trains on the flight map: reads sensor.nearby_trains (bridges/train-bridge on the Docker
-// host polls Amtraker and Sound Transit). Amtrak and Sounder get a locomotive icon and a label;
-// Link trains come every few minutes, so they are a small dim car with no label, to keep the map quiet.
+// host polls Amtraker and Sound Transit). Amtrak and Sounder get a locomotive icon and a two-line
+// label; Link gets its own locomotive + car icon at the same size and a one-line label ("1 Line").
 // Markers jump to each new position: no transitions, keeping the GPU idle.
 import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=30';
 
@@ -20,8 +20,9 @@ export function validTrains(trains) {
         && Math.abs(Number(t.lat)) <= 90 && Math.abs(Number(t.lon)) <= 180);
 }
 
-// Link is a small unlabelled car; anything else (Amtrak, Sounder) is a labelled train.
+// Link: line-only label, placed after Amtrak and Sounder.
 export const isLink = t => t.kind === 'link';
+const LINK_SCALE = 1.75;   // #link-car is 4.4 × 16.6; Amtrak's #train-car is 8 × 28.5
 
 export class TrainLayer {
     constructor(layer) {
@@ -36,9 +37,10 @@ export class TrainLayer {
     }
 
     // Labels placed here are added to `rects` (screen text + earlier labels), for the next layer.
+    // Amtrak and Sounder place first; Link takes the label space that is left.
     draw(trains, box, rects = []) {
         const active = new Set();
-        for (const t of validTrains(trains)) {
+        for (const t of validTrains(trains).sort((a, b) => isLink(a) - isLink(b))) {
             const id = String(t.id ?? `${t.lat},${t.lon}`);
             const [x, y] = project(Number(t.lat), Number(t.lon), box);
             if (x < -20 || x > 1300 || y < -20 || y > 820) continue;
@@ -50,20 +52,21 @@ export class TrainLayer {
                 const group = svg('g', { class: link ? 'live-train link' : 'live-train' }, this.layer);
                 const marker = svg('g', { class: 'train-marker' }, group);
                 const icon = svg('use', { href: link ? '#link-car' : '#train-car' }, marker);
-                item = { group, marker, icon, link };
-                if (!link) {
-                    item.label = svg('text', { x: 14, y: 4 }, marker);
-                    item.detail = svg('text', { x: 14, y: 19, class: 'train-detail' }, marker);
-                }
+                const label = svg('text', { x: 18, y: 4 }, marker);
+                const detail = svg('text', { x: 18, y: 19, class: 'train-detail' }, marker);
+                item = { group, marker, icon, label, detail, link };
                 this.markers.set(id, item);
             }
             setAttr(item.marker, 'transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
-            setAttr(item.icon, 'transform', `rotate(${finite(t.heading) ? Math.round(Number(t.heading)) : 0})`);
-            if (link) continue;
-            setText(item.label, t.name || 'Train');
-            setText(item.detail, String(t.detail || ''));
+            // The Link car is drawn small; scaled up it matches the Amtrak/Sounder locomotive.
+            const angle = finite(t.heading) ? Math.round(Number(t.heading)) : 0;
+            setAttr(item.icon, 'transform', `rotate(${angle})${link ? ` scale(${LINK_SCALE})` : ''}`);
+            // Link shows its line only ("1 Line"); the heading shows the direction.
+            setText(item.label, t.name || (link ? 'Link' : 'Train'));
+            setText(item.detail, link ? '' : String(t.detail || ''));
             const lines = [item.label.textContent, item.detail.textContent].filter(Boolean);
-            placeLabels(item.group, [item.label, item.detail], labelSide(rects, x, y, lines), 14);
+            // 18: the icons are ~29 long, so an east/west train would touch its label at the boats' 16.
+            placeLabels(item.group, [item.label, item.detail], labelSide(rects, x, y, lines), 18);
         }
         for (const [id, item] of this.markers) if (!active.has(id)) { item.group.remove(); this.markers.delete(id); }
         return active.size;
