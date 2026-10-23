@@ -26,7 +26,7 @@ test('switch states from HA become hide-* classes; only real changes count', asy
 test('every layer switch has CSS that hides something, and the page starts the switches', async () => {
     const { LAYERS } = await load('map-layers.js');
     const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-    assert.equal(Object.keys(LAYERS).length, 12);
+    assert.equal(Object.keys(LAYERS).length, 13);
     // Weather effects stop in the animation code (ambience.js Mood); every other layer is CSS.
     const ambience = fs.readFileSync(path.join(__dirname, '../js/ambience.js'), 'utf8');
     for (const cls of Object.values(LAYERS))

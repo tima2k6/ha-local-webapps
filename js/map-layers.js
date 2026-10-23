@@ -16,6 +16,7 @@ export const LAYERS = {
     'input_boolean.wall_map_weather_effects': 'hide-weather',
     'input_boolean.wall_map_sun_and_moon': 'hide-sky',
     'input_boolean.wall_map_traffic_labels': 'hide-labels',
+    'input_boolean.wall_map_edge_fade': 'hide-fade',
 };
 
 export const hidden = layerClass => document.body.classList.contains(layerClass);

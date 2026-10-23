@@ -491,7 +491,7 @@ body.hide-planes #flight-map .flights,body.hide-boats #flight-map .vessels,body.
 body.hide-streets #local-roads .minor,body.hide-streets #local-roads .major,body.hide-tracks #local-roads .rail,
 body.hide-tracks #local-roads .light_rail,body.hide-lakes #local-roads .water,body.hide-lakes #local-roads .water-label,
 body.hide-rivers #local-roads .river,body.hide-trails #local-roads .trail,body.hide-neighborhoods #local-roads .place-label,
-body.hide-sky #sky{display:none}
+body.hide-sky #sky,body.hide-fade #screen::before{display:none}body.hide-fade #local-roads{mask:none}
 body.hide-labels .live-aircraft text,body.hide-labels .live-vessel text,body.hide-labels .live-train text{display:none}
 /* Faint place and lake names, drawn with the streets (so under the map dimming and the edge fade). */
 #local-roads .map-label{font-family:Figtree,sans-serif;font-weight:500;letter-spacing:1.6px;fill:var(--map-label,#d2d6d8);opacity:.5}
@@ -620,7 +620,7 @@ import { startScreensaver } from './js/screensaver.js?v=49';
 import { FlightBackdrop } from './js/flight-backdrop.js?v=33';
 import { VesselLayer, VESSEL_ENTITY } from './js/vessel-layer.js?v=14';
 import { TrainLayer, TRAIN_ENTITY } from './js/train-layer.js?v=6';
-import { startMapLayers } from './js/map-layers.js?v=1';
+import { startMapLayers } from './js/map-layers.js?v=2';
 import { Ambience } from './js/ambience.js?v=14';
 // Display settings are configured by URL; the screensaver stays touchless.
 const params=new URLSearchParams(location.search);
