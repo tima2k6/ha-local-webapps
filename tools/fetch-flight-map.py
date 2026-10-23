@@ -1,4 +1,4 @@
-"""Cache local OSM linework using the screensaver's existing HA configuration.
+"""Cache local OSM linework (streets, water, main rail lines) using the screensaver's existing HA configuration.
 
 Run from the project root. No credentials are included in the output.
 """
@@ -39,6 +39,7 @@ query = f'''[out:json][timeout:45];(
 way["highway"~"^(motorway|trunk|primary|secondary|tertiary|residential|unclassified|living_street)(_link)?$"]({box});
 way["natural"~"^(water|coastline)$"]({box});
 way["waterway"~"^(river|canal)$"]({box});
+way["railway"~"^(rail|light_rail)$"][!"service"]({box});
 );out geom;'''
 request = urllib.request.Request(
     "https://overpass-api.de/api/interpreter",
@@ -54,11 +55,11 @@ for way in osm["elements"]:
     if len(geometry) < 2:
         continue
     tags = way.get("tags", {})
-    kind = tags.get("highway") or tags.get("natural") or tags.get("waterway")
+    kind = tags.get("highway") or tags.get("natural") or tags.get("waterway") or tags.get("railway")
     ways.append({"kind": kind, "points": [[p["lat"], p["lon"]] for p in geometry]})
 output = {"home": [lat, lon], "bbox": bbox, "ways": ways,
           "attribution": "OpenStreetMap contributors", "source": "https://www.openstreetmap.org/copyright"}
 destination = root / "data/local-flight-map.json"
 destination.parent.mkdir(parents=True, exist_ok=True)
 destination.write_text(json.dumps(output, separators=(",", ":")), encoding="utf-8")
-print(f"Cached {len(ways)} road/water outlines ({destination.stat().st_size:,} bytes).")
+print(f"Cached {len(ways)} road/water/rail outlines ({destination.stat().st_size:,} bytes).")

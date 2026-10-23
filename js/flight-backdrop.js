@@ -145,9 +145,9 @@ function svg(tag, attributes = {}, parent) {
 }
 
 export class FlightBackdrop {
-    // vessels: optional { layer: VesselLayer, entity } drawn on the same projection.
-    constructor(config, map, status, tally, vessels) {
-        Object.assign(this, { config, map, status: status || { textContent: '' }, tally, vessels });
+    // vessels, trains: optional { layer: VesselLayer | TrainLayer, entity } drawn on the same projection.
+    constructor(config, map, status, tally, vessels, trains) {
+        Object.assign(this, { config, map, status: status || { textContent: '' }, tally, vessels, trains });
         this.markers = new Map();
         this.layer = map.querySelector('.flights');
         this.layer.replaceChildren();
@@ -170,7 +170,7 @@ export class FlightBackdrop {
     async start() {
         this.stopped = false;
         this.connect();
-        const mapRequest = fetch(new URL('../data/local-flight-map.json?v=3', import.meta.url))
+        const mapRequest = fetch(new URL('../data/local-flight-map.json?v=4', import.meta.url))
             .then(response => { if (!response.ok) throw new Error('Map cache unavailable'); return response.json(); })
             .then(data => { this.mapData = data; this.box ??= data.bbox; this.renderMap(); })
             .catch(() => { this.map.dataset.streets = 'unavailable'; });
@@ -208,7 +208,7 @@ export class FlightBackdrop {
             if (message.type === 'auth_ok') {
                 ws.send(JSON.stringify({ id: 1, type: 'subscribe_trigger', trigger: {
                     platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching', TALLY_ENTITY,
-                        ...(this.vessels ? [this.vessels.entity] : [])]
+                        ...[this.vessels, this.trains].filter(Boolean).map(o => o.entity)]
                 } }));
             }
             if (message.type === 'auth_invalid') {
@@ -237,21 +237,27 @@ export class FlightBackdrop {
         if (!this.roads || !this.mapData || !this.box) return;
         this.roads.replaceChildren();
         const major = /^(motorway|trunk|primary|secondary|tertiary)/;
-        const linework = { water: [], major: [], minor: [] };
+        const linework = { water: [], major: [], minor: [], rail: [], light_rail: [] };
         for (const way of this.mapData.ways) {
             const water = /^(water|coastline|river|canal)$/.test(way.kind);
             const points = way.points.map(([lat, lon]) => project(lat, lon, this.box));
             if (points.length < 2) continue;
-            linework[water ? 'water' : major.test(way.kind) ? 'major' : 'minor'].push(
+            linework[water ? 'water' : way.kind in linework ? way.kind : major.test(way.kind) ? 'major' : 'minor'].push(
                 'M'+points.map(p => p.map(n => n.toFixed(1)).join(',')).join('L'));
         }
-        for (const kind of ['minor', 'major', 'water']) {
+        // Rail is dashed so it never reads as a road: BNSF in long dashes, Link in short ones.
+        const look = {
+            minor: ['#343b38', .65, .9], major: ['#56605c', 1, .9], water: ['#495b57', 1.2, 1],
+            rail: ['#7a6f63', 1.1, 1, '4 3'], light_rail: ['#7a6f63', 1, 1, '2 2'],
+        };
+        // Rail goes last: the shore line runs right beside the coastline and would vanish under it.
+        for (const kind of ['minor', 'major', 'water', 'rail', 'light_rail']) {
+            if (!linework[kind].length) continue;
             // Colors here are fallbacks: index.html's --road-* (season, golden hour) override them
-            svg('path', { class: `road ${kind}`, d: linework[kind].join(''), fill: 'none',
-                stroke: kind === 'water' ? '#495b57' : kind === 'major' ? '#56605c' : '#343b38',
-                'stroke-width': kind === 'water' ? 1.2 : kind === 'major' ? 1 : .65,
-                'stroke-opacity': kind === 'water' ? 1 : .9,
-                'stroke-linejoin': 'round' }, this.roads);
+            const [stroke, width, opacity, dash] = look[kind];
+            svg('path', { class: `road ${kind}`, d: linework[kind].join(''), fill: 'none', stroke,
+                'stroke-width': width, 'stroke-opacity': opacity, 'stroke-linejoin': 'round',
+                ...(dash ? { 'stroke-dasharray': dash } : {}) }, this.roads);
         }
         this.map.dataset.streets = 'osm';
     }
@@ -301,7 +307,9 @@ export class FlightBackdrop {
             this.status.textContent = `HA flight snapshot · ${this.activeAircraftCount ?? this.markers.size} aircraft · source updated ${new Date(state.last_updated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`;
         } catch (error) { this.fail(error); }
         finally {
-            await this.refreshVessels();
+            // Boats then trains, each avoiding the labels placed before it.
+            const placed = await this.refreshOverlay(this.vessels, 'vessels', 'boats', this.map.dataset.feed === 'live' && this.placedLabels);
+            await this.refreshOverlay(this.trains, 'trains', 'trains', placed);
             this.busy = false;
             if (this.pendingRefresh) {
                 this.pendingRefresh = false;
@@ -310,23 +318,25 @@ export class FlightBackdrop {
         }
     }
 
-    // Boats have their own sensor; a missing or stale one clears only the boats.
-    async refreshVessels() {
-        if (!this.vessels) return;
-        const { layer, entity } = this.vessels;
+    // Boats and trains have their own sensors; a missing or stale one clears only that layer.
+    // `taken`: label boxes already placed this refresh (else just the screen text). Returns the
+    // boxes taken after this layer's labels, for the next layer.
+    async refreshOverlay(overlay, attribute, name, taken) {
+        const rects = taken ? [...taken] : screenTextRects(this.map);
+        if (!overlay) return rects;
+        const { layer, entity } = overlay;
         try {
             if (!this.box) throw new Error('no map box yet');
             const state = await this.state(entity);
             const updated = Date.parse(state.last_updated);
             if (['unknown', 'unavailable'].includes(state.state) || !Number.isFinite(updated)
-                || Date.now() - updated > 600000) throw new Error('boat feed unavailable');
-            // Boats avoid screen text and the plane labels just placed in this refresh.
-            const taken = this.map.dataset.feed === 'live' && this.placedLabels ? [...this.placedLabels] : screenTextRects(this.map);
-            this.map.dataset.boats = layer.draw(state.attributes.vessels, this.box, taken);
+                || Date.now() - updated > 600000) throw new Error(`${name} feed unavailable`);
+            this.map.dataset[name] = layer.draw(state.attributes[attribute], this.box, rects);
         } catch (error) {
             layer.clear();
-            this.map.dataset.boats = error.message;
+            this.map.dataset[name] = error.message;
         }
+        return rects;
     }
 
     draw(flights, reportedAt = Date.now()) {

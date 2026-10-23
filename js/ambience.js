@@ -23,8 +23,8 @@ const BLEND_DAYS = 10;            // a new season's color eases in over its firs
 // Golden hour: the street lines warm toward amber before sunset, then fade back
 const GOLD = '#e3a14f';
 const GOLDEN = { before: 45, after: 25 };    // minutes around sunset
-const ROAD = { minor: '#343b38', major: '#56605c', water: '#495b57' };
-const ROAD_WARMTH = { minor: 0.4, major: 0.5, water: 0.3 };
+const ROAD = { minor: '#343b38', major: '#56605c', water: '#495b57', rail: '#7a6f63' };
+const ROAD_WARMTH = { minor: 0.4, major: 0.5, water: 0.3, rail: 0.4 };
 
 // Night layout window, same as screensaver.js
 const DAY_STARTS = 6 * 60 + 15, NIGHT_STARTS = 22 * 60;
@@ -41,13 +41,14 @@ const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
 const hex = c => '#' + c.map(v => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')).join('');
 export const mix = (a, b, t) => { const x = rgb(a), y = rgb(b); return hex(x.map((v, i) => v + (y[i] - v) * t)); };
 
-// The hue opposite `color` at a fixed soft saturation and lightness: boats on the map
-// get the season accent's complement, so they never blend with it or with the planes.
-export function complement(color) {
+// The hue opposite `color` (or `turn` degrees round) at a fixed soft saturation and lightness:
+// boats on the map get the season accent's complement and trains its +120° triad, so none of
+// them blend with the accent, the near-white planes or each other.
+export function complement(color, turn = 180) {
     const [r, g, b] = rgb(color).map(v => v / 255);
     const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
     const h = d === 0 ? 0 : max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
-    const hue = ((h * 60 + 180) % 360 + 360) % 360, s = .62, l = .68;
+    const hue = ((h * 60 + turn) % 360 + 360) % 360, s = .62, l = .68;
     const k = n => (n + hue / 30) % 12, a = s * Math.min(l, 1 - l);
     return hex([0, 8, 4].map(n => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)))));
 }
@@ -435,10 +436,11 @@ export class Ambience {
         const warm = this.forced.golden ? 1 : goldenness(now, set);
         root.setProperty('--accent', accent);
         root.setProperty('--accent-border', mix(accent, '#0c0c0c', .55));
-        // Map traffic: planes near-white with a season hint, boats the accent's complement.
-        // Their labels stay neutral grey (index.html) so text never reads as either.
+        // Map traffic: planes near-white with a season hint, boats the accent's complement,
+        // trains its triad. Labels stay neutral grey (index.html) so text never reads as any.
         root.setProperty('--plane', mix(accent, '#ffffff', .65));
         root.setProperty('--boat', complement(accent));
+        root.setProperty('--train', complement(accent, 120));
         for (const k of Object.keys(ROAD)) root.setProperty(`--road-${k}`, mix(ROAD[k], GOLD, warm * ROAD_WARMTH[k]));
 
         const o = this.occasion();
