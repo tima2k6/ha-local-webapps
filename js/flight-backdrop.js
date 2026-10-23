@@ -2,6 +2,13 @@
 const NS = 'http://www.w3.org/2000/svg';
 const ENTITY = 'sensor.flightradar24_current_in_area';
 const TALLY_ENTITY = 'sensor.flightradar24_planes_today';
+// HSM Night (the tablet is dimmed, screen mostly off until motion): the map refreshes at most once a
+// minute and markers jump instead of gliding, to give the tablet room to breathe.
+const HSM_ENTITY = 'sensor.hub_hsm_status';
+const NIGHT_REFRESH_MS = 60000;
+// A glide moves in steps this long: a continuous glide repaints the whole SVG every frame, which
+// outpaced the kiosk's charger (2026-10-11); one step a second was safe, two a second looks smooth.
+export const GLIDE_STEP_MS = 500;
 export const finite = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
 
 // FR24 altitude is reported in feet above sea level; this is a visual cue,
@@ -46,6 +53,35 @@ export function flightPhase(f, home, now = Date.now()) {
     if (Number(f.altitude) <= 15000 && Number(f.vertical_speed) >= 300 && nearby('origin')
         && age >= 0 && age <= 20*60000) return '↗ Departing';
     return '';
+}
+
+// Move a marker (planes, boats, trains) to x,y. By day it glides there from its last position over
+// about the time until the next report; at night, on first sight, after a long gap or a big jump it
+// moves at once. Returns where a glide starts (for trailTo), null when it jumped, and undefined when
+// the position is unchanged (any glide under way carries on).
+// maxGap: planes report every ~10 s, so 30 s is a long gap; boats and trains pass 60 s.
+export function glide(el, item, x, y, reportedAt, jump = false, maxGap = 30000) {
+    const previous = item.position;
+    if (previous && previous.x === x && previous.y === y) return undefined;
+    const gap = previous ? reportedAt - previous.reportedAt : 0;
+    const duration = jump || !previous || gap <= 0 || gap > maxGap || Math.hypot(x - previous.x, y - previous.y) > 250 ? 0
+        : Math.min(32000, Math.max(10000, gap) + 2000);
+    el.style.transitionProperty = 'transform';
+    el.style.transitionDuration = `${duration}ms`;
+    el.style.transitionTimingFunction = `steps(${Math.max(1, Math.round(duration / GLIDE_STEP_MS))}, end)`;
+    el.style.transform = `translate(${x}px, ${y}px)`;
+    item.position = { x, y, reportedAt };
+    return duration ? previous : null;
+}
+
+// A trail (oldest point first) for a marker that is gliding from `from` to x,y: it ends where the
+// glide starts, so no line runs ahead of the icon.
+export function trailTo(points, from, x, y) {
+    if (!from) return points;
+    const reach = Math.hypot(x - from.x, y - from.y), kept = [...points];
+    while (kept.length && Math.hypot(kept.at(-1)[0] - x, kept.at(-1)[1] - y) < reach - .5) kept.pop();
+    kept.push([from.x, from.y]);
+    return kept;
 }
 
 // Rewriting an unchanged value still invalidates the SVG, so skip no-op writes.
@@ -188,7 +224,8 @@ export class FlightBackdrop {
             if (this.map.dataset.transport === 'websocket' && Date.now() - (this.lastRefresh || 0) < 30000) return;
             this.refresh();
         }, 10000);
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) this.refresh(); });
+        // The screen waking (motion, at night too) always gets fresh positions.
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) this.refresh(true); });
         window.addEventListener('pagehide', () => {
             this.stopped = true;
             clearInterval(this.timer);
@@ -207,7 +244,7 @@ export class FlightBackdrop {
             if (message.type === 'auth_required') ws.send(JSON.stringify({ type: 'auth', access_token: this.config.longLivedAccessToken }));
             if (message.type === 'auth_ok') {
                 ws.send(JSON.stringify({ id: 1, type: 'subscribe_trigger', trigger: {
-                    platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching', TALLY_ENTITY,
+                    platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching', TALLY_ENTITY, HSM_ENTITY,
                         ...[this.vessels, this.trains].filter(Boolean).map(o => o.entity)]
                 } }));
             }
@@ -220,7 +257,8 @@ export class FlightBackdrop {
                 this.map.dataset.transport = message.success ? 'websocket' : 'polling';
                 if (message.success) this.refresh();
             }
-            if (message.type === 'event' && message.id === 1) this.refresh();
+            if (message.type === 'event' && message.id === 1)
+                this.refresh(message.event?.variables?.trigger?.entity_id === HSM_ENTITY);
         };
         ws.onclose = () => {
             this.map.dataset.transport = 'polling';
@@ -272,8 +310,9 @@ export class FlightBackdrop {
         this.map.dataset.feedStatus = error.message;
     }
 
-    async refresh() {
+    async refresh(force = false) {
         if (document.hidden) return;
+        if (this.night && !force && Date.now() - (this.lastRefresh || 0) < NIGHT_REFRESH_MS) return;
         if (this.busy) { this.pendingRefresh = true; return; }
         this.busy = true;
         this.lastRefresh = Date.now();
@@ -289,9 +328,12 @@ export class FlightBackdrop {
                 if (!finite(home.attributes.latitude) || !finite(home.attributes.longitude)) throw new Error('Home location unavailable');
                 this.center = [Number(home.attributes.latitude), Number(home.attributes.longitude)];
             }
-            const [state, fetching] = await Promise.all([
-                this.state(ENTITY), this.state('switch.flightradar24_api_data_fetching')
+            const [state, fetching, hsm] = await Promise.all([
+                this.state(ENTITY), this.state('switch.flightradar24_api_data_fetching'),
+                this.state(HSM_ENTITY).catch(() => null)
             ]);
+            this.night = hsm?.state === 'armedNight';
+            this.map.dataset.night = this.night;
             if (fetching.state === 'off') throw new Error('tracking paused in HA');
             if (['unknown', 'unavailable'].includes(state.state)) throw new Error('sensor unavailable');
             if (!Array.isArray(state.attributes.flights)) throw new Error('flight list unavailable');
@@ -331,7 +373,7 @@ export class FlightBackdrop {
             const updated = Date.parse(state.last_updated);
             if (['unknown', 'unavailable'].includes(state.state) || !Number.isFinite(updated)
                 || Date.now() - updated > 600000) throw new Error(`${name} feed unavailable`);
-            this.map.dataset[name] = layer.draw(state.attributes[attribute], this.box, rects);
+            this.map.dataset[name] = layer.draw(state.attributes[attribute], this.box, rects, { reportedAt: updated, night: this.night });
         } catch (error) {
             layer.clear();
             this.map.dataset[name] = error.message;
@@ -365,21 +407,10 @@ export class FlightBackdrop {
                 item.trails.style.transition = '';
                 item.trails.style.opacity = '';
             }
-            const previous = item.position;
-            if (!previous || returning || previous.x !== x || previous.y !== y) {
-                const gap = previous ? reportedAt - previous.reportedAt : 0;
-                // Span the observed update cadence, with two seconds of overlap.
-                // CSS retargets from the currently displayed position, avoiding
-                // the old two-second move followed by eight seconds at rest.
-                const duration = !previous || returning || gap > 30000 ? 0
-                    : Math.min(32000, Math.max(10000, gap) + 2000);
-                item.marker.style.transitionDuration = `${duration}ms`;
-                // One visible step per second: a continuous glide repaints the
-                // whole SVG every frame, which outpaced the kiosk's charger.
-                item.marker.style.transitionTimingFunction = `steps(${Math.max(1, Math.round(duration / 1000))}, end)`;
-                item.marker.style.transform = `translate(${x}px, ${y}px)`;
-                item.position = { x, y, reportedAt };
-            }
+            // Spans the observed update cadence with two seconds of overlap; CSS retargets from the
+            // currently displayed position. A glide keeps its trail start until the next report.
+            const from = glide(item.marker, item, x, y, reportedAt, returning || this.night);
+            if (from !== undefined) item.glideFrom = from;
             setAttr(item.plane, 'href', String(f.aircraft_category || '').toLowerCase() === 'helicopter' ? '#helicopter' : '#plane');
             const scale = altitudeScale(f.altitude);
             setAttr(item.plane, 'transform', `rotate(${finite(f.heading) ? Number(f.heading) : 0}) scale(${scale.toFixed(3)})`);
@@ -400,6 +431,7 @@ export class FlightBackdrop {
             if (points.length > 1 && distance(points[0]) < distance(points.at(-1))) points.reverse();
             points = points.slice(-45);
             if (!points.length || distance(points.at(-1)) > 1) points.push([x, y]);
+            points = trailTo(points, item.glideFrom, x, y);
             const trailKey = points.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ');
             if (trailKey === item.trailKey) continue;
             item.trailKey = trailKey;

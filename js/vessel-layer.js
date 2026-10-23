@@ -1,7 +1,7 @@
 // Boats on the flight map: reads sensor.nearby_vessels (bridges/vessel-bridge on the
-// Docker host joins aisstream.io AIS with WSDOT ferry data). Boats move slowly, so
-// markers jump to each new position: no transitions, keeping the GPU idle.
-import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=30';
+// Docker host joins aisstream.io AIS with WSDOT ferry data). By day markers glide between reports
+// like the planes (flight-backdrop.js glide); at night they jump.
+import { finite, project, labelSide, placeLabels, glide, trailTo } from './flight-backdrop.js?v=31';
 
 export const VESSEL_ENTITY = 'sensor.nearby_vessels';
 const NS = 'http://www.w3.org/2000/svg';
@@ -39,7 +39,8 @@ export class VesselLayer {
     }
 
     // Labels placed here are added to `rects` (screen text + earlier labels), for the next layer.
-    draw(vessels, box, rects = []) {
+    // reportedAt: when HA got this list; night: jump instead of gliding.
+    draw(vessels, box, rects = [], { reportedAt = Date.now(), night = false } = {}) {
         const active = new Set();
         // Moving boats claim label space first; docked ferries get what is left.
         for (const v of validVessels(vessels).sort((a, b) => !!b.moving - !!a.moving)) {
@@ -59,7 +60,8 @@ export class VesselLayer {
                 this.markers.set(id, item);
             }
             item.group.classList.toggle('docked', !v.moving);
-            setAttr(item.marker, 'transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+            const from = glide(item.marker, item, x, y, reportedAt, night, 60000);
+            if (from !== undefined) item.glideFrom = from;
             const angle = finite(v.heading) ? Number(v.heading) : finite(v.course) ? Number(v.course) : 0;
             setAttr(item.hull, 'transform', `rotate(${Math.round(angle)})${v.moving ? '' : ' scale(.75)'}`);
             setText(item.label, v.name || v.label || 'Boat');
@@ -71,8 +73,9 @@ export class VesselLayer {
                 .filter(p => Array.isArray(p) && finite(p[0]) && finite(p[1]))
                 .map(p => project(Number(p[0]), Number(p[1]), box));
             points.push([x, y]);
-            setAttr(item.trail, 'd', points.length > 1
-                ? 'M' + points.map(p => p.map(n => n.toFixed(1)).join(',')).join('L') : '');
+            const trail = trailTo(points, item.glideFrom, x, y);
+            setAttr(item.trail, 'd', trail.length > 1
+                ? 'M' + trail.map(p => p.map(n => n.toFixed(1)).join(',')).join('L') : '');
         }
         for (const [id, item] of this.markers) if (!active.has(id)) { item.group.remove(); this.markers.delete(id); }
         return active.size;

@@ -1,8 +1,8 @@
 // Trains on the flight map: reads sensor.nearby_trains (bridges/train-bridge on the Docker
 // host polls Amtraker and Sound Transit). Amtrak and Sounder get a locomotive icon and a two-line
 // label; Link gets its own locomotive + car icon at the same size and a one-line label ("1 Line").
-// Markers jump to each new position: no transitions, keeping the GPU idle.
-import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=30';
+// By day markers glide between reports like the planes (flight-backdrop.js glide); at night they jump.
+import { finite, project, labelSide, placeLabels, glide } from './flight-backdrop.js?v=31';
 
 export const TRAIN_ENTITY = 'sensor.nearby_trains';
 const NS = 'http://www.w3.org/2000/svg';
@@ -38,7 +38,8 @@ export class TrainLayer {
 
     // Labels placed here are added to `rects` (screen text + earlier labels), for the next layer.
     // Amtrak and Sounder place first; Link takes the label space that is left.
-    draw(trains, box, rects = []) {
+    // reportedAt: when HA got this list; night: jump instead of gliding.
+    draw(trains, box, rects = [], { reportedAt = Date.now(), night = false } = {}) {
         const active = new Set();
         for (const t of validTrains(trains).sort((a, b) => isLink(a) - isLink(b))) {
             const id = String(t.id ?? `${t.lat},${t.lon}`);
@@ -57,7 +58,7 @@ export class TrainLayer {
                 item = { group, marker, icon, label, detail, link };
                 this.markers.set(id, item);
             }
-            setAttr(item.marker, 'transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+            glide(item.marker, item, x, y, reportedAt, night, 60000);
             // The Link car is drawn small; scaled up it matches the Amtrak/Sounder locomotive.
             const angle = finite(t.heading) ? Math.round(Number(t.heading)) : 0;
             setAttr(item.icon, 'transform', `rotate(${angle})${link ? ` scale(${LINK_SCALE})` : ''}`);

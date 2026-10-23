@@ -71,7 +71,7 @@ test('airline labels and routes replace flight numbers; departed trails last two
         const moved = { ...plane, longitude: -122.29 };
         feed.draw([moved], 110000);
         assert.equal(item.marker.style.transitionDuration, '12000ms');
-        assert.equal(item.marker.style.transitionTimingFunction, 'steps(12, end)'); // Repaint once a second, not every frame.
+        assert.equal(item.marker.style.transitionTimingFunction, 'steps(24, end)'); // Two steps a second, not every frame.
         feed.draw([moved], 115000); // Duplicate polls must not alter the movement cadence.
         assert.equal(item.position.reportedAt, 110000);
         feed.draw([{ ...moved, longitude: -122.28 }], 130000);

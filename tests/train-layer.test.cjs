@@ -46,3 +46,37 @@ test('labels placed by one layer are kept clear by the next', async () => {
     assert.equal(labelSide(taken, 600, 300, ['Walla Walla', 'Ferry']), 'right');
     assert.equal(labelSide(taken, 600, 300, ['Cascades 516', 'To Vancouver BC']), 'left');
 });
+
+test('markers glide by day in half-second steps, jump at night, on first sight and after a long gap', async () => {
+    const { glide } = await load('flight-backdrop.js');
+    const el = { style: {} }, item = {};
+    assert.equal(glide(el, item, 100, 100, 0), null);                     // first sight: placed, no glide
+    assert.equal(el.style.transitionDuration, '0ms');
+    assert.deepEqual(glide(el, item, 110, 100, 15000, false, 60000), { x: 100, y: 100, reportedAt: 0 });
+    assert.equal(el.style.transitionDuration, '17000ms');                 // gap + 2 s overlap
+    assert.equal(el.style.transitionTimingFunction, 'steps(34, end)');    // two steps a second
+    assert.equal(el.style.transform, 'translate(110px, 100px)');
+    assert.equal(glide(el, item, 110, 100, 25000), undefined);            // same spot: the glide carries on
+    assert.equal(glide(el, item, 120, 100, 40000, true), null);           // night: jump
+    assert.equal(el.style.transitionDuration, '0ms');
+    assert.equal(glide(el, item, 130, 100, 75000, false, 30000), null);   // 35 s gap is long for a plane
+    assert.equal(glide(el, item, 600, 100, 85000), null);                 // a big jump never glides across the map
+});
+
+test('a gliding marker\'s trail stops where the glide starts: no line ahead of the icon', async () => {
+    const { trailTo } = await load('flight-backdrop.js');
+    const points = [[0, 0], [10, 0], [20, 0], [25, 0], [30, 0]];         // oldest first, ends at the new spot
+    assert.deepEqual(trailTo(points, { x: 20, y: 0 }, 30, 0), [[0, 0], [10, 0], [20, 0], [20, 0]]);
+    assert.deepEqual(trailTo(points, null, 30, 0), points);               // not gliding: trail as is
+});
+
+test('in HSM Night the map refreshes at most once a minute, but always on wake or an HSM change', () => {
+    const fs = require('node:fs');
+    const src = fs.readFileSync(path.join(__dirname, '../js/flight-backdrop.js'), 'utf8');
+    assert.match(src, /const HSM_ENTITY = 'sensor\.hub_hsm_status'/);
+    assert.match(src, /const NIGHT_REFRESH_MS = 60000/);
+    assert.match(src, /if \(this\.night && !force && Date\.now\(\) - \(this\.lastRefresh \|\| 0\) < NIGHT_REFRESH_MS\) return;/);
+    assert.match(src, /visibilitychange', \(\) => \{ if \(!document\.hidden\) this\.refresh\(true\); \}/);
+    assert.match(src, /this\.refresh\(message\.event\?\.variables\?\.trigger\?\.entity_id === HSM_ENTITY\)/);
+    assert.match(src, /this\.night = hsm\?\.state === 'armedNight'/);
+});
