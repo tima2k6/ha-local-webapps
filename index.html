@@ -457,7 +457,7 @@
    and HA, so the seasons keep working if other code changes or fails. Planes are near-white with
    a season hint, boats and trains two hues clearly apart from them and from each other (trains were
    picked by hand 2026-10-23: a formula put them 60° from the boats, which blurred together dimmed). */
-:root,:root[data-season=fall]{--plane:#f3dac9;--boat:#7bb8e0;--train:#ee7fc0}
+:root,:root[data-season=fall]{--plane:#f3dac9;--boat:#7bb8e0;--train:#f3a4d2}
 :root[data-season=winter]{--plane:#d2e4f6;--boat:#e0ad7b;--train:#7fdc8f}
 :root[data-season=spring]{--plane:#d9eed2;--boat:#c67be0;--train:#f0957a}
 :root[data-season=summer]{--plane:#c7ece5;--boat:#e07b8f;--train:#8f9ff2}
@@ -469,7 +469,7 @@
 .live-aircraft use{fill:var(--plane,#d9f2ec)}.live-aircraft text,.live-vessel text,.live-train text,.home text{font:14px Figtree,sans-serif;letter-spacing:1.4px;fill:var(--map-label,#d2d6d8);paint-order:stroke;stroke:var(--bg,#0c0c0c);stroke-width:3px;stroke-linejoin:round}.live-aircraft .flight-route,.live-vessel .vessel-detail,.live-train .train-detail{font-size:11px;letter-spacing:1px;fill:var(--map-route,#9ba2a6);opacity:1}.home{opacity:.6}
 .live-vessel use{fill:var(--boat,#78c0e6)}.vessel-trail{stroke:var(--boat,#78c0e6);stroke-width:1.6;stroke-opacity:.45;stroke-linejoin:round}.live-vessel.docked{opacity:.55}.live-vessel.docked .vessel-detail{display:none}
 /* Trains: Amtrak and Sounder a locomotive with a two-line label, Link its own locomotive + car with the line only. */
-.live-train use{fill:var(--train,#ee7fc0)}
+.live-train use{fill:var(--train,#f3a4d2)}
 /* A marker whose label would sit on the clock, weather or agenda keeps a dimmed icon only. Trains keep
    theirs at full strength: Link runs along I-5, right behind the clock and weather, so dimmed it vanished. */
 .under-text text{display:none}.name-only .flight-route,.name-only .vessel-detail,.name-only .train-detail{display:none}.under-text .live-marker,.under-text .vessel-marker{opacity:.45}.home text{font-size:13px;font-weight:500;fill:var(--plane,#a8d9cb)}.live-marker{transition:transform 12s steps(12,end)}
