@@ -84,6 +84,28 @@ export function trailTo(points, from, x, y) {
     return kept;
 }
 
+// Map labels: font size by rank (1 towns and big water, 2 suburbs and lakes, 3 neighbourhoods and
+// ponds). Width is estimated (no DOM measuring): places are capitals with wide letter spacing.
+export const LABEL_SIZE = { 1: 13, 2: 11, 3: 9.5 };
+export function placeMapLabels(labels, box, avoid = []) {
+    const taken = [...avoid], out = [];
+    const sorted = (Array.isArray(labels) ? labels : []).filter(l => l?.name && finite(l.lat) && finite(l.lon))
+        .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
+    for (const l of sorted) {
+        const size = LABEL_SIZE[l.rank] ?? 9.5, [x, y] = project(Number(l.lat), Number(l.lon), box);
+        const w = l.name.length * size * (l.kind === 'place' ? .72 : .55) + 8, h = size + 6;
+        const r = [x - w / 2, y - h / 2, x + w / 2, y + h / 2];
+        if (r[0] < 8 || r[2] > 1272 || r[1] < 8 || r[3] > 792) continue;
+        if (taken.some(t => r[0] < t[2] && r[2] > t[0] && r[1] < t[3] && r[3] > t[1])) continue;
+        taken.push(r);
+        out.push({ ...l, x, y, size });
+    }
+    return out;
+}
+
+// A layer switched off in HA (js/map-layers.js puts hide-* on body). No body (tests): everything shows.
+const layerOff = cls => !!globalThis.document?.body?.classList?.contains(cls);
+
 // Rewriting an unchanged value still invalidates the SVG, so skip no-op writes.
 const setAttr = (el, name, value) => { if (el.getAttribute(name) !== String(value)) el.setAttribute(name, value); };
 const setText = (el, value) => { if (el.textContent !== value) el.textContent = value; };
@@ -206,7 +228,7 @@ export class FlightBackdrop {
     async start() {
         this.stopped = false;
         this.connect();
-        const mapRequest = fetch(new URL('../data/local-flight-map.json?v=4', import.meta.url))
+        const mapRequest = fetch(new URL('../data/local-flight-map.json?v=5', import.meta.url))
             .then(response => { if (!response.ok) throw new Error('Map cache unavailable'); return response.json(); })
             .then(data => { this.mapData = data; this.box ??= data.bbox; this.renderMap(); })
             .catch(() => { this.map.dataset.streets = 'unavailable'; });
@@ -224,6 +246,8 @@ export class FlightBackdrop {
             if (this.map.dataset.transport === 'websocket' && Date.now() - (this.lastRefresh || 0) < 30000) return;
             this.refresh();
         }, 10000);
+        // A layer switch (map-layers.js) redraws at once, so a layer turned back on shows straight away.
+        document.addEventListener('map-layers', () => this.refresh(true));
         // The screen waking (motion, at night too) always gets fresh positions.
         document.addEventListener('visibilitychange', () => { if (!document.hidden) this.refresh(true); });
         window.addEventListener('pagehide', () => {
@@ -275,21 +299,26 @@ export class FlightBackdrop {
         if (!this.roads || !this.mapData || !this.box) return;
         this.roads.replaceChildren();
         const major = /^(motorway|trunk|primary|secondary|tertiary)/;
-        const linework = { water: [], major: [], minor: [], rail: [], light_rail: [] };
+        // Each kind is its own path so a layer switch (map-layers.js) can hide it: lakes (water),
+        // rivers, trails, tracks, streets. The coastline always shows: it gives the map its shape.
+        const group = { water: 'water', coastline: 'coast', river: 'river', canal: 'river', trail: 'trail', rail: 'rail', light_rail: 'light_rail' };
+        const linework = { water: [], coast: [], river: [], major: [], minor: [], trail: [], rail: [], light_rail: [] };
         for (const way of this.mapData.ways) {
-            const water = /^(water|coastline|river|canal)$/.test(way.kind);
             const points = way.points.map(([lat, lon]) => project(lat, lon, this.box));
             if (points.length < 2) continue;
-            linework[water ? 'water' : way.kind in linework ? way.kind : major.test(way.kind) ? 'major' : 'minor'].push(
+            linework[group[way.kind] ?? (major.test(way.kind) ? 'major' : 'minor')].push(
                 'M'+points.map(p => p.map(n => n.toFixed(1)).join(',')).join('L'));
         }
         // Rail is dashed so it never reads as a road: BNSF in long dashes, Link in short ones.
+        // Trails are fine dots.
         const look = {
-            minor: ['#343b38', .65, .9], major: ['#56605c', 1, .9], water: ['#495b57', 1.2, 1],
+            minor: ['#343b38', .65, .9], major: ['#56605c', 1, .9],
+            water: ['#495b57', 1.2, 1], coast: ['#495b57', 1.2, 1], river: ['#495b57', 1.2, 1],
+            trail: ['#5f7356', .8, .9, '1 2.5'],
             rail: ['#7a6f63', 1.1, 1, '4 3'], light_rail: ['#7a6f63', 1, 1, '2 2'],
         };
         // Rail goes last: the shore line runs right beside the coastline and would vanish under it.
-        for (const kind of ['minor', 'major', 'water', 'rail', 'light_rail']) {
+        for (const kind of ['minor', 'major', 'trail', 'water', 'coast', 'river', 'rail', 'light_rail']) {
             if (!linework[kind].length) continue;
             // Colors here are fallbacks: index.html's --road-* (season, golden hour) override them
             const [stroke, width, opacity, dash] = look[kind];
@@ -297,7 +326,25 @@ export class FlightBackdrop {
                 'stroke-width': width, 'stroke-opacity': opacity, 'stroke-linejoin': 'round',
                 ...(dash ? { 'stroke-dasharray': dash } : {}) }, this.roads);
         }
+        this.labelGroup = svg('g', { class: 'map-labels' }, this.roads);
+        this.labelKey = null;
         this.map.dataset.streets = 'osm';
+    }
+
+    // Faint place and lake names (map cache `labels`), biggest first, each skipped if it would touch
+    // screen text or a label already placed. Rewritten only when the chosen set changes.
+    renderPlaceLabels(textRects) {
+        if (!this.labelGroup || !this.box) return;
+        const chosen = placeMapLabels(this.mapData?.labels, this.box, textRects);
+        const key = chosen.map(l => `${l.name}@${l.x.toFixed(0)},${l.y.toFixed(0)}`).join('|');
+        if (key === this.labelKey) return;
+        this.labelKey = key;
+        this.labelGroup.replaceChildren();
+        for (const l of chosen) {
+            const text = svg('text', { x: l.x.toFixed(1), y: (l.y + l.size * .35).toFixed(1), 'text-anchor': 'middle',
+                class: `map-label ${l.kind}-label rank-${l.rank}` }, this.labelGroup);
+            text.textContent = l.name;
+        }
     }
 
     fail(error) {
@@ -343,6 +390,7 @@ export class FlightBackdrop {
             const key = this.box.join(',');
             if (key !== this.lastMapBox) { this.renderMap(); this.lastMapBox = key; }
             this.draw(validFlights(state.attributes.flights), updated);
+            this.renderPlaceLabels(screenTextRects(this.map));
             this.map.dataset.feed = 'live';
             this.map.dataset.sourceUpdated = state.last_updated;
             delete this.map.dataset.feedStatus;
@@ -350,7 +398,9 @@ export class FlightBackdrop {
         } catch (error) { this.fail(error); }
         finally {
             // Boats then trains, each avoiding the labels placed before it.
-            const placed = await this.refreshOverlay(this.vessels, 'vessels', 'boats', this.map.dataset.feed === 'live' && this.placedLabels);
+            // Hidden planes leave their label space free.
+            const planeLabels = this.map.dataset.feed === 'live' && !layerOff('hide-planes') && this.placedLabels;
+            const placed = await this.refreshOverlay(this.vessels, 'vessels', 'boats', planeLabels);
             await this.refreshOverlay(this.trains, 'trains', 'trains', placed);
             this.busy = false;
             if (this.pendingRefresh) {
@@ -367,6 +417,8 @@ export class FlightBackdrop {
         const rects = taken ? [...taken] : screenTextRects(this.map);
         if (!overlay) return rects;
         const { layer, entity } = overlay;
+        // Switched off in HA: nothing drawn, nothing fetched.
+        if (layerOff(`hide-${name}`)) { layer.clear(); this.map.dataset[name] = 'hidden'; return rects; }
         try {
             if (!this.box) throw new Error('no map box yet');
             const state = await this.state(entity);

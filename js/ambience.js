@@ -23,8 +23,8 @@ const BLEND_DAYS = 10;            // a new season's color eases in over its firs
 // Golden hour: the street lines warm toward amber before sunset, then fade back
 const GOLD = '#e3a14f';
 const GOLDEN = { before: 45, after: 25 };    // minutes around sunset
-const ROAD = { minor: '#343b38', major: '#56605c', water: '#495b57', rail: '#7a6f63' };
-const ROAD_WARMTH = { minor: 0.4, major: 0.5, water: 0.3, rail: 0.4 };
+const ROAD = { minor: '#343b38', major: '#56605c', water: '#495b57', rail: '#7a6f63', trail: '#5f7356' };
+const ROAD_WARMTH = { minor: 0.4, major: 0.5, water: 0.3, rail: 0.4, trail: 0.3 };
 
 // Night layout window, same as screensaver.js
 const DAY_STARTS = 6 * 60 + 15, NIGHT_STARTS = 22 * 60;
@@ -186,6 +186,8 @@ class Mood {
         this.still = matchMedia('(prefers-reduced-motion: reduce)').matches;
         new ResizeObserver(() => this.resize()).observe(this.canvas);
         document.addEventListener('visibilitychange', () => this.wake());
+        // "Wall map weather effects" switched off (map-layers.js): no rain, snow or fog until it is back on.
+        document.addEventListener('map-layers', () => this.set(this.wanted ?? null));
     }
 
     resize() {
@@ -196,6 +198,8 @@ class Mood {
     }
 
     set(kind) {
+        this.wanted = kind;
+        if (document.body.classList.contains('hide-weather')) kind = null;
         document.body.classList.toggle('mood-fog', kind === 'fog');
         const k = kind === 'fog' ? null : kind;
         if (k === this.kind) return;
