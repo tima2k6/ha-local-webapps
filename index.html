@@ -470,8 +470,9 @@
 .live-vessel use{fill:var(--boat,#78c0e6)}.vessel-trail{stroke:var(--boat,#78c0e6);stroke-width:1.6;stroke-opacity:.45;stroke-linejoin:round}.live-vessel.docked{opacity:.55}.live-vessel.docked .vessel-detail{display:none}
 /* Trains: Amtrak and Sounder a locomotive with a two-line label, Link its own locomotive + car with the line only. */
 .live-train use{fill:var(--train,#ee7fc0)}
-/* A marker whose label would sit on the clock, weather or agenda keeps a dimmed icon only. */
-.under-text text{display:none}.name-only .flight-route,.name-only .vessel-detail,.name-only .train-detail{display:none}.under-text .live-marker,.under-text .vessel-marker,.under-text .train-marker{opacity:.45}.home text{font-size:13px;font-weight:500;fill:var(--plane,#a8d9cb)}.live-marker{transition:transform 12s steps(12,end)}
+/* A marker whose label would sit on the clock, weather or agenda keeps a dimmed icon only. Trains keep
+   theirs at full strength: Link runs along I-5, right behind the clock and weather, so dimmed it vanished. */
+.under-text text{display:none}.name-only .flight-route,.name-only .vessel-detail,.name-only .train-detail{display:none}.under-text .live-marker,.under-text .vessel-marker{opacity:.45}.home text{font-size:13px;font-weight:500;fill:var(--plane,#a8d9cb)}.live-marker{transition:transform 12s steps(12,end)}
 body.night #road-map,body.force-night #road-map{opacity:calc(var(--map-opacity,.52)*.85)}body.night,body.force-night{--traffic-opacity:.3}body.night #screen::before,body.force-night #screen::before{background:linear-gradient(to top,var(--bg),transparent 25%),linear-gradient(to bottom,var(--bg),transparent 18%),linear-gradient(to right,var(--bg),transparent 15%),linear-gradient(to left,var(--bg),transparent 15%)}
 body.no-labels .live-aircraft text,body.no-labels .live-vessel text,body.no-labels .live-train text{display:none}#map-credit{position:absolute;bottom:8px;right:14px;z-index:1;font:10px Figtree,sans-serif;color:#666;opacity:.7;pointer-events:none}#map-credit a{color:inherit;text-decoration:none}body.night #map-credit,body.force-night #map-credit{opacity:.4}
 @media(prefers-reduced-motion:reduce){.live-marker{transition:none}}
