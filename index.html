@@ -462,6 +462,9 @@
 :root[data-season=spring]{--plane:#d9eed2;--boat:#c67be0;--train:#f0957a}
 :root[data-season=summer]{--plane:#c7ece5;--boat:#e07b8f;--train:#8f9ff2}
 #screen{isolation:isolate}#road-map,#flight-map{position:absolute;inset:0;width:100%;height:100%;z-index:-2;pointer-events:none}
+/* Traffic sits above the edge fade (#screen::before, z-index -1, earlier in the DOM), so a train near
+   Roosevelt or a plane at the edge stays full strength; only the streets fade out (2026-10-23). */
+#flight-map{z-index:-1}
 /* Streets sit back (--map-opacity, ?map=); planes, boats, trains and their labels stay readable above them. */
 /* Streets have their own SVG, dimmed as a whole: an opacity on the masked street group inside one SVG did not render on the tablet. */
 #road-map{opacity:var(--map-opacity,.52)}#flight-map .flights,#flight-map .vessels,#flight-map .trains{opacity:var(--traffic-opacity,.55)}
