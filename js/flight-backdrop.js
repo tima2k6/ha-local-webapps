@@ -175,9 +175,11 @@ export function labelHitsText(rects, x, y, lines, side = 'right') {
 // Where a marker's labels go, first that is clear of screen text and other labels:
 // both lines right, both left, name only right ('right-name'), name only left, else
 // 'hidden' (icon only, dimmed). The chosen block is added to `rects` for later markers.
-export function labelSide(rects, x, y, lines) {
-    const options = [['right', lines], ['left', lines]];
-    if (lines.length > 1) options.push(['right-name', lines.slice(0, 1)], ['left-name', lines.slice(0, 1)]);
+// prefer 'left' tries the left side first (southbound Link labels sit left, northbound right).
+export function labelSide(rects, x, y, lines, prefer = 'right') {
+    const [first, second] = prefer === 'left' ? ['left', 'right'] : ['right', 'left'];
+    const options = [[first, lines], [second, lines]];
+    if (lines.length > 1) options.push([`${first}-name`, lines.slice(0, 1)], [`${second}-name`, lines.slice(0, 1)]);
     for (const [side, used] of options) {
         const edge = side.startsWith('left') ? 'left' : 'right';
         if (labelHitsText(rects, x, y, used, edge)) continue;

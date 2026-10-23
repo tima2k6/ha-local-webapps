@@ -2,7 +2,7 @@
 // host polls Amtraker and Sound Transit). Amtrak and Sounder get a locomotive icon and a two-line
 // label; Link gets its own locomotive + car icon at the same size and a one-line label ("1 Line").
 // By day markers glide between reports like the planes (flight-backdrop.js glide); at night they jump.
-import { finite, project, labelSide, placeLabels, glide } from './flight-backdrop.js?v=33';
+import { finite, project, labelSide, placeLabels, glide } from './flight-backdrop.js?v=34';
 
 export const TRAIN_ENTITY = 'sensor.nearby_trains';
 const NS = 'http://www.w3.org/2000/svg';
@@ -67,7 +67,8 @@ export class TrainLayer {
             setText(item.detail, link ? '' : String(t.detail || ''));
             const lines = [item.label.textContent, item.detail.textContent].filter(Boolean);
             // 18: the icons are ~29 long, so an east/west train would touch its label at the boats' 16.
-            placeLabels(item.group, [item.label, item.detail], labelSide(rects, x, y, lines), 18);
+            // Southbound labels prefer the left, northbound the right, so direction reads at a glance.
+            placeLabels(item.group, [item.label, item.detail], labelSide(rects, x, y, lines, t.bound === 'SB' ? 'left' : 'right'), 18);
         }
         for (const [id, item] of this.markers) if (!active.has(id)) { item.group.remove(); this.markers.delete(id); }
         return active.size;

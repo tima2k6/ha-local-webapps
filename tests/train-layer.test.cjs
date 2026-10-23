@@ -80,3 +80,11 @@ test('in HSM Night the map refreshes at most once a minute, but always on wake o
     assert.match(src, /this\.refresh\(message\.event\?\.variables\?\.trigger\?\.entity_id === HSM_ENTITY\)/);
     assert.match(src, /this\.night = hsm\?\.state === 'armedNight'/);
 });
+
+test('southbound labels prefer the left, northbound the right; either falls back to the other side', async () => {
+    const { labelSide } = await load('flight-backdrop.js');
+    assert.equal(labelSide([], 600, 300, ['1 Line SB'], 'left'), 'left');
+    assert.equal(labelSide([], 600, 300, ['1 Line NB']), 'right');
+    assert.equal(labelSide([[500, 280, 595, 320]], 600, 300, ['1 Line SB'], 'left'), 'right');   // left blocked
+    assert.equal(labelSide([], 600, 300, ['Cascades 516', 'To Seattle'], 'left'), 'left');
+});
