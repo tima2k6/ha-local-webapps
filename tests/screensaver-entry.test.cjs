@@ -24,3 +24,14 @@ test('no CSS comment closes its style block early', () => {
         for (const [comment] of css.matchAll(/\/\*[\s\S]*?\*\//g))
             assert.ok(!comment.includes('</'), `CSS comment contains "</": ${comment.slice(0, 80)}`);
 });
+
+test('every module imports the same flight-backdrop version as the page', () => {
+    // A layer on an older ?v= loads a second copy of the module (2026-10-24: v38 beside v39).
+    const root = path.join(__dirname, '..');
+    const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    const want = /flight-backdrop\.js\?v=(\d+)/.exec(html)[1];
+    for (const f of fs.readdirSync(path.join(root, 'js')).filter(f => f.endsWith('.js'))) {
+        const m = /flight-backdrop\.js\?v=(\d+)/.exec(fs.readFileSync(path.join(root, 'js', f), 'utf8'));
+        if (m) assert.equal(m[1], want, `${f} imports flight-backdrop v=${m[1]}, the page v=${want}`);
+    }
+});

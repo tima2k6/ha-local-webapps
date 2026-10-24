@@ -1,7 +1,7 @@
 // Boats on the flight map: reads sensor.nearby_vessels (bridges/vessel-bridge on the
 // Docker host joins aisstream.io AIS with WSDOT ferry data). By day markers glide between reports
 // like the planes (flight-backdrop.js glide); at night they jump.
-import { finite, project, labelSide, placeLabels, glide, trailTo } from './flight-backdrop.js?v=38';
+import { finite, project, labelSide, placeLabels, glide, trailTo } from './flight-backdrop.js?v=39';
 
 export const VESSEL_ENTITY = 'sensor.nearby_vessels';
 const NS = 'http://www.w3.org/2000/svg';
