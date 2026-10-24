@@ -39,7 +39,7 @@ test('the traffic overlay has its own name: this.roads is the street-drawing gro
     const src = fs.readFileSync(path.join(__dirname, '../js/flight-backdrop.js'), 'utf8');
     // 2026-10-24: passing the overlay as `roads` was overwritten by the streets group, and the
     // overlay error froze the plane refresh. Overlays now run guarded.
-    assert.match(src, /constructor\(config, map, status, tally, vessels, trains, roadTraffic\)/);
+    assert.match(src, /constructor\(config, map, status, tally, vessels, trains, roadTraffic[,)]/);
     assert.match(src, /this\.refreshOverlay\(this\.roadTraffic, 'stations', 'roads'/);
     assert.match(src, /catch \(error\) \{ console\.warn\('Map overlay failed:', error\); \}\s*\n\s*this\.busy = false;/);
 });

@@ -3,7 +3,7 @@
 // stretch of those roads in the map cache (ways carry their OSM `ref`) belongs to the nearest station
 // on the same road and direction; only stretches reading moderate or worse are drawn, in one muted
 // red that gets bolder with the level, so free-flowing roads stay plain.
-import { finite, project } from './flight-backdrop.js?v=36';
+import { finite, project } from './flight-backdrop.js?v=37';
 
 export const ROAD_TRAFFIC_ENTITY = 'sensor.road_traffic';
 const NS = 'http://www.w3.org/2000/svg';
