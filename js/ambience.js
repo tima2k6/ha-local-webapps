@@ -222,8 +222,9 @@ class Mood {
 
     active() {
         const night = document.body.classList.contains('night');
-        return !document.hidden && !this.still
-            && ((this.drops.length && !night) || this.fx.some(f => !night || f.night));
+        // Reduced motion stops the weather only: the holiday touches are rare and brief, so they still play.
+        return !document.hidden
+            && ((this.drops.length && !night && !this.still) || this.fx.some(f => !night || f.night));
     }
 
     wake() {
@@ -246,7 +247,7 @@ class Mood {
         c.clearRect(0, 0, this.canvas.width, this.canvas.height);
         c.setTransform(this.scale, 0, 0, this.scale, 0, 0);
 
-        if (this.drops.length && !night) {
+        if (this.drops.length && !night && !this.still) {
             c.beginPath();
             if (this.kind === 'snow') {
                 for (const d of this.drops) {
@@ -453,7 +454,7 @@ export class Ambience {
     }
 
     // Holiday and birthday touches, each rare: checked every minute, scheduled at random
-    // gaps. A previewed holiday or birthday plays at once and every half minute.
+    // gaps. A previewed holiday or birthday plays at once and then about once a minute.
     flourish(now, m, set, occasion) {
         if (Date.now() < (this.nextFx || 0)) return;
         const preview = !!(this.forced.holiday || this.forced.occasion);
