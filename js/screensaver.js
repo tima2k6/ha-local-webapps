@@ -199,11 +199,15 @@ class Agenda {
 // accurate enough (2026-10-08).
 const SUN = 'sun.sun';
 const COMMUTES = [
-    { entity: 'sensor.wazeemily_commute_emily_commute', label: 'Emily', detail: 'to work', people: ['person.emily'], normal: 15 },
+    // Emily's drives go through King's (drop-off, pickup; 2026-10-24): `legs` are added up instead of `entity`,
+    // and `workLegs` replace the drive-home ETA while she is at the hotel.
+    { entity: 'sensor.wazeemily_commute_emily_commute', label: 'Emily', detail: 'to work', people: ['person.emily'], normal: 16,
+        legs: ['sensor.waze_kings_commute', 'sensor.waze_kings_to_hotel'] },
     { entity: 'sensor.waze_kings_commute', label: "King's", people: ['person.tim', 'person.emily'], normal: 4 },
     { entity: 'sensor.tim_eta_waze_tim_eta', label: 'Tim', detail: 'drive home', people: ['person.tim'], away: true },
     { entity: 'sensor.emily_home_eta_waze_emily_eta', label: 'Emily', detail: 'drive home', people: ['person.emily'], away: true,
-        workZone: 'zone.emily_s_hotel', workFrom: 15 * 60 + 30, workNormal: 15 }
+        workZone: 'zone.emily_s_hotel', workFrom: 15 * 60 + 30, workNormal: 16,
+        workLegs: ['sensor.waze_hotel_to_kings', 'sensor.waze_kings_to_home'] }
 ];
 const COMMUTE_WINDOW = { from: 6 * 60 + 30, until: 8 * 60, stale: 15 * 60e3 };
 // Work and school trips (morning commutes, drop-off, pickup, Emily at work) are weekdays
@@ -401,14 +405,16 @@ class Insights {
 {% for k in ${JSON.stringify(Object.keys(WARMUPS))} %}{% set t = states['timer.climate_boost_' ~ k] %}
 {% if t and t.state == 'active' %}{% set ns.w = ns.w + [{'room': k, 'ends': t.attributes.finishes_at}] %}{% endif %}{% endfor %}
 {% set nc = namespace(items=[]) %}{% for route in ${JSON.stringify(COMMUTES)} %}
-{% set commute = states[route.entity] %}{% set presence = namespace(active=false, work=false) %}
+{% set presence = namespace(active=false, work=false) %}
 {% for person in route.people %}
 {% if route.away | default(false) %}
 {% if states(person) not in ['home', 'unknown', 'unavailable'] and state_attr(person, 'latitude') is number and state_attr(person, 'longitude') is number %}{% set presence.active = true %}{% endif %}
 {% if route.workZone is defined and is_state(person, state_attr(route.workZone, 'friendly_name')) %}{% set presence.work = true %}{% endif %}
 {% elif is_state(person, 'home') %}{% set presence.active = true %}{% endif %}{% endfor %}
-{% set nc.items = nc.items + [{'entity': route.entity, 'value': states(route.entity), 'active': presence.active, 'work': presence.work,
-  'at': commute.last_reported.isoformat() if commute else none}] %}{% endfor %}
+{% set ids = route.workLegs if presence.work and route.workLegs is defined else route.legs if route.legs is defined else [route.entity] %}
+{% set legs = expand(ids) %}{% set mins = legs | map(attribute='state') | map('float', none) | select('number') | list %}
+{% set nc.items = nc.items + [{'entity': route.entity, 'value': mins | sum if mins | count == ids | count else '', 'active': presence.active, 'work': presence.work,
+  'at': (legs | map(attribute='last_reported') | min).isoformat() if legs | count == ids | count else none}] %}{% endfor %}
 {% set nh = namespace(openings=[], climates=[]) %}
 {% for opening in ${JSON.stringify(HOME_OPENINGS)} %}{% set contact = states[opening.entity] %}
 {% if contact %}{% set nh.openings = nh.openings + [{'entity': opening.entity, 'state': contact.state,

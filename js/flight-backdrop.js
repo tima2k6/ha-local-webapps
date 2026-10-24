@@ -211,10 +211,10 @@ export class FlightBackdrop {
     // vessels, trains: optional { layer: VesselLayer | TrainLayer, entity } drawn on the same projection.
     // roadTraffic: optional { layer: RoadTrafficLayer, entity } for highway congestion (not this.roads,
     // which is the street-drawing group).
-    // more: { family, wind } overlays, same shape; family has `entities` (several people) instead of `entity`.
+    // more: { family, wind, commute } overlays, same shape; family has `entities` (several people) instead of `entity`.
     constructor(config, map, status, tally, vessels, trains, roadTraffic, more = {}) {
         Object.assign(this, { config, map, status: status || { textContent: '' }, tally, vessels, trains, roadTraffic,
-            family: more.family, wind: more.wind });
+            family: more.family, wind: more.wind, commute: more.commute });
         this.markers = new Map();
         this.layer = map.querySelector('.flights');
         this.layer.replaceChildren();
@@ -278,7 +278,7 @@ export class FlightBackdrop {
             if (message.type === 'auth_ok') {
                 ws.send(JSON.stringify({ id: 1, type: 'subscribe_trigger', trigger: {
                     platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching', TALLY_ENTITY, HSM_ENTITY,
-                        ...[this.vessels, this.trains, this.roadTraffic, this.family, this.wind].filter(Boolean)
+                        ...[this.vessels, this.trains, this.roadTraffic, this.family, this.wind, this.commute].filter(Boolean)
                             .flatMap(o => o.entities ?? [o.entity])]
                 } }));
             }
@@ -414,7 +414,8 @@ export class FlightBackdrop {
                 const planeLabels = this.map.dataset.feed === 'live' && !layerOff('hide-planes') && this.placedLabels;
                 // Family labels come right after the planes: they matter more than boats.
                 const afterFamily = await this.refreshOverlay(this.family, null, 'family', planeLabels);
-                const placed = await this.refreshOverlay(this.vessels, 'vessels', 'boats', afterFamily);
+                const afterCommute = await this.refreshOverlay(this.commute, null, 'commutes', afterFamily);
+                const placed = await this.refreshOverlay(this.vessels, 'vessels', 'boats', afterCommute);
                 const afterTrains = await this.refreshOverlay(this.trains, 'trains', 'trains', placed);
                 await this.refreshOverlay(this.roadTraffic, 'stations', 'roads', afterTrains);
                 await this.refreshOverlay(this.wind, null, 'wind', afterTrains);
