@@ -65,6 +65,10 @@ def metres(a, b):
 
 
 osm = overpass(query)
+# Big lakes (Lake Washington, Green Lake, Lake Ballinger) are multipolygon relations whose outline
+# pieces carry no water tag of their own, so the query above misses them and their shore fades
+# out wherever no street runs along it (Juanita to Kirkland, seen 2026-10-24). Fetch them as water.
+lake_parts = overpass(f'''[out:json][timeout:60];rel["natural"="water"]({box})->.lakes;way(r.lakes)({box});out geom;''')
 
 ways, trails = [], {}
 for way in osm["elements"]:
@@ -83,6 +87,10 @@ for way in osm["elements"]:
         way_out["ref"] = tags["ref"]
         way_out["oneway"] = tags.get("oneway") == "yes"
     ways.append(way_out)
+for way in lake_parts["elements"]:
+    geometry = way.get("geometry", [])
+    if len(geometry) >= 2 and "natural" not in way.get("tags", {}):   # tagged ones are already in
+        ways.append({"kind": "water", "points": [[p["lat"], p["lon"]] for p in geometry]})
 # Only the long regional trails (Burke-Gilman, Interurban, Eastrail...): park loops are clutter.
 for name, parts in trails.items():
     if sum(metres(a, b) for pts in parts for a, b in zip(pts, pts[1:])) >= 2000:

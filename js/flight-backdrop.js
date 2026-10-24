@@ -237,7 +237,7 @@ export class FlightBackdrop {
     async start() {
         this.stopped = false;
         this.connect();
-        const mapRequest = fetch(new URL('../data/local-flight-map.json?v=6', import.meta.url))
+        const mapRequest = fetch(new URL('../data/local-flight-map.json?v=7', import.meta.url))
             .then(response => { if (!response.ok) throw new Error('Map cache unavailable'); return response.json(); })
             .then(data => { this.mapData = data; this.box ??= data.bbox; this.renderMap(); })
             .catch(() => { this.map.dataset.streets = 'unavailable'; });

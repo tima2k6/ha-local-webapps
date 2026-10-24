@@ -2,7 +2,7 @@
 // (the HOME marker covers home). A ring with the initial in the season accent, like HOME, so it reads
 // as family, not traffic. Someone beyond the map is pinned to the screen edge toward where they are,
 // with miles and an arrow. Moves like the other markers: glides by day, jumps at night.
-import { finite, project, labelSide, placeLabels, glide } from './flight-backdrop.js?v=37';
+import { finite, project, labelSide, placeLabels, glide } from './flight-backdrop.js?v=38';
 
 export const FAMILY = ['person.tim', 'person.emily'];
 const NS = 'http://www.w3.org/2000/svg';

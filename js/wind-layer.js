@@ -1,7 +1,7 @@
 // Wind on the flight map: a few faint streaks over open water, pointing the way the wind blows,
 // longer when it is stronger, from the home weather entity (met.no, updated about hourly). One small
 // label gives the numbers. Calm (under 3 mph) draws nothing. Static: redrawn only when it changes.
-import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=37';
+import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=38';
 
 export const WIND_ENTITY = 'weather.forecast_home';
 const NS = 'http://www.w3.org/2000/svg';
