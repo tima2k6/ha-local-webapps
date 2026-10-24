@@ -2,11 +2,35 @@
 // CORS open, rebuilt every 5 min) fetched for exactly the map's box, in the same plain lat/lon
 // layout as the map, so it needs no tile maths. Recoloured on a canvas to one soft tone: the radar's
 // rainbow scale (grey noise -> blue -> green -> yellow -> red -> magenta) becomes opacity, so heavy
-// rain is more solid, not a new colour. Nothing is drawn when there is no rain. No animation.
+// rain is more solid, not a new colour. A faint wash plus short slanted streaks, so it reads as
+// rain and not cloud (2026-10-24). Nothing is drawn when there is no rain. No animation.
 const URL_BASE = 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q.cgi';
 const REFRESH_MS = 5 * 60e3;
 const SIZE = [640, 400];                       // half the map's 1280 x 800: radar is coarse anyway
 const TONE = [207, 227, 242];                  // pale blue-white
+const WASH = .4;                               // the soft fill under the streaks
+
+// Short streaks slanting like falling rain, on a staggered grid with a fixed jitter (the same every
+// refresh, so the pattern never shimmers). Drawn once; each radar image cuts it to where it rains.
+function streaks() {
+    const c = document.createElement('canvas');
+    [c.width, c.height] = SIZE;
+    const g = c.getContext('2d');
+    g.strokeStyle = `rgb(${TONE})`;
+    g.lineWidth = 1;
+    g.lineCap = 'round';
+    g.beginPath();
+    for (let y = 0, row = 0; y < SIZE[1] + 8; y += 7, row++) {
+        for (let x = (row % 2) * 4; x < SIZE[0] + 8; x += 8) {
+            const j = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+            const jx = (j - Math.floor(j)) * 4 - 2, jy = (j * 7 - Math.floor(j * 7)) * 3;
+            g.moveTo(x + jx, y + jy);
+            g.lineTo(x + jx - 1.6, y + jy + 5);
+        }
+    }
+    g.stroke();
+    return c;
+}
 
 export function radarUrl(box, size = SIZE) {
     const [south, west, north, east] = box;
@@ -40,6 +64,9 @@ export class RainRadar {
         // (a CSS blur on the live layer would repaint with every glide step).
         this.soft = document.createElement('canvas');
         [this.soft.width, this.soft.height] = SIZE;
+        this.streaks = streaks();
+        this.rain = document.createElement('canvas');
+        [this.rain.width, this.rain.height] = SIZE;
     }
 
     hidden() { return document.body.classList.contains('hide-radar'); }
@@ -73,10 +100,23 @@ export class RainRadar {
             }
             if (!rain) { this.show(null); return; }        // dry: leave the map untouched
             c.putImageData(img, 0, 0);
+            // Streaks cut to the rain (lightly softened edges), heavier rain = brighter streaks
+            const streak = this.rain.getContext('2d');
+            streak.globalCompositeOperation = 'source-over';
+            streak.clearRect(0, 0, ...SIZE);
+            streak.filter = 'blur(1.5px)';
+            streak.drawImage(this.canvas, 0, 0);
+            streak.filter = 'none';
+            streak.globalCompositeOperation = 'source-in';
+            streak.drawImage(this.streaks, 0, 0);
             const soft = this.soft.getContext('2d');
             soft.clearRect(0, 0, ...SIZE);
             soft.filter = 'blur(5px)';
+            soft.globalAlpha = WASH;
             soft.drawImage(this.canvas, 0, 0);
+            soft.filter = 'none';
+            soft.globalAlpha = 1;
+            soft.drawImage(this.rain, 0, 0);
             this.show(this.soft.toDataURL('image/png'), rain);
         } catch (error) {
             this.show(null);
