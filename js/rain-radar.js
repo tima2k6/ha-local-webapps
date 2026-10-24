@@ -15,16 +15,18 @@ export function radarUrl(box, size = SIZE) {
     return `${URL_BASE}?${q}`;
 }
 
-// One radar pixel -> alpha 0..255 for the soft tone. Grey (low saturation) is noise or clear-air
-// return and is dropped; otherwise the hue sets the strength: blue (~220°) light, red (0°) heavy,
-// magenta/purple (>280°) heaviest.
+// One radar pixel -> alpha 0..255 for the soft tone. Grey (low saturation) and the scale's slate blue
+// (hue 198-280°: clear-air, insects, below anything that falls; 2026-10-24 a clear night showed
+// 31k slate and steel-blue pixels as haze) are dropped. Rain starts at cyan: the hue sets the strength,
+// cyan (~190°) light, red (0°) heavy, magenta/purple (>280°) heaviest.
 export function rainAlpha(r, g, b, a) {
     if (a < 40) return 0;
     const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
     if (max === 0 || d / max < .3) return 0;
     let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
     h = (h * 60 + 360) % 360;
-    const strength = h > 280 ? 1 : Math.max(0, Math.min(1, (220 - h) / 220));
+    if (h >= 198 && h <= 280) return 0;
+    const strength = h > 280 ? 1 : Math.max(0, Math.min(1, (198 - h) / 198));
     return Math.round(255 * (.18 + .62 * strength));
 }
 
