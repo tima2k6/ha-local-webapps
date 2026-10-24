@@ -209,9 +209,10 @@ function svg(tag, attributes = {}, parent) {
 
 export class FlightBackdrop {
     // vessels, trains: optional { layer: VesselLayer | TrainLayer, entity } drawn on the same projection.
-    // roads: optional { layer: RoadTrafficLayer, entity } for highway congestion.
-    constructor(config, map, status, tally, vessels, trains, roads) {
-        Object.assign(this, { config, map, status: status || { textContent: '' }, tally, vessels, trains, roads });
+    // roadTraffic: optional { layer: RoadTrafficLayer, entity } for highway congestion (not this.roads,
+    // which is the street-drawing group).
+    constructor(config, map, status, tally, vessels, trains, roadTraffic) {
+        Object.assign(this, { config, map, status: status || { textContent: '' }, tally, vessels, trains, roadTraffic });
         this.markers = new Map();
         this.layer = map.querySelector('.flights');
         this.layer.replaceChildren();
@@ -275,7 +276,7 @@ export class FlightBackdrop {
             if (message.type === 'auth_ok') {
                 ws.send(JSON.stringify({ id: 1, type: 'subscribe_trigger', trigger: {
                     platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching', TALLY_ENTITY, HSM_ENTITY,
-                        ...[this.vessels, this.trains, this.roads].filter(Boolean).map(o => o.entity)]
+                        ...[this.vessels, this.trains, this.roadTraffic].filter(Boolean).map(o => o.entity)]
                 } }));
             }
             if (message.type === 'auth_invalid') {
@@ -405,10 +406,13 @@ export class FlightBackdrop {
         finally {
             // Boats then trains, each avoiding the labels placed before it.
             // Hidden planes leave their label space free.
-            const planeLabels = this.map.dataset.feed === 'live' && !layerOff('hide-planes') && this.placedLabels;
-            const placed = await this.refreshOverlay(this.vessels, 'vessels', 'boats', planeLabels);
-            const afterTrains = await this.refreshOverlay(this.trains, 'trains', 'trains', placed);
-            await this.refreshOverlay(this.roads, 'stations', 'roads', afterTrains);
+            // A broken overlay must never leave `busy` set: that would freeze the whole map.
+            try {
+                const planeLabels = this.map.dataset.feed === 'live' && !layerOff('hide-planes') && this.placedLabels;
+                const placed = await this.refreshOverlay(this.vessels, 'vessels', 'boats', planeLabels);
+                const afterTrains = await this.refreshOverlay(this.trains, 'trains', 'trains', placed);
+                await this.refreshOverlay(this.roadTraffic, 'stations', 'roads', afterTrains);
+            } catch (error) { console.warn('Map overlay failed:', error); }
             this.busy = false;
             if (this.pendingRefresh) {
                 this.pendingRefresh = false;
@@ -434,7 +438,7 @@ export class FlightBackdrop {
                 || Date.now() - updated > 600000) throw new Error(`${name} feed unavailable`);
             this.map.dataset[name] = layer.draw(state.attributes[attribute], this.box, rects, { reportedAt: updated, night: this.night, mapData: this.mapData });
         } catch (error) {
-            layer.clear();
+            try { layer.clear(); } catch { /* a broken layer can't clear itself either */ }
             this.map.dataset[name] = error.message;
         }
         return rects;

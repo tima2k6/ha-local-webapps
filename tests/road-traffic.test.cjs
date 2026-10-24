@@ -33,3 +33,13 @@ test('each highway stretch belongs to the nearest station of its road and direct
     assert.equal(near.sb, undefined);
     assert.equal(near.sr9.length, 1);
 });
+
+test('the traffic overlay has its own name: this.roads is the street-drawing group', () => {
+    const fs = require('node:fs');
+    const src = fs.readFileSync(path.join(__dirname, '../js/flight-backdrop.js'), 'utf8');
+    // 2026-10-24: passing the overlay as `roads` was overwritten by the streets group, and the
+    // overlay error froze the plane refresh. Overlays now run guarded.
+    assert.match(src, /constructor\(config, map, status, tally, vessels, trains, roadTraffic\)/);
+    assert.match(src, /this\.refreshOverlay\(this\.roadTraffic, 'stations', 'roads'/);
+    assert.match(src, /catch \(error\) \{ console\.warn\('Map overlay failed:', error\); \}\s*\n\s*this\.busy = false;/);
+});
