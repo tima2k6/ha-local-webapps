@@ -8,6 +8,9 @@ import { finite, project } from './flight-backdrop.js?v=36';
 export const ROAD_TRAFFIC_ENTITY = 'sensor.road_traffic';
 const NS = 'http://www.w3.org/2000/svg';
 const REACH_M = 900;              // a stretch this far from every station of its road stays plain
+// Each direction is drawn this far (map units) to the right of travel, the side its lanes are on: NB
+// east of the road, SB west. At map scale the two carriageways are under a pixel apart.
+export const SIDE_OFFSET = 3;
 const DIRECTION = { NB: 0, EB: 90, SB: 180, WB: 270 };
 
 const metres = (a, b) => Math.hypot((b[0] - a[0]) * 111320, (b[1] - a[1]) * 111320 * Math.cos(a[0] * Math.PI / 180));
@@ -15,7 +18,8 @@ const bearing = (a, b) => (Math.atan2((b[1] - a[1]) * Math.cos(a[0] * Math.PI / 
 const turn = (a, b) => Math.abs(((a - b) % 360 + 540) % 360 - 180);
 
 // Which station each stretch (way segment) belongs to: { stationId: [[lat, lon], [lat, lon]][] }.
-// One-way carriageways only take stations of their own direction; two-way roads take either.
+// One-way carriageways only take stations of their own direction; two-way roads take either. Each
+// stretch comes back pointing the station's way of travel, so it can be drawn on that side.
 export function assignSegments(ways, stations, reach = REACH_M) {
     const byRef = new Map();
     for (const s of stations) if (finite(s.lat) && finite(s.lon)) {
@@ -35,10 +39,21 @@ export function assignSegments(ways, stations, reach = REACH_M) {
                 const d = metres(mid, [s.lat, s.lon]);
                 if (d < bestD) { best = s; bestD = d; }
             }
-            if (best) (out[best.id] ??= []).push([a, b]);
+            if (!best) continue;
+            const along = !(best.dir in DIRECTION) || turn(heading, DIRECTION[best.dir]) < 90;
+            (out[best.id] ??= []).push(along ? [a, b] : [b, a]);
         }
     }
     return out;
+}
+
+// A segment (screen coords, in travel order) moved SIDE_OFFSET to the right of travel. With y down,
+// the right of (dx, dy) is (-dy, dx): heading north (0, -1), right is east (1, 0).
+export function sideLine(p, q, offset = SIDE_OFFSET) {
+    const dx = q[0] - p[0], dy = q[1] - p[1], len = Math.hypot(dx, dy) || 1;
+    const ox = -dy / len * offset, oy = dx / len * offset;
+    const f = n => n.toFixed(1);
+    return `M${f(p[0] + ox)},${f(p[1] + oy)}L${f(q[0] + ox)},${f(q[1] + oy)}`;
 }
 
 export class RoadTrafficLayer {
@@ -64,7 +79,7 @@ export class RoadTrafficLayer {
             this.paths.clear();
             const parts = assignSegments(mapData?.ways, list);
             for (const [id, segments] of Object.entries(parts)) {
-                const d = segments.map(([a, b]) => `M${project(...a, box).map(n => n.toFixed(1)).join(',')}L${project(...b, box).map(n => n.toFixed(1)).join(',')}`).join('');
+                const d = segments.map(([a, b]) => sideLine(project(...a, box), project(...b, box))).join('');
                 const path = document.createElementNS(NS, 'path');
                 path.setAttribute('d', d);
                 this.paths.set(id, path);

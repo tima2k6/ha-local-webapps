@@ -43,3 +43,17 @@ test('the traffic overlay has its own name: this.roads is the street-drawing gro
     assert.match(src, /this\.refreshOverlay\(this\.roadTraffic, 'stations', 'roads'/);
     assert.match(src, /catch \(error\) \{ console\.warn\('Map overlay failed:', error\); \}\s*\n\s*this\.busy = false;/);
 });
+
+test('each direction is drawn on its own side: NB east of the road, SB west', async () => {
+    const { assignSegments, sideLine } = await load('road-traffic.js');
+    // Two-way road: a southbound station still gets its stretch pointing south.
+    const parts = assignSegments([{ kind: 'primary', ref: 'SR 9', oneway: false, points: [[47.80, -122.15], [47.81, -122.15]] }],
+        [{ id: 'sb', ref: 'SR 9', dir: 'SB', lat: 47.805, lon: -122.15 }]);
+    const [[a, b]] = parts.sb;
+    assert.ok(b[0] < a[0], 'points south');
+    // Screen: heading north (y decreasing) shifts east (+x); heading south shifts west (-x).
+    assert.equal(sideLine([100, 200], [100, 100]), 'M103.0,200.0L103.0,100.0');
+    assert.equal(sideLine([100, 100], [100, 200]), 'M97.0,100.0L97.0,200.0');
+    // Heading east shifts south (+y).
+    assert.equal(sideLine([100, 100], [200, 100]), 'M100.0,103.0L200.0,103.0');
+});
