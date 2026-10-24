@@ -209,8 +209,9 @@ function svg(tag, attributes = {}, parent) {
 
 export class FlightBackdrop {
     // vessels, trains: optional { layer: VesselLayer | TrainLayer, entity } drawn on the same projection.
-    constructor(config, map, status, tally, vessels, trains) {
-        Object.assign(this, { config, map, status: status || { textContent: '' }, tally, vessels, trains });
+    // roads: optional { layer: RoadTrafficLayer, entity } for highway congestion.
+    constructor(config, map, status, tally, vessels, trains, roads) {
+        Object.assign(this, { config, map, status: status || { textContent: '' }, tally, vessels, trains, roads });
         this.markers = new Map();
         this.layer = map.querySelector('.flights');
         this.layer.replaceChildren();
@@ -233,7 +234,7 @@ export class FlightBackdrop {
     async start() {
         this.stopped = false;
         this.connect();
-        const mapRequest = fetch(new URL('../data/local-flight-map.json?v=5', import.meta.url))
+        const mapRequest = fetch(new URL('../data/local-flight-map.json?v=6', import.meta.url))
             .then(response => { if (!response.ok) throw new Error('Map cache unavailable'); return response.json(); })
             .then(data => { this.mapData = data; this.box ??= data.bbox; this.renderMap(); })
             .catch(() => { this.map.dataset.streets = 'unavailable'; });
@@ -274,7 +275,7 @@ export class FlightBackdrop {
             if (message.type === 'auth_ok') {
                 ws.send(JSON.stringify({ id: 1, type: 'subscribe_trigger', trigger: {
                     platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching', TALLY_ENTITY, HSM_ENTITY,
-                        ...[this.vessels, this.trains].filter(Boolean).map(o => o.entity)]
+                        ...[this.vessels, this.trains, this.roads].filter(Boolean).map(o => o.entity)]
                 } }));
             }
             if (message.type === 'auth_invalid') {
@@ -406,7 +407,8 @@ export class FlightBackdrop {
             // Hidden planes leave their label space free.
             const planeLabels = this.map.dataset.feed === 'live' && !layerOff('hide-planes') && this.placedLabels;
             const placed = await this.refreshOverlay(this.vessels, 'vessels', 'boats', planeLabels);
-            await this.refreshOverlay(this.trains, 'trains', 'trains', placed);
+            const afterTrains = await this.refreshOverlay(this.trains, 'trains', 'trains', placed);
+            await this.refreshOverlay(this.roads, 'stations', 'roads', afterTrains);
             this.busy = false;
             if (this.pendingRefresh) {
                 this.pendingRefresh = false;
@@ -430,7 +432,7 @@ export class FlightBackdrop {
             const updated = Date.parse(state.last_updated);
             if (['unknown', 'unavailable'].includes(state.state) || !Number.isFinite(updated)
                 || Date.now() - updated > 600000) throw new Error(`${name} feed unavailable`);
-            this.map.dataset[name] = layer.draw(state.attributes[attribute], this.box, rects, { reportedAt: updated, night: this.night });
+            this.map.dataset[name] = layer.draw(state.attributes[attribute], this.box, rects, { reportedAt: updated, night: this.night, mapData: this.mapData });
         } catch (error) {
             layer.clear();
             this.map.dataset[name] = error.message;

@@ -77,7 +77,12 @@ for way in osm["elements"]:
         trails.setdefault(tags["name"], []).append(points)
         continue
     kind = tags.get("highway") or tags.get("natural") or tags.get("waterway") or tags.get("railway")
-    ways.append({"kind": kind, "points": points})
+    way_out = {"kind": kind, "points": points}
+    # Route number and one-way flag on main roads, so road traffic (WSDOT stations) can find its road.
+    if kind in ("motorway", "trunk", "primary") and tags.get("ref"):
+        way_out["ref"] = tags["ref"]
+        way_out["oneway"] = tags.get("oneway") == "yes"
+    ways.append(way_out)
 # Only the long regional trails (Burke-Gilman, Interurban, Eastrail...): park loops are clutter.
 for name, parts in trails.items():
     if sum(metres(a, b) for pts in parts for a, b in zip(pts, pts[1:])) >= 2000:
