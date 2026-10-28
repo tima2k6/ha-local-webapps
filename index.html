@@ -657,5 +657,18 @@ const backdrop=new FlightBackdrop(config,flightMap,null,document.querySelector('
 window.flightBackdrop=backdrop;
 new RainRadar(flightMap.querySelector('.rain-radar'),()=>backdrop.box).start();
 backdrop.start();
+// TEMPORARY (2026-10-27): what the street layer looks like inside the kiosk, reported to HA. Remove after.
+setInterval(()=>{
+    const roads=document.querySelector('#local-roads'),svgEl=document.querySelector('#road-map'),r=svgEl.getBoundingClientRect();
+    const paths=[...roads.querySelectorAll('path.road')].map(p=>`${p.classList[1]}:${p.getAttribute('d').length}:${getComputedStyle(p).stroke}:${getComputedStyle(p).display}`);
+    const attrs={streets:flightMap.dataset.streets,body:document.body.className,opacity:getComputedStyle(svgEl).opacity,
+        svgDisplay:getComputedStyle(svgEl).display,rect:[r.x,r.y,r.width,r.height].map(Math.round).join(','),
+        clip:roads.getAttribute('clip-path'),clipR:svgEl.querySelector('#reveal-clip circle')?.getAttribute('r'),
+        mask:getComputedStyle(roads).mask,filter:getComputedStyle(roads).filter,paths:paths.join(' | '),
+        view:`${innerWidth}x${innerHeight}@${devicePixelRatio}`,ua:navigator.userAgent.slice(-40),url:location.search};
+    fetch(`${config.haUrl}/api/states/sensor.screensaver_diagnostics`,{method:'POST',
+        headers:{Authorization:`Bearer ${config.longLivedAccessToken}`,'Content-Type':'application/json'},
+        body:JSON.stringify({state:new Date().toLocaleTimeString(),attributes:attrs})}).catch(()=>{});
+},20000);
 </script></body>
 </html>
