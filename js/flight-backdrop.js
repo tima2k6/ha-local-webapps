@@ -5,10 +5,12 @@ const TALLY_ENTITY = 'sensor.flightradar24_planes_today';
 // HSM Night (the tablet is dimmed, screen mostly off until motion): the map refreshes at most once a
 // minute and markers jump instead of gliding, to give the tablet room to breathe.
 const HSM_ENTITY = 'sensor.hub_hsm_status';
-// The same quiet mode by day while the tablet is losing charge on its charger (2026-10-29):
-// automation.kiosk_tablet_automations turns this on below 50% ("healing mode") and off again at 78%.
+// Healing nights (2026-10-29): automation.kiosk_tablet_automations turns this on during HSM Night
+// when the battery is under 50%, and always off in the morning, so the day runs normally. The map
+// then refreshes only every 5 minutes.
 const POWER_SAVER = 'input_boolean.wall_map_power_saver';
 const NIGHT_REFRESH_MS = 60000;
+const HEALING_REFRESH_MS = 300000;
 // A glide moves in steps this long: a continuous glide repaints the whole SVG every frame, which
 // outpaced the kiosk's charger (2026-10-11); one step a second was safe, two a second looks smooth.
 export const GLIDE_STEP_MS = 500;
@@ -372,7 +374,7 @@ export class FlightBackdrop {
 
     async refresh(force = false) {
         if (document.hidden) return;
-        if (this.night && !force && Date.now() - (this.lastRefresh || 0) < NIGHT_REFRESH_MS) return;
+        if (this.night && !force && Date.now() - (this.lastRefresh || 0) < (this.healing ? HEALING_REFRESH_MS : NIGHT_REFRESH_MS)) return;
         if (this.busy) { this.pendingRefresh = true; return; }
         this.busy = true;
         this.lastRefresh = Date.now();
@@ -392,7 +394,8 @@ export class FlightBackdrop {
                 this.state(ENTITY), this.state('switch.flightradar24_api_data_fetching'),
                 this.state(HSM_ENTITY).catch(() => null), this.state(POWER_SAVER).catch(() => null)
             ]);
-            this.night = hsm?.state === 'armedNight' || saver?.state === 'on';
+            this.healing = saver?.state === 'on';
+            this.night = hsm?.state === 'armedNight' || this.healing;
             this.map.dataset.night = this.night;
             if (fetching.state === 'off') throw new Error('tracking paused in HA');
             if (['unknown', 'unavailable'].includes(state.state)) throw new Error('sensor unavailable');
