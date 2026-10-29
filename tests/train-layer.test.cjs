@@ -70,15 +70,16 @@ test('a gliding marker\'s trail stops where the glide starts: no line ahead of t
     assert.deepEqual(trailTo(points, null, 30, 0), points);               // not gliding: trail as is
 });
 
-test('in HSM Night the map refreshes at most once a minute, but always on wake or an HSM change', () => {
+test('in HSM Night or power saver the map refreshes at most once a minute, but always on wake or a mode change', () => {
     const fs = require('node:fs');
     const src = fs.readFileSync(path.join(__dirname, '../js/flight-backdrop.js'), 'utf8');
     assert.match(src, /const HSM_ENTITY = 'sensor\.hub_hsm_status'/);
     assert.match(src, /const NIGHT_REFRESH_MS = 60000/);
     assert.match(src, /if \(this\.night && !force && Date\.now\(\) - \(this\.lastRefresh \|\| 0\) < NIGHT_REFRESH_MS\) return;/);
     assert.match(src, /visibilitychange', \(\) => \{ if \(!document\.hidden\) this\.refresh\(true\); \}/);
-    assert.match(src, /this\.refresh\(message\.event\?\.variables\?\.trigger\?\.entity_id === HSM_ENTITY\)/);
-    assert.match(src, /this\.night = hsm\?\.state === 'armedNight'/);
+    assert.match(src, /const POWER_SAVER = 'input_boolean\.wall_map_power_saver'/);
+    assert.match(src, /this\.refresh\(\[HSM_ENTITY, POWER_SAVER\]\.includes\(message\.event\?\.variables\?\.trigger\?\.entity_id\)\)/);
+    assert.match(src, /this\.night = hsm\?\.state === 'armedNight' \|\| saver\?\.state === 'on'/);
 });
 
 test('southbound labels prefer the left, northbound the right; either falls back to the other side', async () => {

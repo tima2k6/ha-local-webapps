@@ -5,6 +5,9 @@ const TALLY_ENTITY = 'sensor.flightradar24_planes_today';
 // HSM Night (the tablet is dimmed, screen mostly off until motion): the map refreshes at most once a
 // minute and markers jump instead of gliding, to give the tablet room to breathe.
 const HSM_ENTITY = 'sensor.hub_hsm_status';
+// The same quiet mode by day while the tablet is losing charge on its charger (2026-10-29):
+// automation.kiosk_tablet_automations turns this on below 72% and off again at 78%.
+const POWER_SAVER = 'input_boolean.wall_map_power_saver';
 const NIGHT_REFRESH_MS = 60000;
 // A glide moves in steps this long: a continuous glide repaints the whole SVG every frame, which
 // outpaced the kiosk's charger (2026-10-11); one step a second was safe, two a second looks smooth.
@@ -277,7 +280,7 @@ export class FlightBackdrop {
             if (message.type === 'auth_required') ws.send(JSON.stringify({ type: 'auth', access_token: this.config.longLivedAccessToken }));
             if (message.type === 'auth_ok') {
                 ws.send(JSON.stringify({ id: 1, type: 'subscribe_trigger', trigger: {
-                    platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching', TALLY_ENTITY, HSM_ENTITY,
+                    platform: 'state', entity_id: [ENTITY, 'switch.flightradar24_api_data_fetching', TALLY_ENTITY, HSM_ENTITY, POWER_SAVER,
                         ...[this.vessels, this.trains, this.roadTraffic, this.family, this.wind, this.commute].filter(Boolean)
                             .flatMap(o => o.entities ?? [o.entity])]
                 } }));
@@ -292,7 +295,7 @@ export class FlightBackdrop {
                 if (message.success) this.refresh();
             }
             if (message.type === 'event' && message.id === 1)
-                this.refresh(message.event?.variables?.trigger?.entity_id === HSM_ENTITY);
+                this.refresh([HSM_ENTITY, POWER_SAVER].includes(message.event?.variables?.trigger?.entity_id));
         };
         ws.onclose = () => {
             this.map.dataset.transport = 'polling';
@@ -385,11 +388,11 @@ export class FlightBackdrop {
                 if (!finite(home.attributes.latitude) || !finite(home.attributes.longitude)) throw new Error('Home location unavailable');
                 this.center = [Number(home.attributes.latitude), Number(home.attributes.longitude)];
             }
-            const [state, fetching, hsm] = await Promise.all([
+            const [state, fetching, hsm, saver] = await Promise.all([
                 this.state(ENTITY), this.state('switch.flightradar24_api_data_fetching'),
-                this.state(HSM_ENTITY).catch(() => null)
+                this.state(HSM_ENTITY).catch(() => null), this.state(POWER_SAVER).catch(() => null)
             ]);
-            this.night = hsm?.state === 'armedNight';
+            this.night = hsm?.state === 'armedNight' || saver?.state === 'on';
             this.map.dataset.night = this.night;
             if (fetching.state === 'off') throw new Error('tracking paused in HA');
             if (['unknown', 'unavailable'].includes(state.state)) throw new Error('sensor unavailable');

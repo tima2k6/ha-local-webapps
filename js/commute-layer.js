@@ -4,7 +4,7 @@
 // live minutes from the Waze sensors in HA. WSDOT congestion (road-traffic.js) shows on the highway
 // parts. Same timing as the commute lines under the weather (screensaver.js COMMUTES). Both go through
 // King's (drop-off, pickup), so the minutes are the Waze legs added up.
-import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=39';
+import { finite, project, labelSide, placeLabels } from './flight-backdrop.js?v=40';
 
 const NS = 'http://www.w3.org/2000/svg';
 const STALE_MS = 15 * 60e3;
