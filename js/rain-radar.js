@@ -55,7 +55,9 @@ export function rainAlpha(r, g, b, a) {
 }
 
 export class RainRadar {
-    // image: an SVG <image> in #flight-map; getBox: the map's current [south, west, north, east].
+    // image: the <img id="rain-radar"> under #flight-map, its own layer so the gliding markers never
+    // repaint it (2026-10-29: inside the map SVG it drained the tablet on wet days); getBox: the map's
+    // current [south, west, north, east].
     constructor(image, getBox) {
         Object.assign(this, { image, getBox });
         this.canvas = document.createElement('canvas');
@@ -120,13 +122,13 @@ export class RainRadar {
             this.show(this.soft.toDataURL('image/png'), rain);
         } catch (error) {
             this.show(null);
-            this.image.ownerSVGElement?.setAttribute('data-radar', error.message);
+            this.image.dataset.radar = error.message;
         }
     }
 
     show(dataUrl, rain = 0) {
-        if (dataUrl) this.image.setAttribute('href', dataUrl);
-        else this.image.removeAttribute('href');
-        this.image.ownerSVGElement?.setAttribute('data-radar', dataUrl ? `${rain} px` : 'dry');
+        if (dataUrl) this.image.src = dataUrl;
+        else this.image.removeAttribute('src');
+        this.image.dataset.radar = dataUrl ? `${rain} px` : 'dry';
     }
 }

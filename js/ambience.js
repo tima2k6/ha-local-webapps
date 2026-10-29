@@ -1,12 +1,12 @@
 // ambience.js — mood, not information (2026-10-09).
-// The season's accent color, golden hour on the map, weather you can feel (rain,
-// snow, fog), the streets drawing in each morning, small holiday touches and
+// The season's accent color, golden hour on the map, weather you can feel (snow,
+// fog; rain is the map's radar), the streets drawing in each morning, small holiday touches and
 // household birthdays, and a faint sun/moon arc across the top.
 // Celebration lines (birthdays, holidays) reach the insights through lines(now).
 //
 // Preview by URL:
 //   ?season=winter|spring|summer|fall   ?golden=1   ?reveal=1
-//   ?mood=rain|pouring|snow|fog         ?holiday=halloween|july4|thanksgiving|christmas|newyear
+//   ?mood=snow|fog                      ?holiday=halloween|july4|thanksgiving|christmas|newyear
 //   ?occasion=Liam (a household birthday) or ?occasion=anniversary
 
 const CALENDAR = 'calendar.family';
@@ -169,8 +169,10 @@ class SkyArc {
     }
 }
 
-// ===== Mood canvas: rain, snow, and the holiday flourishes =====
-const MOOD_OF = { rainy: 'rain', 'lightning-rainy': 'rain', hail: 'rain', pouring: 'pouring', snowy: 'snow', 'snowy-rainy': 'snow', fog: 'fog' };
+// ===== Mood canvas: snow and the holiday flourishes =====
+// No falling rain (2026-10-29): a 30 fps full-screen canvas all through a wet day drained the tablet,
+// and the rain radar's streaks already show where it rains.
+const MOOD_OF = { snowy: 'snow', 'snowy-rainy': 'snow', fog: 'fog' };
 const FPS = 30;
 
 class Mood {
@@ -204,17 +206,15 @@ class Mood {
         const k = kind === 'fog' ? null : kind;
         if (k === this.kind) return;
         this.kind = k;
-        const n = { rain: 45, pouring: 90, snow: 55 }[k] || 0;
+        const n = k === 'snow' ? 55 : 0;
         this.drops = Array.from({ length: n }, () => this.drop(true));
         this.wake();
     }
 
     drop(anywhere) {
-        const snow = this.kind === 'snow';
         return {
             x: rand(-120, 1300), y: anywhere ? rand(-40, 820) : rand(-60, -20),
-            v: snow ? rand(.35, .9) : rand(6, 9.5) * (this.kind === 'pouring' ? 1.25 : 1),
-            len: rand(16, 30), r: rand(1, 2.4), ph: rand(0, 6.28)
+            v: rand(.35, .9), r: rand(1, 2.4), ph: rand(0, 6.28)
         };
     }
 
@@ -249,24 +249,13 @@ class Mood {
 
         if (this.drops.length && !night && !this.still) {
             c.beginPath();
-            if (this.kind === 'snow') {
-                for (const d of this.drops) {
-                    d.y += d.v; d.x += Math.sin(t / 1600 + d.ph) * .35;
-                    if (d.y > 820) Object.assign(d, this.drop(false));
-                    c.moveTo(d.x + d.r, d.y); c.arc(d.x, d.y, d.r, 0, 6.283);
-                }
-                c.fillStyle = 'rgba(235,240,245,.34)';
-                c.fill();
-            } else {
-                for (const d of this.drops) {
-                    d.y += d.v; d.x += d.v * .18;
-                    if (d.y > 840) Object.assign(d, this.drop(false));
-                    c.moveTo(d.x, d.y); c.lineTo(d.x - d.len * .18, d.y - d.len);
-                }
-                c.strokeStyle = `rgba(190,205,215,${this.kind === 'pouring' ? .2 : .15})`;
-                c.lineWidth = 1.2;
-                c.stroke();
+            for (const d of this.drops) {
+                d.y += d.v; d.x += Math.sin(t / 1600 + d.ph) * .35;
+                if (d.y > 820) Object.assign(d, this.drop(false));
+                c.moveTo(d.x + d.r, d.y); c.arc(d.x, d.y, d.r, 0, 6.283);
             }
+            c.fillStyle = 'rgba(235,240,245,.34)';
+            c.fill();
         }
 
         const now = performance.now();

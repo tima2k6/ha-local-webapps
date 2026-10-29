@@ -468,13 +468,13 @@
 /* Streets have their own SVG, dimmed as a whole: an opacity on the masked street group inside one SVG did not render on the tablet. */
 #road-map{opacity:var(--map-opacity,.52)}#flight-map .flights,#flight-map .vessels,#flight-map .trains,#flight-map .road-traffic{opacity:var(--traffic-opacity,.55)}
 /* Rain radar (js/rain-radar.js): one soft tone, stronger where it rains harder; a little dimmer at night. */
-#flight-map .rain-radar{opacity:.55}
+#rain-radar{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:-1;pointer-events:none;will-change:transform;opacity:.55}#rain-radar:not([src]){display:none}
 /* Commutes (js/commute-layer.js): the drive to/from work as a soft dashed line in the family accent. */
 #flight-map .commutes{opacity:.9}body.night #flight-map .commutes,body.force-night #flight-map .commutes{opacity:.6}#flight-map .commute-route{fill:none;stroke:var(--accent);stroke-width:2.2;stroke-dasharray:6 4;stroke-opacity:.75;stroke-linecap:round;stroke-linejoin:round}#flight-map .commute-mark text{font:12px Figtree,sans-serif;letter-spacing:1px;fill:var(--map-label,#d2d6d8);paint-order:stroke;stroke:var(--bg,#0c0c0c);stroke-width:3px;stroke-linejoin:round}
 /* Wind (js/wind-layer.js): faint streaks over open water, one small label. */
 #flight-map .wind{opacity:var(--traffic-opacity,.55)}#flight-map .wind-streaks{fill:none;stroke:#c9d3d8;stroke-width:1.2;stroke-opacity:.6;stroke-linecap:round;stroke-linejoin:round}#flight-map .wind-label{font:11px Figtree,sans-serif;letter-spacing:1px;fill:var(--map-route,#9ba2a6);paint-order:stroke;stroke:var(--bg,#0c0c0c);stroke-width:3px}
 /* Family away from home (js/family-layer.js): a ring with the initial, in the season accent like HOME. */
-#flight-map .family{opacity:.9}body.night #flight-map .family,body.force-night #flight-map .family{opacity:.6}#flight-map .live-person circle{fill:var(--bg,#0c0c0c);stroke:var(--accent);stroke-width:2}#flight-map .live-person text{font:14px Figtree,sans-serif;letter-spacing:1.4px;fill:var(--map-label,#d2d6d8);paint-order:stroke;stroke:var(--bg,#0c0c0c);stroke-width:3px;stroke-linejoin:round}#flight-map .live-person .person-detail{font-size:11px;letter-spacing:1px;fill:var(--map-route,#9ba2a6)}#flight-map .live-person .person-initial{font:600 11px Figtree,sans-serif;letter-spacing:0;fill:var(--accent);stroke:none}#flight-map .live-person.under-text .person-initial{display:inline}#flight-map .live-person.under-text .person-marker{opacity:1}body.night #flight-map .rain-radar,body.force-night #flight-map .rain-radar{opacity:.35}
+#flight-map .family{opacity:.9}body.night #flight-map .family,body.force-night #flight-map .family{opacity:.6}#flight-map .live-person circle{fill:var(--bg,#0c0c0c);stroke:var(--accent);stroke-width:2}#flight-map .live-person text{font:14px Figtree,sans-serif;letter-spacing:1.4px;fill:var(--map-label,#d2d6d8);paint-order:stroke;stroke:var(--bg,#0c0c0c);stroke-width:3px;stroke-linejoin:round}#flight-map .live-person .person-detail{font-size:11px;letter-spacing:1px;fill:var(--map-route,#9ba2a6)}#flight-map .live-person .person-initial{font:600 11px Figtree,sans-serif;letter-spacing:0;fill:var(--accent);stroke:none}#flight-map .live-person.under-text .person-initial{display:inline}#flight-map .live-person.under-text .person-marker{opacity:1}body.night #rain-radar,body.force-night #rain-radar{opacity:.35}
 /* Highway congestion (js/road-traffic.js): one muted red, bolder with the level; free flow is not drawn. */
 #flight-map .road-traffic path{fill:none;stroke:#d9584e;stroke-linecap:round;stroke-linejoin:round}#flight-map .road-traffic .lvl-2{stroke-width:1.6;stroke-opacity:.55}#flight-map .road-traffic .lvl-3{stroke-width:2.6;stroke-opacity:.8}#flight-map .road-traffic .lvl-4{stroke-width:3.6;stroke-opacity:1}
 #screen::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(to top,var(--bg),transparent 25%),linear-gradient(to bottom,var(--bg),transparent 18%),linear-gradient(to right,var(--bg),transparent 15%),linear-gradient(to left,var(--bg),transparent 15%);pointer-events:none}
@@ -500,7 +500,7 @@ body.hide-planes #flight-map .flights,body.hide-boats #flight-map .vessels,body.
 body.hide-streets #local-roads .minor,body.hide-streets #local-roads .major,body.hide-tracks #local-roads .rail,
 body.hide-tracks #local-roads .light_rail,body.hide-lakes #local-roads .water,body.hide-lakes #local-roads .water-label,
 body.hide-rivers #local-roads .river,body.hide-trails #local-roads .trail,body.hide-neighborhoods #local-roads .place-label,
-body.hide-sky #sky,body.hide-fade #screen::before,body.hide-roads #flight-map .road-traffic,body.hide-radar #flight-map .rain-radar,body.hide-wind #flight-map .wind,body.hide-family #flight-map .family,body.hide-commutes #flight-map .commutes{display:none}body.hide-fade #map-fade{display:none}
+body.hide-sky #sky,body.hide-fade #screen::before,body.hide-roads #flight-map .road-traffic,body.hide-radar #rain-radar,body.hide-wind #flight-map .wind,body.hide-family #flight-map .family,body.hide-commutes #flight-map .commutes{display:none}body.hide-fade #map-fade{display:none}
 /* The edge fade is a background-coloured gradient laid OVER the streets, not a mask: the tablet's GPU drew nothing
    through a mask on megabyte-long street paths (2026-10-27), though DOM and software screenshots showed them. */
 #road-map .fade-stop{stop-color:var(--bg,#0c0c0c)}
@@ -595,9 +595,10 @@ body.force-night { --bg: #050505; }
 </head>
 <body>
     <div id="screen"><svg id="road-map" viewBox="0 0 1280 800" aria-hidden="true"><defs><radialGradient id="mapfade"><stop class="fade-stop" offset="0" stop-opacity="0"/><stop class="fade-stop" offset=".65" stop-opacity="0"/><stop class="fade-stop" offset="1" stop-opacity=".75"/></radialGradient></defs><g id="local-roads"></g><rect id="map-fade" width="1280" height="800" fill="url(#mapfade)"/></svg>
+<img id="rain-radar" alt="" aria-hidden="true">
 <svg id="flight-map" viewBox="0 0 1280 800" aria-label="Local streets, nearby aircraft, boats and trains from Home Assistant">
 <defs><path id="plane" d="M0 -12 3 -3 11 2 11 5 3 3 2 10 5 12 5 14 0 12 -5 14 -5 12 -2 10 -3 3 -11 5 -11 2 -3 -3Z"/><path id="hull" d="M0 -11C3.5 -7 5 -3 5 2V9H-5V2C-5 -3 -3.5 -7 0 -11Z"/><path id="train-car" fill-rule="evenodd" d="M-4 13V-8C-4 -12 -2 -14.5 0 -14.5C2 -14.5 4 -12 4 -8V13Q4 14 3 14H-3Q-4 14 -4 13Z M-2.6 -9.8H2.6V-8.2H-2.6Z M-4 2.6H4V3.6H-4Z"/><path id="link-car" d="M-2.2 -0.4V-5.5C-2.2 -7.3 -1.1 -8.4 0 -8.4C1.1 -8.4 2.2 -7.3 2.2 -5.5V-0.4Z M-2.2 0.6H2.2V7.6Q2.2 8.2 1.6 8.2H-1.6Q-2.2 8.2 -2.2 7.6Z"/><g id="helicopter" transform="rotate(90)"><path d="M-9 0C-9 -3 -6 -5 -2 -5H1C4 -5 5 -3 5 -1L12 -3V-6H14V1H12L5 2C3 4 -3 4 -6 3C-8 2 -9 1 -9 0ZM-12 -9H8V-7H-12ZM-3 -7H-1V-4H-3ZM-6 3H-4V7H-6ZM2 3H4V7H2ZM-10 7H6V9H-10Z"/></g></defs>
-<image class="rain-radar" x="0" y="0" width="1280" height="800" preserveAspectRatio="none"/><g class="wind"></g><g class="commutes"></g><g class="road-traffic"></g><g class="vessels"></g><g class="trains"></g><g class="family"></g><g class="flights"></g><g class="home" transform="translate(640 480)"><path class="home-symbol" transform="scale(.75)" d="M-9 -1 0 -8 9 -1H7V8H2V2H-2V8H-7V-1Z"/><text x="-12" y="4" text-anchor="end">HOME</text></g></svg><div id="map-credit"><a href="https://www.openstreetmap.org/copyright" tabindex="-1">&copy; OpenStreetMap contributors</a></div>
+<g class="wind"></g><g class="commutes"></g><g class="road-traffic"></g><g class="vessels"></g><g class="trains"></g><g class="family"></g><g class="flights"></g><g class="home" transform="translate(640 480)"><path class="home-symbol" transform="scale(.75)" d="M-9 -1 0 -8 9 -1H7V8H2V2H-2V8H-7V-1Z"/><text x="-12" y="4" text-anchor="end">HOME</text></g></svg><div id="map-credit"><a href="https://www.openstreetmap.org/copyright" tabindex="-1">&copy; OpenStreetMap contributors</a></div>
         <div id="flight-tally" hidden></div>
         <div id="top">
             <div id="left">
@@ -637,8 +638,8 @@ import { FamilyLayer, FAMILY } from './js/family-layer.js?v=3';
 import { WindLayer, WIND_ENTITY } from './js/wind-layer.js?v=3';
 import { CommuteLayer, COMMUTE_ENTITIES } from './js/commute-layer.js?v=2';
 import { startMapLayers } from './js/map-layers.js?v=6';
-import { RainRadar } from './js/rain-radar.js?v=3';
-import { Ambience } from './js/ambience.js?v=15';
+import { RainRadar } from './js/rain-radar.js?v=4';
+import { Ambience } from './js/ambience.js?v=16';
 // Display settings are configured by URL; the screensaver stays touchless.
 const params=new URLSearchParams(location.search);
 const brightness=Number(params.get('map'));
@@ -657,7 +658,7 @@ const backdrop=new FlightBackdrop(config,flightMap,null,document.querySelector('
      wind:{layer:new WindLayer(flightMap.querySelector('.wind')),entity:WIND_ENTITY,maxAge:3*3600e3},
      commute:{layer:new CommuteLayer(flightMap.querySelector('.commutes')),entities:COMMUTE_ENTITIES}});
 window.flightBackdrop=backdrop;
-new RainRadar(flightMap.querySelector('.rain-radar'),()=>backdrop.box).start();
+new RainRadar(document.getElementById('rain-radar'),()=>backdrop.box).start();
 backdrop.start();
 </script></body>
 </html>
