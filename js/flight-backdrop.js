@@ -6,7 +6,7 @@ const TALLY_ENTITY = 'sensor.flightradar24_planes_today';
 // minute and markers jump instead of gliding, to give the tablet room to breathe.
 const HSM_ENTITY = 'sensor.hub_hsm_status';
 // The same quiet mode by day while the tablet is losing charge on its charger (2026-10-29):
-// automation.kiosk_tablet_automations turns this on below 72% and off again at 78%.
+// automation.kiosk_tablet_automations turns this on below 50% ("healing mode") and off again at 78%.
 const POWER_SAVER = 'input_boolean.wall_map_power_saver';
 const NIGHT_REFRESH_MS = 60000;
 // A glide moves in steps this long: a continuous glide repaints the whole SVG every frame, which
