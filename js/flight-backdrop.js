@@ -257,6 +257,9 @@ export class FlightBackdrop {
         // Websocket events draw immediately; polling only covers a dead socket
         // (every 10 s) and a slow freshness check while it is live (every 30 s).
         this.timer = setInterval(() => {
+            // With the screen off (recharge days, healing nights) Android can drop the socket without an
+            // onclose; the flight sensor updates every few seconds, so a minute of silence means it is dead.
+            if (this.map.dataset.transport === 'websocket' && Date.now() - (this.lastMessage || 0) > 60000) this.reconnect();
             if (this.map.dataset.transport === 'websocket' && Date.now() - (this.lastRefresh || 0) < 30000) return;
             this.refresh();
         }, 10000);
@@ -278,6 +281,7 @@ export class FlightBackdrop {
         this.map.dataset.transport = 'connecting';
         const ws = this.ws = new WebSocket(`${this.config.haUrl.replace(/^http/, 'ws')}/api/websocket`);
         ws.onmessage = ({ data }) => {
+            this.lastMessage = Date.now();
             const message = JSON.parse(data);
             if (message.type === 'auth_required') ws.send(JSON.stringify({ type: 'auth', access_token: this.config.longLivedAccessToken }));
             if (message.type === 'auth_ok') {
@@ -304,6 +308,14 @@ export class FlightBackdrop {
             if (!this.stopped) this.reconnectTimer = setTimeout(() => this.connect(), 5000);
         };
         ws.onerror = () => ws.close();
+    }
+
+    // Drop a silent socket and open a new one at once (its own onclose may never come).
+    reconnect() {
+        const dead = this.ws;
+        if (dead) { dead.onmessage = dead.onclose = dead.onerror = null; dead.close(); }
+        clearTimeout(this.reconnectTimer);
+        this.connect();
     }
 
     renderMap() {
