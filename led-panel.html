@@ -310,6 +310,14 @@
                 <div class="opt-btn" id="img-house"        onclick="selectImage('house')"><div class="image-emoji">🏠</div>HOUSE</div>
                 <div class="opt-btn" id="img-snow"         onclick="selectImage('snow')"><div class="image-emoji">❄️</div>SNOW</div>
                 <div class="opt-btn" id="img-nighttime"    onclick="selectImage('nighttime')"><div class="image-emoji">🌙</div>NIGHT</div>
+                <div class="opt-btn" id="img-newyear"      onclick="selectImage('newyear')"><div class="image-emoji">🎆</div>NEW YEAR</div>
+                <div class="opt-btn" id="img-easter"       onclick="selectImage('easter')"><div class="image-emoji">🥚</div>EASTER</div>
+                <div class="opt-btn" id="img-flag"         onclick="selectImage('flag')"><div class="image-emoji">🇺🇸</div>FLAG</div>
+                <div class="opt-btn" id="img-laborday"     onclick="selectImage('laborday')"><div class="image-emoji">👷</div>LABOR DAY</div>
+                <div class="opt-btn" id="img-pumpkin"      onclick="selectImage('pumpkin')"><div class="image-emoji">🎃</div>PUMPKIN</div>
+                <div class="opt-btn" id="img-turkey"       onclick="selectImage('turkey')"><div class="image-emoji">🦃</div>TURKEY</div>
+                <div class="opt-btn" id="img-xmastree"     onclick="selectImage('xmastree')"><div class="image-emoji">🎄</div>XMAS TREE</div>
+                <div class="opt-btn" id="img-champagne"    onclick="selectImage('champagne')"><div class="image-emoji">🍾</div>CHAMPAGNE</div>
             </div>
 
             <div class="designer-actions">
@@ -1414,7 +1422,8 @@ function drawImagePreview(ctx,n,x,y) {
         if(im.complete){ctx.imageSmoothingEnabled=false;ctx.drawImage(im,x,y,32,32);}
         return;
     }
-    const e={heart:'❤️',seahawks:'🏈',mariners:'⚾',cheers:'🥂',bordercollie:'🐶',sun:'☀️',fire:'🔥',soccerball:'⚽', gonzaga:'🐶',house:'🏠', snow:'❄️',nighttime:'🌙'};
+    const e={heart:'❤️',seahawks:'🏈',mariners:'⚾',cheers:'🥂',bordercollie:'🐶',sun:'☀️',fire:'🔥',soccerball:'⚽', gonzaga:'🐶',house:'🏠', snow:'❄️',nighttime:'🌙',
+             newyear:'🎆',easter:'🥚',flag:'🇺🇸',laborday:'👷',pumpkin:'🎃',turkey:'🦃',xmastree:'🎄',champagne:'🍾'};
     ctx.font='30px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
     ctx.fillText(e[n]||'🖼️',x,y);
 }
