@@ -1712,6 +1712,16 @@ async function describeWhen(triggers) {
     return parts.join(' or ')||'—';
 }
 
+// Live wording shown in plain words: {{ window_name }} -> "BREAKFAST / DINNER",
+// a Trash-or-Recycling choice -> "Trash (& Recycling)", anything else -> "…"
+function readableMessage(input) {
+    const names=[input.window1_name,input.window2_name].filter(Boolean).join(' / ');
+    return String(input.message||'')
+        .replace(/\{\{\s*window_name\s*\}\}/g,names||'…')
+        .replace(/\{\{[^}]*Recycling[^}]*\}\}/g,'Trash (& Recycling)')
+        .replace(/\{\{[\s\S]*?\}\}/g,'…');
+}
+
 // Reminder schedule in plain words, e.g. "Every 5 min, 7:00–10:30 and 15:00–20:00, until done"
 function describeReminder(input) {
     const hm=t=>String(t||'').slice(0,5).replace(/^0(?=\d)/,'');   // "07:00:00" -> "7:00"
@@ -1751,7 +1761,7 @@ function buildAlertRules() {
             <div class="screen-name">${esc(a.name)}<small title="${esc(a.when)}">${esc(a.when)}</small></div>
             <button class="switch${a.on?' on':''}" id="rule-${i}-on" onclick="toggleRule(${i})" aria-label="${esc(a.name)} alert on"></button>
             ${String(a.input.message||'').includes('{{')
-              ? `<input type="text" class="text-input" id="rule-${i}-text" value="${esc(a.input.message)}" readonly
+              ? `<input type="text" class="text-input" id="rule-${i}-text" value="${esc(readableMessage(a.input))}" readonly
                    title="This wording changes by itself (e.g. Trash or Trash & Recycling). Change it with Edit in Home Assistant.">`
               : `<input type="text" class="text-input" id="rule-${i}-text" maxlength="100" value="${esc(a.input.message)}"
                    onchange="saveRuleInput(${i},{message:this.value.trim()})" onkeydown="if(event.key==='Enter')this.blur()">`}
