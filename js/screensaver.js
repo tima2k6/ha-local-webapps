@@ -224,6 +224,21 @@ const MEDS_FROM = 14 * 60;                                // meds line from 2 PM
 const EVENING = 18 * 60;
 const PRINTERS = { x1c_00m00a2c0618544: 'Rainier', p1s_01p00c611801219: 'Baker' };
 const PRINT_DONE_FOR = 2 * 3600e3;    // "finished its print" for two hours after
+// Roomba (Roomba+, 2026-11-06). The vacuum state flickers cleaning/returning within
+// milliseconds, so "running" comes from the mission sensor; rooms are iRobot's labels.
+const ROOMBA = {
+    vacuum: 'vacuum.c_c_robot', active: 'binary_sensor.cc_roomba_mission_active', phase: 'sensor.cc_roomba_phase',
+    recharge: 'binary_sensor.cc_roomba_mid_mission_recharge', bin: 'binary_sensor.c_c_robot_bin_full',
+    progress: 'sensor.cc_roomba_mission_progress', last: 'sensor.cc_roomba_last_mission',
+    summary: 'sensor.cc_roomba_last_mission_summary', doneFor: 2 * 3600e3
+};
+const ROOMBA_ROOMS = { 'Liam’s': "Liam's room", "Liam's": "Liam's room" };   // everything else: lower-cased
+const roombaRooms = list => {
+    const names = (Array.isArray(list) ? list : []).map(r => typeof r === 'string' ? r : r?.name).filter(Boolean)
+        .map(r => ROOMBA_ROOMS[r] || r.toLowerCase());
+    if (!names.length) return '';
+    return 'the ' + (names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`);
+};
 const WARMUPS = { house: 'the whole house', living_room: 'the living room', bedroom: 'the bedroom', liam: "Liam's room", office: 'the office' };
 const HOLD = 'input_boolean.climate_manual_override_active';
 const ROOMS = ['living_room', 'bedroom', 'liam_s_room', 'office'].map(r => `climate.${r}_thermostat`);
@@ -327,6 +342,7 @@ const INS_ICONS = {
     warm: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
     wind: '<path d="M3 8h11a2.5 2.5 0 1 0-2.5-2.5M3 12h16a2.5 2.5 0 1 1-2.5 2.5M3 16h9a2.5 2.5 0 1 1-2.5 2.5"/>',
     print: '<rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 8h16M9 15.5h6M12 8v4.5"/>',
+    roomba: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M6 8.5a7 7 0 0 1 12 0"/>',
     clock: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2.5h6"/>',
     moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
     window: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M12 3v18M4 12h16"/>',
@@ -438,6 +454,12 @@ class Insights {
         'timAtSchool': is_state('person.tim', state_attr('${PICKUP.zone}', 'friendly_name'))},
     'first_snow': states('${FIRST_SNOW}'),
     'meds': states('${MEDS_TAKEN}'), 'hold': states('${HOLD}'), 'printers': ns.p, 'warm': ns.w,
+    'roomba': {'state': states('${ROOMBA.vacuum}'), 'active': is_state('${ROOMBA.active}', 'on'),
+        'phase': states('${ROOMBA.phase}'), 'recharge': is_state('${ROOMBA.recharge}', 'on'),
+        'bin': is_state('${ROOMBA.bin}', 'on'), 'progress': states('${ROOMBA.progress}'),
+        'scope': state_attr('${ROOMBA.vacuum}', 'mission_scope'), 'last': states('${ROOMBA.last}'),
+        'result': state_attr('${ROOMBA.summary}', 'result'), 'minutes': state_attr('${ROOMBA.summary}', 'duration_min'),
+        'rooms': state_attr('${ROOMBA.summary}', 'cleaned_rooms')},
     'aqi': states('${AQI}'), 'dew': state_attr('${WEATHER}', 'dew_point'),
     'humid': state_attr('${WEATHER}', 'humidity'),
     'wind': state_attr('${WEATHER}', 'wind_speed'),
@@ -459,6 +481,11 @@ class Insights {
                 const before = was.get(p.name);
                 if ((before === 'running' || before === 'pause') && (p.status === 'finish' || p.status === 'failed')) this.finished[p.name] = Date.now();
             }
+            // Roomba: remember the rooms while it runs, and when this screen saw it finish
+            // (fallback for when the integration has no last-mission time yet)
+            const rb = d.roomba || {};
+            if (rb.active) this.roombaRun = { rooms: rb.scope, since: this.roombaRun?.since || Date.now() };
+            else if (this.data.roomba?.active && this.roombaRun) this.roombaRun.ended = Date.now();
             Object.assign(this.data, {
                 sun: { next_rising: d.rise, next_setting: d.set },
                 commutes: d.commutes,
@@ -471,6 +498,7 @@ class Insights {
                 medsTaken: d.meds !== 'off',
                 hold: d.hold === 'on',
                 printers: d.printers,
+                roomba: d.roomba,
                 warm: d.warm,
                 outside: typeof d.out === 'number' ? d.out : null,
                 outsideCond: d.cond,
@@ -649,6 +677,7 @@ class Insights {
                 out.push(['', 'print', p.status === 'finish' ? `${name} finished its print` : `${name}'s print stopped early`]);
             }
         }
+        out.push(...this.roombaLines(now));
 
         let rise = null, set = null;
         if (sun?.next_setting && sun?.next_rising) {
@@ -790,6 +819,44 @@ class Insights {
 
             if (sun?.next_rising) out.push(['', 'sunrise', `Sunrise tomorrow at <b>${esc(hm(new Date(sun.next_rising)))}</b>`]);
         }
+        return out;
+    }
+
+    // Roomba: what it's doing while it runs, "finished" for two hours after, a full bin.
+    // Stuck is the only pinned one: it needs someone.
+    roombaLines(now) {
+        const preview = new URLSearchParams(location.search).get('roomba');   // cleaning | done | stuck | bin
+        const rb = {
+            cleaning: { active: true, state: 'cleaning', scope: ['Office', 'Kitchen'], progress: '40' },
+            done: { active: false, state: 'docked', last: new Date(now - 20 * 60e3).toISOString(), rooms: ['Office', 'Kitchen'], minutes: 34, result: 'completed' },
+            stuck: { active: true, state: 'error', phase: 'stuck' },
+            bin: { active: false, state: 'docked', bin: true }
+        }[preview] || this.data.roomba;
+        if (!rb) return [];
+        const out = [], stuck = rb.phase === 'stuck' || rb.state === 'error';
+        if (stuck) out.push(['nudge', 'roomba', 'Roomba is stuck · it needs a hand']);
+        else if (rb.active) {
+            const where = roombaRooms(rb.scope || this.roombaRun?.rooms);
+            const pct = parseFloat(rb.progress);
+            if (rb.recharge) out.push(['', 'roomba', `Roomba is recharging, then it'll finish${where ? ' ' + esc(where) : ''}`]);
+            else if (rb.state === 'returning') out.push(['', 'roomba', 'Roomba is heading back to its dock']);
+            else if (rb.state === 'paused') out.push(['', 'roomba', 'Roomba is paused']);
+            else out.push(['', 'roomba', `Roomba is cleaning${where ? ' ' + esc(where) : ''}`
+                + (pct > 0 && pct < 100 ? ` · <b>${Math.round(pct)}%</b> done` : '')]);
+        } else {
+            const lastAt = Date.parse(rb.last);
+            const ended = Number.isFinite(lastAt) ? lastAt : this.roombaRun?.ended;
+            if (ended && now - ended >= 0 && now - ended < ROOMBA.doneFor) {
+                const where = roombaRooms(rb.rooms || this.roombaRun?.rooms);
+                const mins = parseFloat(rb.minutes);
+                const failed = rb.result && !/complete|success|done/i.test(String(rb.result));
+                out.push(['', 'roomba', failed
+                    ? `Roomba stopped early${where ? ' in ' + esc(where) : ''}`
+                    : `Roomba finished${where ? ' ' + esc(where) : ' cleaning'} at <b>${esc(hmFull(new Date(ended)))}</b>`
+                        + (mins > 0 ? ` · ${plural(Math.round(mins), 'minute')}` : '')]);
+            }
+        }
+        if (rb.bin && !stuck) out.push(['', 'roomba', "Roomba's bin is full · empty it before the next run"]);
         return out;
     }
 
