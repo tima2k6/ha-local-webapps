@@ -1634,7 +1634,7 @@ let alertSecs=20;
 let lastAlert=null;   // last alert sent from this page, so the preview can draw it
 // Icons the panel can draw beside an alert (same list as the blueprint and script)
 const ALERT_ICONS=[['none','No icon',''],['bell','Bell','🔔'],['door','Door','🚪'],['gate','Gate','🚧'],
-    ['shed','Shed','🛖'],['garage','Garage','🏠'],['package','Package','📦'],['water','Water','💧']];
+    ['shed','Shed','🛖'],['garage','Garage','🏠'],['package','Package','📦'],['water','Water','💧'],['trash','Trash','🗑️'],['bordercollie','Zoey','🐕']];
 const iconOptions=sel=>ALERT_ICONS.map(([v,l])=>`<option value="${v}"${v===sel?' selected':''}>${l}</option>`).join('');
 document.getElementById('alertIcon').innerHTML=iconOptions('none');
 function alertColor(h){document.getElementById('alertColorPicker').value=h;}
