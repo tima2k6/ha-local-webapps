@@ -413,8 +413,10 @@ class Insights {
 {% elif is_state(person, 'home') %}{% set presence.active = true %}{% endif %}{% endfor %}
 {% set ids = route.workLegs if presence.work and route.workLegs is defined else route.legs if route.legs is defined else [route.entity] %}
 {% set legs = expand(ids) %}{% set mins = legs | map(attribute='state') | map('float', none) | select('number') | list %}
+{% set d = states[route.entity] %}
 {% set nc.items = nc.items + [{'entity': route.entity, 'value': mins | sum if mins | count == ids | count else '', 'active': presence.active, 'work': presence.work,
-  'at': (legs | map(attribute='last_reported') | min).isoformat() if legs | count == ids | count else none}] %}{% endfor %}
+  'at': (legs | map(attribute='last_reported') | min).isoformat() if legs | count == ids | count else none,
+  'direct': {'value': d.state | float('') if d else '', 'at': d.last_reported.isoformat() if d else none} if route.legs is defined else none}] %}{% endfor %}
 {% set nh = namespace(openings=[], climates=[]) %}
 {% for opening in ${JSON.stringify(HOME_OPENINGS)} %}{% set contact = states[opening.entity] %}
 {% if contact %}{% set nh.openings = nh.openings + [{'entity': opening.entity, 'state': contact.state,
@@ -432,7 +434,8 @@ class Insights {
     'attendance': {'status': states('${PICKUP.attendance}'), 'at': state_attr('${PICKUP.attendance}', 'timestamp'),
         'sync': states('${PICKUP.sync}'), 'syncOk': is_state('${PICKUP.status}', 'ok'),
         'parentAtSchool': is_state('person.tim', state_attr('${PICKUP.zone}', 'friendly_name'))
-            or is_state('person.emily', state_attr('${PICKUP.zone}', 'friendly_name'))},
+            or is_state('person.emily', state_attr('${PICKUP.zone}', 'friendly_name')),
+        'timAtSchool': is_state('person.tim', state_attr('${PICKUP.zone}', 'friendly_name'))},
     'first_snow': states('${FIRST_SNOW}'),
     'meds': states('${MEDS_TAKEN}'), 'hold': states('${HOLD}'), 'printers': ns.p, 'warm': ns.w,
     'aqi': states('${AQI}'), 'dew': state_attr('${WEATHER}', 'dew_point'),
@@ -590,7 +593,7 @@ class Insights {
                         || (this.commutePreview === 'emily-work' && !!route.workZone),
                     work: this.commutePreview === 'emily-work' && !!route.workZone,
                     value: this.commutePreview === 'emily-work' ? 15 : route.label === 'Tim' ? 18 : 25, at: now.toISOString() }
-                : (this.data.commutes || []).find(c => c.entity === route.entity);
+                : this.morningRoute(route, (this.data.commutes || []).find(c => c.entity === route.entity), now);
             if (!commute?.active || (!route.away && (m < COMMUTE_WINDOW.from || m >= COMMUTE_WINDOW.until))) continue;
             if (!this.commutePreview && weekend(now) && (!route.away || commute.work)) continue;
             const minutes = Number(commute.value), age = now - new Date(commute.at);
@@ -842,6 +845,16 @@ class Insights {
             || !Number.isFinite(syncAge) || syncAge < 0 || syncAge >= PICKUP.stale
             || !Number.isFinite(snapshotAge) || snapshotAge < 0 || snapshotAge >= PICKUP.snapshotStale) return null;
         return attendance;
+    }
+
+    // Emily's morning drive goes via King's unless Liam is already dropped off: checked in today, or
+    // Tim is at King's (2026-11-06). Then her direct home-to-work route is shown instead.
+    morningRoute(route, commute, now) {
+        if (!commute?.direct || !route.legs) return commute;
+        const a = this.data.attendance;
+        const droppedOff = a?.timAtSchool === true
+            || (a?.status === 'checked_in' && a.at && dayKey(new Date(a.at)) === dayKey(now));
+        return droppedOff ? { ...commute, value: commute.direct.value, at: commute.direct.at } : commute;
     }
 
     dropoffLine(now) {

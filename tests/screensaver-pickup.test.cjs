@@ -145,6 +145,21 @@ test('morning commute and drop-off rotate even during heavy traffic', () => {
     }
 });
 
+test('Emily goes via King\'s until Liam is dropped off, then her direct route shows', () => {
+    const at = new Date('2026-10-08T07:30:00-07:00');
+    const emily = instance => instance.lines(at).find(line => line[2].startsWith('Emily:'))[2];
+    for (const [change, minutes] of [
+        [{}, 16], [{ status: 'checked_in', at: '2026-10-08T07:20:00-07:00' }, 12],
+        [{ status: 'checked_in', at: '2026-10-07T07:20:00-07:00' }, 16], [{ timAtSchool: true }, 12]
+    ]) {
+        const instance = morning(at);
+        Object.assign(instance.data.attendance, change);
+        instance.data.commutes.push({ entity: 'sensor.wazeemily_commute_emily_commute', value: 16, at: at.toISOString(), active: true,
+            direct: { value: 12, at: at.toISOString() } });
+        assert.match(emily(instance), new RegExp(`<b>${minutes} minutes</b> to work`), JSON.stringify(change));
+    }
+});
+
 test('check-in, any same-day attendance, stale feed, or parent at school hides drop-off', () => {
     const at = new Date('2026-10-08T07:30:00-07:00');
     for (const change of [
