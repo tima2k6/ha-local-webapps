@@ -1664,8 +1664,11 @@ async function clearAlert() {
 // you create one in HA (Blueprints → Panel alert), and this tab finds it, shows
 // what sets it off, and edits its Text / Color / Seconds inputs and on/off.
 // Reading and changing automation configs needs an admin token.
+// Reminders (2026-11-05) come from a second blueprint: a card that repeats in
+// daily windows until something is marked done (Zoey fed, trash out).
 const ALERT_BLUEPRINT='tima2k6/panel_alert.yaml';
-let alertRules=[];   // [{entity, id, name, when, input}]
+const REMINDER_BLUEPRINT='tima2k6/panel_reminder.yaml';
+let alertRules=[];   // [{entity, id, name, when, input, kind: 'alert'|'reminder'}]
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rgbToHex=c=>'#'+(c||[255,0,0]).map(v=>Math.max(0,Math.min(255,v|0)).toString(16).padStart(2,'0')).join('');
@@ -1709,21 +1712,33 @@ async function describeWhen(triggers) {
     return parts.join(' or ')||'—';
 }
 
-// Finds every Panel alert automation and rebuilds the rows. Runs when the tab opens and after edits.
+// Reminder schedule in plain words, e.g. "Every 5 min, 7:00–10:30 and 15:00–20:00, until done"
+function describeReminder(input) {
+    const hm=t=>String(t||'').slice(0,5).replace(/^0(?=\d)/,'');   // "07:00:00" -> "7:00"
+    const wins=[[input.window1_start,input.window1_end],[input.window2_start,input.window2_end]]
+        .filter(([a,b])=>a&&b&&a!==b).map(([a,b])=>`${hm(a)}–${hm(b)}`);
+    return `Every ${input.every_minutes??5} min, ${wins.join(' and ')||'no window'}, until done`;
+}
+
+// Finds every Panel alert and Panel reminder automation and rebuilds the rows. Runs when the tab opens and after edits.
 async function discoverAlertRules() {
     document.getElementById('addAlertLink').href=`${HA_URL}/config/blueprint/dashboard`;
     try {
-        const rel=await haWsCall('search/related',{item_type:'automation_blueprint',item_id:ALERT_BLUEPRINT});
-        const list=await Promise.all((rel.automation||[]).map(async entity=>{
+        const found=await Promise.all([[ALERT_BLUEPRINT,'alert'],[REMINDER_BLUEPRINT,'reminder']].map(async ([bp,kind])=>{
+            const rel=await haWsCall('search/related',{item_type:'automation_blueprint',item_id:bp});
+            return (rel.automation||[]).map(entity=>({entity,kind}));
+        }));
+        const list=await Promise.all(found.flat().map(async ({entity,kind})=>{
             const st=await fetchHA(entity);
             const id=st?.attributes?.id;
             if(!id) return null;
             const cfg=await haRest('GET',`/api/config/automation/config/${id}`);
             const input=cfg.use_blueprint?.input||{};
-            return {entity,id,name:(cfg.alias||entity).replace(/^Panel Alert:\s*/i,''),on:st.state==='on',
-                    input,when:await describeWhen(input.alert_trigger)};
+            return {entity,id,kind,name:(cfg.alias||entity).replace(/^Panel (Alert|reminder)\s*[:—-]?\s*/i,''),on:st.state==='on',
+                    input,when:kind==='reminder'?describeReminder(input):await describeWhen(input.alert_trigger)};
         }));
-        alertRules=list.filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
+        // Alerts first, then reminders, each alphabetical
+        alertRules=list.filter(Boolean).sort((a,b)=>a.kind.localeCompare(b.kind)||a.name.localeCompare(b.name));
     } catch(e) { alertStatus(`Couldn't load alerts: ${esc(e.message)}`); return; }
     buildAlertRules();
 }
@@ -1735,8 +1750,11 @@ function buildAlertRules() {
         <div class="alert-rule${a.on?'':' off'}" id="rule-${i}">
             <div class="screen-name">${esc(a.name)}<small title="${esc(a.when)}">${esc(a.when)}</small></div>
             <button class="switch${a.on?' on':''}" id="rule-${i}-on" onclick="toggleRule(${i})" aria-label="${esc(a.name)} alert on"></button>
-            <input type="text" class="text-input" id="rule-${i}-text" maxlength="100" value="${esc(a.input.message)}"
-                   onchange="saveRuleInput(${i},{message:this.value.trim()})" onkeydown="if(event.key==='Enter')this.blur()">
+            ${String(a.input.message||'').includes('{{')
+              ? `<input type="text" class="text-input" id="rule-${i}-text" value="${esc(a.input.message)}" readonly
+                   title="This wording changes by itself (e.g. Trash or Trash & Recycling). Change it with Edit in Home Assistant.">`
+              : `<input type="text" class="text-input" id="rule-${i}-text" maxlength="100" value="${esc(a.input.message)}"
+                   onchange="saveRuleInput(${i},{message:this.value.trim()})" onkeydown="if(event.key==='Enter')this.blur()">`}
             <input type="color" id="rule-${i}-color" title="Color" value="${rgbToHex(a.input.color)}"
                    onchange="const c=hexToRgb(this.value);saveRuleInput(${i},{color:[c.r,c.g,c.b]})">
             <select class="icon-select" id="rule-${i}-icon" aria-label="Icon" onchange="saveRuleInput(${i},{icon:this.value})">${iconOptions(a.input.icon||'none')}</select>
@@ -1785,8 +1803,16 @@ function adjustRuleSecs(i,d) {
 }
 
 // Shows this alert's current settings on the panel, even if it's switched off.
+// A reminder runs its own automation once (skipping its schedule), so live wording like
+// "Trash & Recycling" or "BREAKFAST" comes out exactly as it will on the night.
 async function testRule(i) {
     const a=alertRules[i];
+    if(a.kind==='reminder'){
+        const r=await callService('automation','trigger',{entity_id:a.entity,skip_condition:true}).catch(()=>null);
+        alertStatus(r&&r.ok?`Testing ${esc(a.name)} for ${a.input.seconds??30}s.`:'Test failed.');
+        setTimeout(sync,600);
+        return;
+    }
     const message=a.input.message||a.name.toUpperCase(), c=a.input.color||[255,0,0], seconds=a.input.seconds??20, icon=a.input.icon||'none';
     const r=await callService('script','panel_show_alert',{message,color:c,icon,seconds}).catch(()=>null);
     if(!r||!r.ok){alertStatus('Test failed.');return;}
