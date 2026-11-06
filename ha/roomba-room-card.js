@@ -1,6 +1,11 @@
 // Roomba card: status, battery, bin and dock power on top; the Roomba+ room map
 // as soft tiles you tap to pick (in order); one button cleans them through
-// script.roomba_clean_rooms. While it runs: the cleaning path, Pause, Send to dock.
+// script.roomba_clean_rooms. While it runs: Pause, Send to dock. When it isn't
+// running: a "Last clean" line (rooms, time, area) from the last mission summary.
+// The live cleaning path is off by default: the i3+ (daredevil firmware) never
+// answers position requests, and the picture Roomba+ falls back to is the whole
+// house's coverage, not the last clean. Set path: image.<name>_map to show it on
+// a robot that reports its position.
 // Deployed to /config/www/roomba-room-card.js (./deploy.sh), registered as a
 // dashboard resource /local/roomba-room-card.js?v=N (bump N after each deploy).
 //
@@ -10,7 +15,7 @@
 
 const DEFAULTS = {
     vacuum: 'vacuum.c_c_robot', map: 'image.cc_roomba_rooms_map', script: 'script.roomba_clean_rooms',
-    path: 'image.cc_roomba_map', active: 'binary_sensor.cc_roomba_mission_active',
+    path: null, active: 'binary_sensor.cc_roomba_mission_active', last: 'sensor.cc_roomba_last_mission_summary',
     battery: 'sensor.c_c_robot_battery', phase: 'sensor.cc_roomba_phase', bin: 'binary_sensor.c_c_robot_bin_full',
     progress: 'sensor.cc_roomba_mission_progress', recharge: 'binary_sensor.cc_roomba_mid_mission_recharge',
     dock_power: 'switch.roomba_dock', locate: 'button.cc_roomba_locate', evac: 'button.cc_roomba_evac',
@@ -42,7 +47,7 @@ class RoombaRoomCard extends HTMLElement {
     set hass(hass) {
         this._hass = hass;
         const c = this.config;
-        const key = [c.vacuum, c.map, c.path, c.active, c.battery, c.phase, c.bin, c.progress, c.recharge, c.dock_power]
+        const key = [c.vacuum, c.map, c.path, c.active, c.battery, c.phase, c.bin, c.progress, c.recharge, c.dock_power, c.last]
             .map(id => id && hass.states[id]?.last_updated).join('|');
         if (key === this.lastKey) return;
         this.lastKey = key;
@@ -79,6 +84,27 @@ class RoombaRoomCard extends HTMLElement {
             battery: Number.isFinite(bat) ? Math.round(bat) : null, charging: st(c.phase) === 'charging',
             binFull: st(c.bin) === 'on', dock: st(c.dock_power)
         };
+    }
+
+    // "Last clean: Living Room · 17 min · 65 sq ft · 2 h ago" (null when there's nothing to say)
+    lastClean() {
+        const a = this.config.last && this._hass.states[this.config.last]?.attributes;
+        if (!a || !a.ended_at) return null;
+        const rooms = (a.cleaned_rooms || []).map(nice);
+        const parts = [rooms.length ? listWords(rooms) : 'Everywhere'];
+        if (a.duration_min > 0) parts.push(`${Math.round(a.duration_min)} min`);
+        if (a.area_sqft > 0) parts.push(`${Math.round(a.area_sqft)} sq ft`);
+        if (a.result && a.result !== 'completed') parts.push(String(a.result).replace(/_/g, ' '));
+        // a clock time, not "2 h ago": the card only redraws when the Roomba's entities change
+        const end = new Date(a.ended_at);
+        if (!isNaN(end)) {
+            const day = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+            const diff = Math.round((day(new Date()) - day(end)) / 86400000);
+            const time = end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+            parts.push(diff === 0 ? `today ${time}` : diff === 1 ? `yesterday ${time}`
+                : end.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }));
+        }
+        return parts.join(' · ');
     }
 
     chips(s) {
@@ -128,7 +154,8 @@ class RoombaRoomCard extends HTMLElement {
         else actions = `<span class="hint">Tap rooms to choose</span>
             <button class="btn" data-act="all" ${this.busy ? 'disabled' : ''}><ha-icon icon="mdi:play"></ha-icon>Clean everywhere</button>`;
 
-        const pathPic = this._hass.states[this.config.path]?.attributes?.entity_picture;
+        const pathPic = this.config.path && this._hass.states[this.config.path]?.attributes?.entity_picture;
+        const last = s.active ? null : this.lastClean();
         this.shadowRoot.innerHTML = `<style>
             :host { display: block; --accent: var(--primary-color); --running: var(--state-vacuum-active-color, var(--state-active-color, var(--primary-color))); --tile: color-mix(in srgb, var(--primary-text-color) 7%, transparent); }
             ha-card { padding: 16px; overflow: hidden; font-family: var(--ha-font-family-body, inherit); color: var(--primary-text-color); }
@@ -173,6 +200,8 @@ class RoombaRoomCard extends HTMLElement {
             .path { margin-top: 12px; }
             .path-label { font-size: var(--ha-font-size-s, 12px); color: var(--secondary-text-color); margin-bottom: 6px; }
             .path img { display: block; width: 100%; border-radius: 12px; }
+            .last { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: var(--ha-font-size-s, 12px); color: var(--secondary-text-color); }
+            .last ha-icon { --mdc-icon-size: 16px; flex: none; }
             .actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 12px; min-height: 38px; }
             .hint { margin-right: auto; font-size: var(--ha-font-size-s, 12px); color: var(--secondary-text-color); }
             .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; font-size: var(--ha-font-size-m, 14px); font-weight: var(--ha-font-weight-medium, 500);
@@ -198,6 +227,7 @@ class RoombaRoomCard extends HTMLElement {
                 : '<div class="empty">No room map yet</div>'}
             ${(s.active || this.config.show_path) && pathPic ? `<div class="path"><div class="path-label">Cleaning path</div>
                 <img src="${esc(pathPic)}&t=${encodeURIComponent(this._hass.states[this.config.path].state)}" alt="Cleaning path"></div>` : ''}
+            ${last ? `<div class="last"><ha-icon icon="mdi:history"></ha-icon><span>Last clean: ${esc(last)}</span></div>` : ''}
             <div class="actions">${actions}</div>
         </ha-card>`;
 
