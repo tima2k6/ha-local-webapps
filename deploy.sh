@@ -12,7 +12,7 @@ git push -q
 ssh root@192.168.2.119 'cd /var/www/html && git pull -q'
 DEST=//192.168.2.125/config/www/webapps
 mkdir -p "$DEST/js"
-cp climate.html led-panel.html bedtime.html \
+cp climate.html led-panel.html bedtime.html popcorn.html \
    led-icon.png led-icon.svg led-icon-apple.png apple-touch-icon.png "$DEST/"
 cp js/ha-app.js "$DEST/js/"
 cp "READ ME FIRST - where to edit.txt" "$DEST/"

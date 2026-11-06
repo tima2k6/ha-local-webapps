@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<!-- DON'T EDIT THIS COPY unless it's the one in C:/Users/timan/Projects/ha-local-webapps on Tim's PC.
+     Deployed with deploy.sh to HA /local/webapps/ and nginx .119; see 'READ ME FIRST - where to edit.txt'. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0c0c0c">
+<title>Popcorn Commands</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* What you can say to the "Popcorn" Alexa skill for the living-room theater.
+   Opened from the "Popcorn commands" phone notification (script.popcorn_help);
+   ?on=echo|apple_tv|xbox|dvd|records|off puts that activity's commands on top.
+   Static page: no Home Assistant calls. Colours match climate.html, popcorn
+   yellow (the LED panel card's colour) as the accent. */
+:root {
+    --bg: #0c0c0c;
+    --card: #181818;
+    --line: #2c2c2c;
+    --text-hi: #f2f2f2;
+    --text: #e5e5e5;
+    --text-dim: #9a9a9a;
+    --accent: #ffc800;
+    --accent-bg: rgba(255, 200, 0, .10);
+    --accent-border: #5c4a10;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body {
+    font-family: Figtree, system-ui, sans-serif;
+    font-size: 18px; line-height: 1.45;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom));
+}
+main { max-width: 560px; margin: 0 auto; }
+h1 {
+    font-family: Outfit, Figtree, sans-serif; font-weight: 300;
+    font-size: 32px; margin: 4px 0 6px; color: var(--text-hi);
+}
+.say { color: var(--text-dim); margin: 0 0 20px; }
+.say b { color: var(--accent); font-weight: 600; }
+section {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px 16px; margin-bottom: 12px;
+}
+section.now { background: var(--accent-bg); border-color: var(--accent-border); }
+h2 {
+    font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-dim); margin: 0 0 8px;
+}
+section.now h2 { color: var(--accent); }
+ul { list-style: none; margin: 0; padding: 0; }
+li { padding: 7px 0; border-top: 1px solid var(--line); }
+li:first-child { border-top: 0; }
+li q { color: var(--text-hi); font-weight: 500; quotes: "\201C" "\201D"; }
+li span { display: block; color: var(--text-dim); font-size: 15px; }
+.foot { color: var(--text-dim); font-size: 15px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Popcorn commands</h1>
+<p class="say">Start with <b>"Echo, tell Popcorn&nbsp;…"</b> then say one of these.</p>
+
+<div id="now"></div>
+
+<section>
+  <h2>Start something</h2>
+  <ul>
+    <li><q>watch Apple TV</q></li>
+    <li><q>turn on the Xbox</q></li>
+    <li><q>play the DVD</q></li>
+    <li><q>play a record</q></li>
+    <li><q>Echo music</q><span>music from the Echo through the speakers</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Volume</h2>
+  <ul>
+    <li><q>speakers up</q> · <q>speakers down</q><span>works even while the Echo is playing</span></li>
+    <li><q>speakers way up</q> · <q>speakers way down</q><span>a bigger step</span></li>
+    <li><q>speakers 20</q><span>any number up to 40</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Playback</h2>
+  <ul>
+    <li><q>pause</q> · <q>resume</q></li>
+    <li><q>mute</q> · <q>unmute</q></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Something's wrong</h2>
+  <ul>
+    <li><q>fix it</q><span>tries the start again</span></li>
+    <li><q>what's on</q><span>says what's playing and the volume</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2>All done</h2>
+  <ul>
+    <li><q>turn it off</q><span>turns everything off</span></li>
+  </ul>
+</section>
+
+<p class="foot">Forgot? Say <b>"Echo, tell Popcorn help"</b> and the list shows on the wall panel too.</p>
+</main>
+<script>
+// ?on=<activity> from the notification: show that activity's commands first.
+(function () {
+    var NOW = {
+        echo:     ['Echo music is on',     ['speakers up', 'speakers down', 'pause', 'mute', 'turn it off']],
+        apple_tv: ['Apple TV is on',       ['speakers up', 'speakers down', 'pause', 'mute', 'fix it', 'turn it off']],
+        xbox:     ['The Xbox is on',       ['speakers up', 'speakers down', 'mute', 'fix it', 'turn it off']],
+        dvd:      ['The DVD player is on', ['speakers up', 'speakers down', 'pause', 'mute', 'fix it', 'turn it off']],
+        records:  ['The record player is on', ['speakers up', 'speakers down', 'mute', 'turn it off']],
+        off:      ['The theater is off',   ['watch Apple TV', 'turn on the Xbox', 'play the DVD', 'play a record', 'Echo music']]
+    };
+    var on = '';
+    try { on = new URLSearchParams(location.search).get('on') || ''; } catch (e) {}
+    var item = NOW[on];
+    if (!item) return;
+    var s = document.createElement('section');
+    s.className = 'now';
+    var h = document.createElement('h2');
+    h.textContent = item[0] + ' — try';
+    var ul = document.createElement('ul');
+    item[1].forEach(function (c) {
+        var li = document.createElement('li'), q = document.createElement('q');
+        q.textContent = c; li.appendChild(q); ul.appendChild(li);
+    });
+    s.appendChild(h); s.appendChild(ul);
+    document.getElementById('now').appendChild(s);
+})();
+</script>
+</body>
+</html>
