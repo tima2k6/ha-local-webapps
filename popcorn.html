@@ -70,11 +70,20 @@ li span { display: block; color: var(--text-dim); font-size: 15px; }
 <section>
   <h2>Start something</h2>
   <ul>
+    <li><q>turn on the TV</q><span>starts Apple TV, or just brings the picture back if the theater is already on</span></li>
     <li><q>watch Apple TV</q></li>
     <li><q>turn on the Xbox</q></li>
     <li><q>play the DVD</q></li>
     <li><q>play a record</q></li>
     <li><q>Echo music</q><span>music from the Echo through the speakers</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Apps and screen</h2>
+  <ul>
+    <li><q>open Netflix</q><span>any Apple TV app: YouTube, Disney Plus, HBO, Prime, Paramount, Peacock, Hulu, ESPN…</span></li>
+    <li><q>turn off the TV screen</q> · <q>turn on the TV screen</q><span>black out the picture, the sound keeps playing</span></li>
   </ul>
 </section>
 
@@ -118,11 +127,11 @@ li span { display: block; color: var(--text-dim); font-size: 15px; }
 (function () {
     var NOW = {
         echo:     ['Echo music is on',     ['speakers up', 'speakers down', 'pause', 'next song', 'mute', 'turn it off']],
-        apple_tv: ['Apple TV is on',       ['speakers up', 'speakers down', 'pause', 'next song', 'mute', 'fix it', 'turn it off']],
+        apple_tv: ['Apple TV is on',       ['open Netflix', 'turn off the TV screen', 'turn on the TV screen', 'speakers up', 'speakers down', 'pause', 'next song', 'fix it', 'turn it off']],
         xbox:     ['The Xbox is on',       ['speakers up', 'speakers down', 'mute', 'fix it', 'turn it off']],
         dvd:      ['The DVD player is on', ['speakers up', 'speakers down', 'pause', 'mute', 'fix it', 'turn it off']],
         records:  ['The record player is on', ['speakers up', 'speakers down', 'mute', 'turn it off']],
-        off:      ['The theater is off',   ['watch Apple TV', 'turn on the Xbox', 'play the DVD', 'play a record', 'Echo music']]
+        off:      ['The theater is off',   ['turn on the TV', 'open Netflix', 'turn on the Xbox', 'play the DVD', 'play a record', 'Echo music']]
     };
     var on = '';
     try { on = new URLSearchParams(location.search).get('on') || ''; } catch (e) {}
