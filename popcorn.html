@@ -91,6 +91,7 @@ li span { display: block; color: var(--text-dim); font-size: 15px; }
   <h2>Playback</h2>
   <ul>
     <li><q>pause</q> · <q>resume</q></li>
+    <li><q>next song</q> · <q>go back a song</q><span>Apple TV and Echo music</span></li>
     <li><q>mute</q> · <q>unmute</q></li>
   </ul>
 </section>
@@ -116,8 +117,8 @@ li span { display: block; color: var(--text-dim); font-size: 15px; }
 // ?on=<activity> from the notification: show that activity's commands first.
 (function () {
     var NOW = {
-        echo:     ['Echo music is on',     ['speakers up', 'speakers down', 'pause', 'mute', 'turn it off']],
-        apple_tv: ['Apple TV is on',       ['speakers up', 'speakers down', 'pause', 'mute', 'fix it', 'turn it off']],
+        echo:     ['Echo music is on',     ['speakers up', 'speakers down', 'pause', 'next song', 'mute', 'turn it off']],
+        apple_tv: ['Apple TV is on',       ['speakers up', 'speakers down', 'pause', 'next song', 'mute', 'fix it', 'turn it off']],
         xbox:     ['The Xbox is on',       ['speakers up', 'speakers down', 'mute', 'fix it', 'turn it off']],
         dvd:      ['The DVD player is on', ['speakers up', 'speakers down', 'pause', 'mute', 'fix it', 'turn it off']],
         records:  ['The record player is on', ['speakers up', 'speakers down', 'mute', 'turn it off']],
