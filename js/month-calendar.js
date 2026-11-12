@@ -7,7 +7,7 @@
 // Static on purpose: nothing animates while it is open (screensaver power budget).
 
 import { familyEvents } from './screensaver.js?v=54';
-import { WeatherView } from './weather-view.js?v=1';
+import { WeatherView } from './weather-view.js?v=2';
 
 const IDLE_MS = 60000;        // back to the screensaver after a minute without a touch
 const CELL_ROWS = 2;          // holiday + event names per day cell; the rest become "+N more"

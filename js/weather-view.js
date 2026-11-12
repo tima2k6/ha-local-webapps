@@ -61,6 +61,7 @@ export class WeatherView {
         clearTimeout(this.idle);
         document.body.classList.remove('weather-open');
         this.el.innerHTML = '';
+        this.onClose && this.onClose();      // ?back=1 (opened from the dashboard's weather card): back to the dashboard
     }
 
     poke() {

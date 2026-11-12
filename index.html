@@ -862,7 +862,7 @@ body.force-night { --bg: #050505; }
 <script type="module">
 import { config } from './js/config.js?v=20261009-flight-8';
 import { startScreensaver } from './js/screensaver.js?v=54';
-import { startTouchMode } from './js/month-calendar.js?v=6';
+import { startTouchMode } from './js/month-calendar.js?v=7';
 import { FlightBackdrop } from './js/flight-backdrop.js?v=42';
 import { VesselLayer, VESSEL_ENTITY } from './js/vessel-layer.js?v=20';
 import { TrainLayer, TRAIN_ENTITY } from './js/train-layer.js?v=12';
@@ -885,6 +885,8 @@ const ambience=new Ambience(config).start();
 startScreensaver(config,{extraLines:now=>ambience.lines(now)});
 if(params.get('touch')==='1'){
     const {cal,wx}=startTouchMode(config,params.get('home')||config.haUrl);
+    // The dashboard's weather card (tablet only) opens ?view=weather&back=1: closing it returns to the dashboard
+    if(params.get('back')==='1')wx.onClose=()=>{location.href=params.get('home')||config.haUrl;};
     if(params.get('view')==='weather')wx.open();
     if(params.get('view')==='month')cal.open(params.has('day')?new Date(params.get('day')+'T12:00:00'):new Date());
 }
