@@ -11,7 +11,11 @@ import { familyEvents } from './screensaver.js?v=53';
 const IDLE_MS = 60000;        // back to the screensaver after a minute without a touch
 const CELL_ROWS = 2;          // holiday + event names per day cell; the rest become "+N more"
 const SWIPE_PX = 60;
-const WASTE = 'calendar.recollect_waste';   // events "ReCollect Waste Pickup", description "Pickup types: garbage, recycling"
+const WASTE = 'calendar.recollect_waste';
+const ADD_TO = { entity: 'calendar.family', name: 'Family' };   // the only calendar events are added to (CalDAV: add only, no edit/delete)
+const FORM_IDLE_MS = 180000;  // a slower timeout while someone is adding an event
+const FORM_HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+const FORM_LENGTHS = [[30, '30 min'], [60, '1 hr'], [120, '2 hr'], [180, '3 hr']];   // events "ReCollect Waste Pickup", description "Pickup types: garbage, recycling"
 
 const esc = s => String(s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -76,6 +80,15 @@ const sortKey = ev => (ev.start.dateTime ? 1 : 0) * 1e13 + new Date(ev.start.dat
 const timeOf = ev => ev.start.dateTime
     ? new Date(ev.start.dateTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : 'All day';
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const hourLabel = h => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
+const clock = d => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+// Start and end of the form's event (timed only)
+const formTimes = f => {
+    const start = new Date(f.date); start.setHours(f.hour, f.half ? 30 : 0, 0, 0);
+    return [start, new Date(start.getTime() + f.len * 60e3)];
+};
 const nameOf = ev => esc(String(ev.summary || 'Untitled').replace(/^Liam · /, ''));
 
 export class MonthCalendar {
@@ -91,6 +104,9 @@ export class MonthCalendar {
         el.addEventListener('pointerup', e => this.swipe(e));
         // Any touch inside keeps it open a while longer
         el.addEventListener('pointerdown', () => this.poke(), true);
+        // The new event's name: kept as typed (a re-render rebuilds the field from it); Enter closes the keyboard
+        el.addEventListener('input', e => { if (e.target.matches('.mcf-name') && this.form) { this.form.title = e.target.value; this.poke(); this.syncSave(); } });
+        el.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.mcf-name')) e.target.blur(); });
     }
 
     open(day = new Date()) {
@@ -107,6 +123,8 @@ export class MonthCalendar {
     close() {
         if (!this.isOpen) return;
         this.isOpen = false;
+        this.form = null;
+        this.flash = null;
         clearTimeout(this.idle);
         document.body.classList.remove('month-open');
         this.el.innerHTML = '';
@@ -115,7 +133,7 @@ export class MonthCalendar {
 
     poke() {
         clearTimeout(this.idle);
-        if (this.isOpen) this.idle = setTimeout(() => this.close(), IDLE_MS);
+        if (this.isOpen) this.idle = setTimeout(() => this.close(), this.form ? FORM_IDLE_MS : IDLE_MS);
     }
 
     // The six weeks on screen, Sunday first
@@ -182,14 +200,112 @@ export class MonthCalendar {
             const d = new Date(Number(t.dataset.day));
             if (d.getMonth() !== this.month.getMonth()) { this.go(d < this.month ? -1 : 1); this.selected = d; this.render(); return; }
             this.selected = d;
+            this.flash = null;
             this.render();
         } else if (t.dataset.act === 'prev') this.go(-1);
         else if (t.dataset.act === 'next') this.go(1);
         else if (t.dataset.act === 'today') { this.close(); this.open(); }
         else if (t.dataset.act === 'done') this.close();
+        else this.formClick(t);
+    }
+
+    // ===== Add an event to the Family calendar =====
+    formClick(t) {
+        const f = this.form, act = t.dataset.act;
+        if (act === 'add') { this.form = { date: new Date(this.selected), title: '', allDay: true, hour: 18, half: false, len: 60 }; this.flash = null; }
+        else if (!f) return;
+        else if (act === 'cancel') this.form = null;
+        else if (act === 'allday') f.allDay = true;
+        else if (act === 'hour') { f.allDay = false; f.hour = Number(t.dataset.h); }
+        else if (act === 'half') { f.allDay = false; f.half = !f.half; }
+        else if (act === 'len') f.len = Number(t.dataset.len);
+        else if (act === 'save') { if (f.title.trim()) { f.confirm = true; f.error = null; } }
+        else if (act === 'back') f.confirm = false;
+        else if (act === 'confirm') { this.save(); return; }
+        this.poke();
+        this.render();
+        if (act === 'add') this.el.querySelector('.mcf-name')?.focus();
+    }
+
+    syncSave() {
+        const b = this.el.querySelector('[data-act="save"]');
+        if (b) b.classList.toggle('off', !this.form.title.trim());
+    }
+
+    whenText(f) {
+        const day = f.date.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+        if (f.allDay) return `${day} · all day`;
+        const [a, b] = formTimes(f);
+        return `${day} · ${clock(a)} – ${clock(b)}`;
+    }
+
+    async save() {
+        const f = this.form;
+        if (!f || f.saving) return;
+        f.saving = true; this.render();
+        const body = { entity_id: ADD_TO.entity, summary: f.title.trim() };
+        if (f.allDay) Object.assign(body, { start_date: ymd(f.date), end_date: ymd(addDays(f.date, 1)) });
+        else {
+            const [a, b] = formTimes(f), at = d => `${ymd(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+            Object.assign(body, { start_date_time: at(a), end_date_time: at(b) });
+        }
+        try {
+            const r = await fetch(`${this.haUrl}/api/services/calendar/create_event`, {
+                method: 'POST', headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!r.ok) throw new Error((await r.text()).slice(0, 160) || `HTTP ${r.status}`);
+            // Show it straight away; the reload below picks up the calendar's own copy
+            const [a, b] = formTimes(f);
+            const ev = f.allDay ? { summary: body.summary, start: { date: body.start_date }, end: { date: body.end_date } }
+                : { summary: body.summary, start: { dateTime: a.toISOString() }, end: { dateTime: b.toISOString() } };
+            const k = key(f.date);
+            this.byDay.set(k, [...(this.byDay.get(k) || []), ev].sort((x, y) => sortKey(x) - sortKey(y)));
+            this.selected = midnight(f.date);
+            this.form = null;
+            this.flash = `Added to the ${ADD_TO.name} calendar`;
+            this.render();
+            const list = this.el.querySelector('.mc-list');
+            if (list) list.scrollTop = list.scrollHeight;       // the new one is usually last
+            setTimeout(() => { if (this.isOpen && !this.form) this.load(); }, 4000);
+        } catch (e) {
+            console.error('Add event:', e);
+            f.saving = false; f.error = String(e.message || e);
+            this.render();
+        }
+    }
+
+    formHtml() {
+        const f = this.form;
+        const chip = (on, act, label, extra = '') => `<button class="mcf-chip${on ? ' on' : ''}" data-act="${act}"${extra}>${label}</button>`;
+        if (f.confirm) return `<div class="mc-form confirm">
+                <div class="mcf-ask">Add this to the ${esc(ADD_TO.name)} calendar?</div>
+                <div class="mcf-what">${esc(f.title.trim())}</div>
+                <div class="mcf-when">${esc(this.whenText(f))}</div>
+                ${f.error ? `<div class="mcf-error">Couldn\u2019t add it · ${esc(f.error)}</div>` : ''}
+                <div class="mcf-actions">
+                    <button class="mcf-go${f.saving ? ' off' : ''}" data-act="confirm">${f.saving ? 'Adding…' : f.error ? 'Try again' : 'Yes, add it'}</button>
+                    <button class="mcf-quiet" data-act="back">Back</button>
+                </div></div>`;
+        const hours = FORM_HOURS.map(h => chip(!f.allDay && f.hour === h, 'hour', hourLabel(h), ` data-h="${h}"`)).join('');
+        const lens = FORM_LENGTHS.map(([m, l]) => chip(f.len === m, 'len', l, ` data-len="${m}"`)).join('');
+        return `<div class="mc-form">
+                <div class="mcf-head">New event · ${esc(f.date.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }))}</div>
+                <input class="mcf-name" type="text" maxlength="80" placeholder="What's happening?" value="${esc(f.title)}" enterkeyhint="done" autocomplete="off">
+                <div class="mcf-label">When</div>
+                <div class="mcf-hours">${chip(f.allDay, 'allday', 'All day')}${hours}</div>
+                <div class="mcf-row${f.allDay ? ' dim' : ''}">
+                    ${chip(!f.allDay && f.half, 'half', 'Half past')}<span class="mcf-label inline">How long</span>${lens}
+                </div>
+                <div class="mcf-actions">
+                    <button class="mcf-go${f.title.trim() ? '' : ' off'}" data-act="save">Save</button>
+                    <button class="mcf-quiet" data-act="cancel">Cancel</button>
+                    <span class="mcf-note">${esc(f.allDay ? 'All day' : this.whenText(f).split(' · ')[1])}</span>
+                </div></div>`;
     }
 
     swipe(e) {
+        if (this.form) return;
         const dx = e.clientX - this.downX, dy = e.clientY - this.downY;
         if (Math.abs(dx) > SWIPE_PX && Math.abs(dx) > 2 * Math.abs(dy)) this.go(dx < 0 ? 1 : -1);
     }
@@ -209,8 +325,10 @@ export class MonthCalendar {
                 d < today && 'past'].filter(Boolean).join(' ');
             const rows = [...(hol ? [`<div class="mc-hol">${esc(hol)}</div>`] : []),
                 ...evs.map(ev => `<div class="mc-ev${isLiam(ev) ? ' liam' : ''}">${nameOf(ev)}</div>`)];
-            const shown = rows.slice(0, CELL_ROWS).join('');
-            const more = rows.length > CELL_ROWS ? `<div class="mc-more">+${rows.length - CELL_ROWS} more</div>` : '';
+            // Room for CELL_ROWS lines: when there are more, the last line becomes "+N more"
+            const fits = rows.length > CELL_ROWS ? CELL_ROWS - 1 : CELL_ROWS;
+            const shown = rows.slice(0, fits).join('');
+            const more = rows.length > fits ? `<div class="mc-more">+${rows.length - fits} more</div>` : '';
             const bins = (this.pickups.get(k) || []).map(t => icon(t)).join('');
             cells += `<div class="${cls}" data-day="${d.getTime()}"><div class="mc-top"><div class="mc-num">${d.getDate()}</div>${bins ? `<div class="mc-bins">${bins}</div>` : ''}</div>${shown}${more}</div>`;
         }
@@ -235,10 +353,12 @@ export class MonthCalendar {
                 ${thisMonth ? '' : '<button class="mc-pill" data-act="today">This month</button>'}
             </div>
             <div class="mc-dows">${heads}</div>
-            <div class="mc-grid">${cells}</div>
+            ${this.form ? this.formHtml() : `<div class="mc-grid">${cells}</div>`}
             <div class="mc-side">
                 <div class="mc-side-head"><div class="mc-side-title">${esc(selTitle)}</div><div class="mc-side-date">${esc(selDate)}</div></div>
+                ${this.flash ? `<div class="mc-flash">${esc(this.flash)}</div>` : ''}
                 <div class="mc-list">${list}</div>
+                ${this.form ? '' : '<button class="mc-add" data-act="add">+ Add event</button>'}
                 <button class="mc-done" data-act="done">Done</button>
             </div>`;
     }
