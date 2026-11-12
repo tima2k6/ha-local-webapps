@@ -6,7 +6,8 @@
 // plus US holidays (fixed table below) and trash / recycling pickup icons (ReCollect calendar).
 // Static on purpose: nothing animates while it is open (screensaver power budget).
 
-import { familyEvents } from './screensaver.js?v=53';
+import { familyEvents } from './screensaver.js?v=54';
+import { WeatherView } from './weather-view.js?v=1';
 
 const IDLE_MS = 60000;        // back to the screensaver after a minute without a touch
 const CELL_ROWS = 2;          // holiday + event names per day cell; the rest become "+N more"
@@ -364,16 +365,19 @@ export class MonthCalendar {
     }
 }
 
-// Touch mode: agenda → month calendar; any other tap → the HA dashboard (homeUrl).
+// Touch mode: agenda → month calendar; weather → weather view (js/weather-view.js);
+// any other tap → the HA dashboard (homeUrl). By night only the dashboard (both are hidden).
 export function startTouchMode(config, homeUrl) {
     const screen = document.getElementById('screen');
     const cal = new MonthCalendar(config, document.getElementById('month'));
+    const wx = new WeatherView(config, document.getElementById('wx'));
     document.body.classList.add('touch');
     screen.addEventListener('click', e => {
-        if (cal.isOpen) return;                              // the calendar handles its own taps
-        const onAgenda = e.target.closest('#side') && !document.body.classList.contains('night');
-        if (onAgenda) cal.open();
+        if (cal.isOpen || wx.isOpen) return;                 // each view handles its own taps
+        const day = !document.body.classList.contains('night');
+        if (day && e.target.closest('#side')) cal.open();
+        else if (day && e.target.closest('#weather')) wx.open();
         else location.href = homeUrl;
     });
-    return cal;
+    return { cal, wx };
 }

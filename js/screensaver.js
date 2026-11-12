@@ -49,6 +49,9 @@ const LABELS = {
     'sunny': 'Sunny', 'cloudy': 'Cloudy', 'fog': 'Fog', 'hail': 'Hail', 'windy': 'Windy'
 };
 const label = c => LABELS[c] || (c ? c.charAt(0).toUpperCase() + c.slice(1) : '');
+// Shared with js/weather-view.js (the tap-the-weather view)
+export const weatherIcon = icon;
+export const weatherLabel = label;
 
 // ===== Clock =====
 class Clock {
