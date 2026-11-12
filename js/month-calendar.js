@@ -5,7 +5,7 @@
 // Same calendars as the agenda (familyEvents: Family + Liam's D105 / All Rooms school events).
 // Static on purpose: nothing animates while it is open (screensaver power budget).
 
-import { familyEvents } from './screensaver.js?v=52';
+import { familyEvents } from './screensaver.js?v=53';
 
 const IDLE_MS = 60000;        // back to the screensaver after a minute without a touch
 const CELL_EVENTS = 2;        // event names per day cell; the rest become "+N more"

@@ -265,6 +265,16 @@ const HOME_INSIGHTS = { stale: 2 * 60e3, showFor: 3 * 60e3, repeatAfter: 30 * 60
 const PLANTS = { snake_plant: 'Lowe', dracaena: 'Dracaena', mimosa_pudica: 'Tickle Plant' };   // the names the family uses
 const PLANT_SOON = 5;            // % above too-dry that counts as "soon"
 const PLANT_STALE = 2 * 86400e3; // ignore readings older than this (dead battery)
+// Ring (ring-mqtt): the battery Front Door doorbell camera and the plug-in chime ("Doorbell").
+// Never read sensor.front_door_info's stream_Source attribute: it holds the Ring login.
+const RING = {
+    cam: { info: 'sensor.front_door_info', battery: 'sensor.front_door_battery_3', motion: 'switch.front_door_motion_detection_2' },
+    chime: { info: 'sensor.doorbell_info', snooze: 'switch.doorbell_snooze' }
+};
+const RING_LOW = 15, RING_CRITICAL = 5;   // pinned, same thresholds as the Pushover automation (ring_doorbell_battery_low)
+const RING_SOON = 25;                      // a quiet rotating "charge it soon" below this
+const RING_WEAK = -70;                     // dBm: Ring's own "poor" Wi-Fi
+const RING_OFFLINE_FOR = 10 * 60e3;        // ignore bridge restarts and short blips
 const FRESH_AIR = { from: 10 * 60, until: 19 * 60, low: 60, high: 75, warmer: 4 };   // °F
 // Only-when-it-matters weather and air. The pinned ones (amber) stay up top.
 const AQI = 'sensor.u_s_air_quality_index';     // AirVisual, hourly; fine particles = smoke
@@ -341,6 +351,7 @@ const INS_ICONS = {
     cold: '<path d="M12 3v18M5 7l14 10M19 7L5 17M9.5 4.5L12 7l2.5-2.5M9.5 19.5L12 17l2.5 2.5"/>',
     warm: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
     wind: '<path d="M3 8h11a2.5 2.5 0 1 0-2.5-2.5M3 12h16a2.5 2.5 0 1 1-2.5 2.5M3 16h9a2.5 2.5 0 1 1-2.5 2.5"/>',
+    bell: '<rect x="7" y="2.5" width="10" height="19" rx="5"/><circle cx="12" cy="15" r="2.5"/><path d="M10.5 7h3"/>',
     print: '<rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 8h16M9 15.5h6M12 8v4.5"/>',
     roomba: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M6 8.5a7 7 0 0 1 12 0"/>',
     clock: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2.5h6"/>',
@@ -453,6 +464,12 @@ class Insights {
             or is_state('person.emily', state_attr('${PICKUP.zone}', 'friendly_name')),
         'timAtSchool': is_state('person.tim', state_attr('${PICKUP.zone}', 'friendly_name'))},
     'first_snow': states('${FIRST_SNOW}'),
+    'ring': {'cam': states('${RING.cam.info}'), 'camSince': states['${RING.cam.info}'].last_changed.isoformat() if states['${RING.cam.info}'] else none,
+        'battery': states('${RING.cam.battery}'), 'camSignal': state_attr('${RING.cam.info}', 'wirelessSignal'),
+        'camFirmware': state_attr('${RING.cam.info}', 'firmwareStatus'), 'motion': states('${RING.cam.motion}'),
+        'chime': states('${RING.chime.info}'), 'chimeSince': states['${RING.chime.info}'].last_changed.isoformat() if states['${RING.chime.info}'] else none,
+        'chimeSignal': state_attr('${RING.chime.info}', 'wirelessSignal'), 'chimeFirmware': state_attr('${RING.chime.info}', 'firmwareStatus'),
+        'snooze': states('${RING.chime.snooze}')},
     'meds': states('${MEDS_TAKEN}'), 'hold': states('${HOLD}'), 'printers': ns.p, 'warm': ns.w,
     'roomba': {'state': states('${ROOMBA.vacuum}'), 'active': is_state('${ROOMBA.active}', 'on'),
         'phase': states('${ROOMBA.phase}'), 'recharge': is_state('${ROOMBA.recharge}', 'on'),
@@ -499,6 +516,7 @@ class Insights {
                 hold: d.hold === 'on',
                 printers: d.printers,
                 roomba: d.roomba,
+                ring: d.ring,
                 warm: d.warm,
                 outside: typeof d.out === 'number' ? d.out : null,
                 outsideCond: d.cond,
@@ -678,6 +696,7 @@ class Insights {
             }
         }
         out.push(...this.roombaLines(now));
+        out.push(...this.ringLines(now));
 
         let rise = null, set = null;
         if (sun?.next_setting && sun?.next_rising) {
@@ -818,6 +837,41 @@ class Insights {
                 : `New moon ${moonTonight ? 'tonight' : 'tomorrow night'} · the darkest skies of the month`]);
 
             if (sun?.next_rising) out.push(['', 'sunrise', `Sunrise tomorrow at <b>${esc(hm(new Date(sun.next_rising)))}</b>`]);
+        }
+        return out;
+    }
+
+    // Ring doorbell + chime: offline, battery, weak Wi-Fi, firmware, motion alerts off, chime snoozed.
+    // Pinned (needs someone): the doorbell offline, its battery under 15%. The rest take turns.
+    ringLines(now) {
+        const preview = new URLSearchParams(location.search).get('ring');   // offline | low | soon | weak | notices
+        const r = preview ? {
+            cam: preview === 'offline' ? 'unavailable' : 'ok', camSince: new Date(now - 3600e3).toISOString(),
+            battery: { low: '12', soon: '22' }[preview] || '80', camSignal: preview === 'weak' ? -76 : -55,
+            camFirmware: preview === 'notices' ? 'Update Pending' : 'Up to Date', motion: preview === 'notices' ? 'off' : 'on',
+            chime: 'ok', chimeSignal: -50, chimeFirmware: 'Up to Date', snooze: preview === 'notices' ? 'on' : 'off'
+        } : this.data.ring;
+        if (!r) return [];
+        const out = [];
+        const down = (state, since) => ['unavailable', 'unknown'].includes(state) && now - (Date.parse(since) || 0) >= RING_OFFLINE_FOR;
+        const camDown = down(r.cam, r.camSince), chimeDown = down(r.chime, r.chimeSince);
+        const since = t => (Date.parse(t) ? ` · since <b>${esc(hmFull(new Date(t)))}</b>` : '');
+        if (camDown && chimeDown) out.push(['nudge', 'bell', `Ring doorbell and chime are offline${since(r.camSince)}`]);
+        else if (camDown) out.push(['nudge', 'bell', `Front doorbell is offline${since(r.camSince)}`]);
+        else if (chimeDown) out.push(['', 'bell', `Doorbell chime is offline${since(r.chimeSince)} · you won't hear the doorbell`]);
+        if (!camDown) {
+            const b = parseFloat(r.battery);
+            if (b < RING_CRITICAL) out.push(['nudge', 'bell', `Front doorbell battery is almost dead · <b>${Math.round(b)}%</b>, charge it now`]);
+            else if (b < RING_LOW) out.push(['nudge', 'bell', `Front doorbell battery is low · <b>${Math.round(b)}%</b>, charge it`]);
+            else if (b < RING_SOON) out.push(['', 'bell', `Front doorbell battery at <b>${Math.round(b)}%</b> · charge it soon`]);
+            if (r.camSignal <= RING_WEAK) out.push(['', 'bell', `Front doorbell Wi-Fi is weak · <b>${Math.round(r.camSignal)} dBm</b>`]);
+            if (r.camFirmware && r.camFirmware !== 'Up to Date') out.push(['', 'bell', 'Front doorbell has a firmware update waiting']);
+            if (r.motion === 'off') out.push(['', 'bell', 'Front doorbell motion alerts are off']);
+        }
+        if (!chimeDown) {
+            if (r.chimeSignal <= RING_WEAK) out.push(['', 'bell', `Doorbell chime Wi-Fi is weak · <b>${Math.round(r.chimeSignal)} dBm</b>`]);
+            if (r.chimeFirmware && r.chimeFirmware !== 'Up to Date') out.push(['', 'bell', 'Doorbell chime has a firmware update waiting']);
+            if (r.snooze === 'on') out.push(['', 'bell', "Doorbell chime is snoozed · it won't ring"]);
         }
         return out;
     }
