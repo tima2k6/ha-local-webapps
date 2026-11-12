@@ -139,7 +139,7 @@ function similar(a, b) {
     return shared === Math.min(x.size, y.size) || shared / new Set([...x, ...y]).size >= 0.5;
 }
 
-async function familyEvents(haUrl, token, start, end) {
+export async function familyEvents(haUrl, token, start, end) {
     const get = async cal => {
         const r = await fetch(`${haUrl}/api/calendars/${cal}?start=${start.toISOString()}&end=${end.toISOString()}`,
             { headers: { Authorization: `Bearer ${token}` } });

@@ -6,7 +6,7 @@ const { test } = require('node:test');
 process.env.TZ = 'America/Los_Angeles';
 const context = vm.createContext({ Ticker: class {}, Timers: class {}, Date, URLSearchParams, location: { search: '' } });
 const source = fs.readFileSync(path.join(__dirname, '../js/screensaver.js'), 'utf8')
-    .replace(/^import .*;\r?\n/gm, '').replace('export function startScreensaver', 'function startScreensaver');
+    .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
 vm.runInContext(source + '\nglobalThis.Insights = Insights;', context);
 const now = new Date('2026-10-09T16:00:00-07:00');
 const windowId = 'binary_sensor.bedroom_window_1_contact';

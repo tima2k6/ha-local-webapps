@@ -449,6 +449,103 @@
             width: calc(var(--u) * 46);
             height: calc(var(--u) * 46);
         }
+        /* ===== Touch mode (?touch=1): month calendar (js/month-calendar.js) ===== */
+        body.touch, body.touch * { -webkit-tap-highlight-color: transparent; user-select: none; touch-action: manipulation; }
+        #month { display: none; }
+        body.month-open #top { display: none; }
+        body.month-open #month {
+            grid-row: 1;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) calc(var(--u) * 300);
+            column-gap: calc(var(--u) * 36);
+            min-height: 0;
+        }
+        #month button {
+            font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: none;
+        }
+        .mc-main { display: flex; flex-direction: column; min-height: 0; gap: calc(var(--u) * 14); }
+        .mc-head { display: flex; align-items: center; gap: calc(var(--u) * 18); }
+        .mc-title {
+            font-family: 'Outfit', sans-serif; font-weight: 200; font-size: calc(var(--u) * 54);
+            line-height: 1; color: var(--text-hi); min-width: calc(var(--u) * 400);
+        }
+        .mc-head .mc-title { order: 0; }
+        .mc-head [data-act="prev"] { order: 1; }
+        .mc-head [data-act="next"] { order: 2; }
+        .mc-head .mc-pill { order: 3; }
+        #month .mc-btn {
+            width: calc(var(--u) * 58); height: calc(var(--u) * 58); border-radius: 50%;
+            border: 1px solid var(--tag-border); background: rgba(12, 12, 12, .6);
+            font-size: calc(var(--u) * 40); line-height: 1; color: var(--text-mid);
+            display: flex; align-items: center; justify-content: center; padding-bottom: calc(var(--u) * 5);
+        }
+        #month .mc-pill {
+            height: calc(var(--u) * 58); padding: 0 calc(var(--u) * 24); border-radius: calc(var(--u) * 29);
+            border: 1px solid var(--accent-border); background: rgba(12, 12, 12, .6);
+            font-size: calc(var(--u) * 22); color: var(--accent);
+        }
+        .mc-grid {
+            flex: 1; min-height: 0; display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            grid-template-rows: auto repeat(6, minmax(0, 1fr));
+            gap: 0;
+        }
+        .mc-dow {
+            font-size: calc(var(--u) * 17); font-weight: 500; letter-spacing: .14em; text-transform: uppercase;
+            color: var(--text-low); padding: 0 calc(var(--u) * 10) calc(var(--u) * 4);
+        }
+        .mc-day {
+            min-width: 0; min-height: 0; overflow: hidden; box-sizing: border-box;
+            padding: calc(var(--u) * 7) calc(var(--u) * 9);
+            /* Gridlines: every day draws its right and bottom rule; the first column and the
+               first week add the outer left and top ones (children 1-7 are the weekday heads). */
+            border-right: 1px solid var(--mc-line); border-bottom: 1px solid var(--mc-line);
+            background: rgba(12, 12, 12, .8);
+            display: flex; flex-direction: column; gap: calc(var(--u) * 3);
+        }
+        .mc-day.other { background: rgba(12, 12, 12, .55); }
+        body.month-open #flight-map, body.month-open #rain-radar { opacity: .35; }
+        .mc-day.other > * { opacity: .45; }
+        .mc-day.past:not(.today) .mc-num { color: var(--text-low); }
+        #month { --mc-line: #4a4a4a; }
+        .mc-day:nth-child(7n+8) { border-left: 1px solid var(--mc-line); }
+        .mc-day:nth-child(n+8):nth-child(-n+14) { border-top: 1px solid var(--mc-line); }
+        .mc-day.sel { box-shadow: inset 0 0 0 calc(var(--u) * 2) var(--accent); background: rgba(40, 40, 40, .72); }
+        .mc-num {
+            font-size: calc(var(--u) * 20); font-weight: 500; color: var(--text-mid);
+            line-height: calc(var(--u) * 28); height: calc(var(--u) * 28); flex: none;
+        }
+        .mc-day.today .mc-num {
+            align-self: flex-start; min-width: calc(var(--u) * 28); text-align: center; border-radius: calc(var(--u) * 14);
+            background: var(--accent); color: #0c0c0c; font-weight: 600;
+        }
+        .mc-ev, .mc-more {
+            font-size: calc(var(--u) * 16); line-height: 1.3; color: var(--text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none;
+        }
+        .mc-ev { border-left: calc(var(--u) * 3) solid var(--text-low); padding-left: calc(var(--u) * 6); }
+        .mc-ev.liam { border-left-color: var(--accent); }
+        .mc-more { color: var(--text-low); padding-left: calc(var(--u) * 9); }
+        .mc-side {
+            min-height: 0; display: flex; flex-direction: column; box-sizing: border-box;
+            padding: calc(var(--u) * 26) calc(var(--u) * 26) calc(var(--u) * 22);
+            border-radius: calc(var(--u) * 16); background: rgba(12, 12, 12, .72);
+        }
+        .mc-side-title { font-family: 'Outfit', sans-serif; font-weight: 300; font-size: calc(var(--u) * 44); line-height: 1.1; color: var(--text-hi); }
+        .mc-side-date { font-size: calc(var(--u) * 24); color: var(--text-dim); margin-top: calc(var(--u) * 6); }
+        .mc-list {
+            flex: 1; min-height: 0; overflow-y: auto; margin-top: calc(var(--u) * 26);
+            display: flex; flex-direction: column; gap: calc(var(--u) * 20); touch-action: pan-y;
+        }
+        .mc-item { border-left: calc(var(--u) * 3) solid var(--text-low); padding-left: calc(var(--u) * 14); }
+        .mc-item.liam { border-left-color: var(--accent); }
+        .mc-when { font-size: calc(var(--u) * 20); color: var(--text-dim); line-height: 1.3; }
+        .mc-what { font-size: calc(var(--u) * 27); color: var(--text-hi); line-height: 1.25; }
+        .mc-none { font-size: calc(var(--u) * 24); color: var(--text-low); }
+        #month .mc-done {
+            margin-top: calc(var(--u) * 18); height: calc(var(--u) * 62); border-radius: calc(var(--u) * 31);
+            border: 1px solid var(--tag-border); font-size: calc(var(--u) * 24); font-weight: 500; color: var(--text-mid);
+        }
     </style>
 <style>
 /* Map traffic colours, fixed per season and set by the date alone (a little inline script at the end
@@ -618,6 +715,7 @@ body.force-night { --bg: #050505; }
                 <div id="agenda"></div>
             </div>
         </div>
+        <div id="month"></div>
         <div id="status">
             <div id="tags"></div>
             <div id="timers"></div>
@@ -629,7 +727,8 @@ body.force-night { --bg: #050505; }
 <script src="js/ha-config.js?v=20261009-flight-8"></script>
 <script type="module">
 import { config } from './js/config.js?v=20261009-flight-8';
-import { startScreensaver } from './js/screensaver.js?v=51';
+import { startScreensaver } from './js/screensaver.js?v=52';
+import { startTouchMode } from './js/month-calendar.js?v=1';
 import { FlightBackdrop } from './js/flight-backdrop.js?v=42';
 import { VesselLayer, VESSEL_ENTITY } from './js/vessel-layer.js?v=20';
 import { TrainLayer, TRAIN_ENTITY } from './js/train-layer.js?v=12';
@@ -640,7 +739,8 @@ import { CommuteLayer, COMMUTE_ENTITIES } from './js/commute-layer.js?v=2';
 import { startMapLayers } from './js/map-layers.js?v=6';
 import { RainRadar } from './js/rain-radar.js?v=4';
 import { Ambience } from './js/ambience.js?v=16';
-// Display settings are configured by URL; the screensaver stays touchless.
+// Display settings are configured by URL. The screensaver is touchless unless ?touch=1
+// (Fully main browser, not its screensaver overlay): agenda = month calendar, elsewhere = dashboard.
 const params=new URLSearchParams(location.search);
 const brightness=Number(params.get('map'));
 if(params.has('map') && Number.isFinite(brightness))document.documentElement.style.setProperty('--map-opacity',Math.min(100,Math.max(0,brightness))/100);
@@ -649,6 +749,10 @@ if(params.get('labels')==='0')document.body.classList.add('no-labels');
 startMapLayers(config);
 const ambience=new Ambience(config).start();
 startScreensaver(config,{extraLines:now=>ambience.lines(now)});
+if(params.get('touch')==='1'){
+    const cal=startTouchMode(config,params.get('home')||config.haUrl);
+    if(params.get('view')==='month')cal.open(params.has('day')?new Date(params.get('day')+'T12:00:00'):new Date());
+}
 const flightMap=document.querySelector('#flight-map');
 const backdrop=new FlightBackdrop(config,flightMap,null,document.querySelector('#flight-tally'),
     {layer:new VesselLayer(flightMap.querySelector('.vessels')),entity:VESSEL_ENTITY},

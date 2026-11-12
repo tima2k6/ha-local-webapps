@@ -33,3 +33,6 @@ backups/xbox-incident-2026-10-11/
 backups/theater-controller-repair/
 tools/__pycache__/
 tools/xbox-incident-output.txt
+
+# Kiosk rollback snapshot (Fully settings include the encrypted admin password)
+backups/kiosk-before-touch-mode-20261111/
